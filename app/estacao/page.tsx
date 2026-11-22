@@ -25,7 +25,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, LIMITS, beverageWeight, buildShotProfile, formatRatio, loadRecipe,
-  pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder,
+  pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, RATIO_PRESETS,
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, Profile } from "@/lib/types";
 
@@ -461,6 +461,21 @@ function RecipePanel({
         <Stepper label="Temp." unit="°C" value={recipe.temperature} limits={LIMITS.temperature} disabled={!editable}
           format={(v) => v.toFixed(1).replace(/\.0$/, "")}
           onChange={(temperature) => onChange({ temperature })} />
+      </div>
+      <div className="grid grid-cols-6 gap-1.5">
+        {RATIO_PRESETS.map((r) => {
+          const on = Math.abs(recipe.ratio - r) < 0.001;
+          return (
+            <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
+              className={`h-10 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 ${
+                on
+                  ? "border-[#e8944a] bg-[#e8944a] text-[#0c0a09]"
+                  : "border-white/[0.08] bg-[#0c0a09] text-[#f5f0ea]/75"
+              }`}>
+              {formatRatio(r)}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
