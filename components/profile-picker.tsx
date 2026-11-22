@@ -5,7 +5,7 @@
  * straight from the machine, the same way the Profiles page does.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, X, Check } from "lucide-react";
 import { getProfileImageUrl } from "@/lib/machine-api";
 import type { Profile } from "@/lib/types";
@@ -27,6 +27,29 @@ export function ProfileCover({ profile, className = "" }: { profile: Profile; cl
   );
 }
 
+/**
+ * Columns × rows so every card fits on screen with roughly square covers:
+ * wide screens get more columns, tall screens more rows.
+ */
+function useGridShape(count: number, active: boolean) {
+  const [shape, setShape] = useState({ cols: 4, rows: 3 });
+  useEffect(() => {
+    if (!active) return;
+    const update = () => {
+      const n = Math.max(1, count);
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight - 70);
+      // Card ≈ 1 wide × 1.25 tall (cover plus two text lines)
+      let cols = Math.max(1, Math.round(Math.sqrt(n * aspect * 1.25)));
+      cols = Math.min(cols, n);
+      setShape({ cols, rows: Math.ceil(n / cols) });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [count, active]);
+  return shape;
+}
+
 /** Compact "selected profile" button that opens the cover grid. */
 export function ProfilePicker({
   profiles, selected, disabled, onSelect,
@@ -37,6 +60,7 @@ export function ProfilePicker({
   onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const grid = useGridShape(profiles.length, open);
 
   return (
     <>
@@ -58,15 +82,25 @@ export function ProfilePicker({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[120] flex flex-col bg-[#0c0a09]/95 p-4 backdrop-blur-sm">
-          <div className="mb-4 flex shrink-0 items-center justify-between">
-            <p className="text-2xl font-bold text-[#f5f0ea]">Choose a profile</p>
+        <div
+          className="fixed inset-x-0 top-0 z-[120] flex flex-col overflow-hidden bg-[#0c0a09] p-3"
+          style={{ height: "100dvh" }}
+        >
+          <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+            <p className="text-xl font-bold text-[#f5f0ea]">Choose a profile</p>
             <button onClick={() => setOpen(false)} aria-label="Close"
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] text-[#f5f0ea]/70 active:scale-95">
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-[#f5f0ea]/70 active:scale-95">
               <X className="h-6 w-6" />
             </button>
           </div>
-          <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-4 overflow-y-auto landscape:grid-cols-5">
+          {/* Every profile on one screen: rows share the height, covers shrink to fit */}
+          <div
+            className="grid min-h-0 flex-1 gap-2.5"
+            style={{
+              gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+            }}
+          >
             {profiles.map((p) => {
               const isSel = p.id === selected?.id;
               const color = p.display?.accentColor ?? "#e8944a";
@@ -74,14 +108,14 @@ export function ProfilePicker({
                 <button
                   key={p.id}
                   onClick={() => { onSelect(p.id); setOpen(false); }}
-                  className="relative flex flex-col overflow-hidden rounded-2xl p-2 text-left transition-transform active:scale-[0.97]"
+                  className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-1.5 text-left transition-transform active:scale-[0.97]"
                   style={{ backgroundColor: color, outline: isSel ? "3px solid #f5f0ea" : "none", outlineOffset: 2 }}
                 >
-                  <ProfileCover profile={p} className="aspect-square w-full rounded-xl" />
-                  <p className="mt-2 line-clamp-2 min-h-[2.5em] px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+                  <ProfileCover profile={p} className="min-h-0 w-full flex-1 rounded-xl [&>img]:h-full" />
+                  <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
                     {p.name}
                   </p>
-                  <p className="px-1 pb-0.5 text-xs text-white/80 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+                  <p className="px-1 pb-0.5 text-xs text-white/85 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
                     {p.temperature}°C · {p.final_weight}g
                   </p>
                   {isSel && (
