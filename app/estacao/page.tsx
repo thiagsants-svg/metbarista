@@ -44,16 +44,17 @@ import {
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
 /**
- * Color themes, applied as CSS variables on the Station root: light Swiss
- * (the official app's paper and ink, one red) and dark bumblebee (black and
+ * Color themes, applied as CSS variables on the Station root: light (the
+ * official app's paper with yellow and black) and dark bumblebee (black and
  * yellow). Every Station color reads these variables.
  */
 const THEMES = {
   light: {
-    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#e30613",
-    "--primary": "#111111", "--on-primary": "#ebeae6", "--stop": "#e30613",
-    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#e30613",
-    "--h0": "#e30613", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
+    // Bumblebee on paper: solid yellow fills with black text; darker amber for text and lines
+    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#b07d00",
+    "--primary": "#ffc400", "--on-primary": "#111111", "--stop": "#d62828",
+    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#b07d00",
+    "--h0": "#b07d00", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
     "--h5": "#1d4ed8", "--h6": "#7aa2f7",
   },
   dark: {
