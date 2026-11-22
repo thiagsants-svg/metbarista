@@ -296,6 +296,34 @@ export const HeatingProgress = memo(function HeatingProgress({
   );
 });
 
+/**
+ * Moving average over the last `windowS` seconds for every sensor, then
+ * thinned to about `maxPoints` points. Sensor noise is a few tenths of a
+ * degree; averaging keeps the trend and drops the jitter.
+ */
+function smoothSamples(samples: HeatPoint[], windowS: number, maxPoints: number): HeatPoint[] {
+  if (samples.length < 3) return samples;
+  const keys = HEAT_SENSORS.map((s) => s.key).filter((k) => k !== "t") as (keyof HeatPoint)[];
+  const out: HeatPoint[] = [];
+  const step = Math.max(1, Math.floor(samples.length / maxPoints));
+  let start = 0;
+  for (let i = 0; i < samples.length; i++) {
+    while (samples[i].t - samples[start].t > windowS) start++;
+    if (i % step !== 0 && i !== samples.length - 1) continue;
+    const point: HeatPoint = { t: samples[i].t, temp: 0 };
+    for (const k of keys) {
+      let sum = 0, n = 0;
+      for (let j = start; j <= i; j++) {
+        const v = samples[j][k];
+        if (typeof v === "number") { sum += v; n++; }
+      }
+      if (n) (point as unknown as Record<string, number>)[k] = sum / n;
+    }
+    out.push(point);
+  }
+  return out;
+}
+
 const WINDOWS = [
   { label: "30 s", s: 30 },
   { label: "1 min", s: 60 },
@@ -313,13 +341,19 @@ const WINDOWS = [
 export const GroupTemperatures = memo(function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; target: number | null }) {
   const [windowS, setWindowS] = useState(600);
   const now = samples.length ? samples[samples.length - 1].t : 0;
-  const shown = samples.filter((p) => now - p.t <= windowS);
+  const raw = samples.filter((p) => now - p.t <= windowS);
+  // Average over ~1/40 of the window (3 s at 30 s ... 15 s at 10 min), ~240 points max
+  const shown = smoothSamples(raw, Math.min(20, Math.max(3, windowS / 40)), 240);
   const last = samples[samples.length - 1];
   const sensors = HEAT_SENSORS.filter((s) => shown.some((p) => typeof p[s.key] === "number"));
   const values = shown.flatMap((p) => sensors.map((s) => p[s.key] as number | undefined))
     .filter((v): v is number => typeof v === "number");
-  const lo = values.length ? Math.floor(Math.min(...values, target ?? Infinity) - 1) : 0;
-  const hi = values.length ? Math.ceil(Math.max(...values, target ?? -Infinity) + 1) : 100;
+  // Fit the data, but never zoom in to less than 6 °C, so tenths don't look like spikes
+  let lo = values.length ? Math.min(...values, target ?? Infinity) : 0;
+  let hi = values.length ? Math.max(...values, target ?? -Infinity) : 100;
+  const pad = Math.max(1, (6 - (hi - lo)) / 2);
+  lo = Math.floor(lo - pad);
+  hi = Math.ceil(hi + pad);
   // Seconds on the axis whenever the visible span is short (also right after opening the page)
   const span = shown.length ? shown[shown.length - 1].t - shown[0].t : 0;
   const withSeconds = span <= 300;
@@ -380,11 +414,11 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
               )}
               {sensors.filter((s) => s.key !== "temp").map((s) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
-                  strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
+                  strokeOpacity={0.85} dot={false} activeDot={false} isAnimationActive={false} connectNulls />
               ))}
               {/* Main temperature on top, thick */}
               <Line type="monotone" dataKey="temp" stroke={HEAT_SENSORS[0].color} strokeWidth={4}
-                dot={false} isAnimationActive={false} connectNulls />
+                dot={false} activeDot={false} isAnimationActive={false} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         )}
