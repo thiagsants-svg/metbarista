@@ -13,11 +13,11 @@ import type { Profile } from "@/lib/types";
 export function ProfileCover({ profile, className = "" }: { profile: Profile; className?: string }) {
   const path = profile.display?.image;
   const src = path ? getProfileImageUrl(path) : "";
-  const color = profile.display?.accentColor ?? "#e8944a";
+  const color = profile.display?.accentColor ?? "#ffc400";
   return (
     <div
       className={`overflow-hidden ${className}`}
-      style={{ background: `linear-gradient(135deg, ${color}, #161210)` }}
+      style={{ background: `linear-gradient(135deg, ${color}, #141414)` }}
     >
       {src && (
         // eslint-disable-next-line @next/next/no-img-element -- image served by the machine
@@ -67,29 +67,29 @@ export function ProfilePicker({
       <button
         onClick={() => setOpen(true)}
         disabled={disabled || profiles.length === 0}
-        className="flex w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0c0a09] p-2 text-left active:scale-[0.99] disabled:opacity-60"
+        className="flex w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0a0a0a] p-2 text-left active:scale-[0.99] disabled:opacity-60"
       >
         {selected
           ? <ProfileCover profile={selected} className="h-14 w-14 shrink-0 rounded-lg" />
           : <div className="h-14 w-14 shrink-0 rounded-lg bg-white/[0.06]" />}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-[#f5f0ea]/40">Profile</p>
-          <p className="truncate text-lg font-semibold text-[#f5f0ea]">
+          <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">Profile</p>
+          <p className="truncate text-lg font-semibold text-[#fafafa]">
             {selected?.name ?? (profiles.length ? "Choose a profile" : "Loading profiles…")}
           </p>
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-[#f5f0ea]/40" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-[#fafafa]/40" />
       </button>
 
       {open && (
         <div
-          className="fixed inset-x-0 top-0 z-[120] flex flex-col overflow-hidden bg-[#0c0a09] p-3"
+          className="fixed inset-x-0 top-0 z-[120] flex flex-col overflow-hidden bg-[#0a0a0a] p-3"
           style={{ height: "100dvh" }}
         >
           <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-            <p className="text-xl font-bold text-[#f5f0ea]">Choose a profile</p>
+            <p className="text-xl font-bold text-[#fafafa]">Choose a profile</p>
             <button onClick={() => setOpen(false)} aria-label="Close"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-[#f5f0ea]/70 active:scale-95">
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-[#fafafa]/70 active:scale-95">
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -103,13 +103,13 @@ export function ProfilePicker({
           >
             {profiles.map((p) => {
               const isSel = p.id === selected?.id;
-              const color = p.display?.accentColor ?? "#e8944a";
+              const color = p.display?.accentColor ?? "#ffc400";
               return (
                 <button
                   key={p.id}
                   onClick={() => { onSelect(p.id); setOpen(false); }}
                   className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-1.5 text-left transition-transform active:scale-[0.97]"
-                  style={{ backgroundColor: color, outline: isSel ? "3px solid #f5f0ea" : "none", outlineOffset: 2 }}
+                  style={{ backgroundColor: color, outline: isSel ? "3px solid #fafafa" : "none", outlineOffset: 2 }}
                 >
                   <ProfileCover profile={p} className="min-h-0 w-full flex-1 rounded-xl [&>img]:h-full" />
                   <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
@@ -119,7 +119,7 @@ export function ProfilePicker({
                     {p.temperature}°C · {p.final_weight}g
                   </p>
                   {isSel && (
-                    <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#f5f0ea] text-[#0c0a09]">
+                    <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#fafafa] text-[#0a0a0a]">
                       <Check className="h-4 w-4" />
                     </span>
                   )}

@@ -26,15 +26,16 @@ export interface ShotPoint {
 }
 
 export const COLORS = {
-  pressure: "#5ee0a8",
-  flow: "#6cc7f0",
-  grav: "#d4876a",
-  weight: "#f5c444",
-  temp: "#f87171",
-  stage: "#e8944a",
+  // Bumblebee: yellow and black chrome; data colors kept distinct
+  pressure: "#ffc400",
+  flow: "#f5f5f5",
+  grav: "#ff8a00",
+  weight: "#38bdf8",
+  temp: "#f43f5e",
+  stage: "#ffc400",
 };
 
-const AXIS_TICK = { fontSize: 13, fill: "#f5f0ea", fillOpacity: 0.4 };
+const AXIS_TICK = { fontSize: 13, fill: "#fafafa", fillOpacity: 0.4 };
 
 interface StageSpan { name: string; x1: number; x2: number }
 
@@ -78,6 +79,7 @@ export function ShotCharts({
   const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
   const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
   const spans = stageSpans(data);
+  const totalT = data.length ? data[data.length - 1].t : 1;
 
   const header = [
     { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
@@ -89,18 +91,18 @@ export function ShotCharts({
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/[0.06] bg-[#161210] p-3">
+    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/[0.06] bg-[#141414] p-3">
       <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 px-1 pb-1">
         {header.map((i) => (
           <span key={i.label} className="inline-flex items-baseline gap-1.5">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: i.color }} />
-            <span className="text-sm font-medium text-[#f5f0ea]/60">{i.label}</span>
+            <span className="text-sm font-medium text-[#fafafa]/60">{i.label}</span>
             <span className="font-mono text-lg font-bold" style={{ color: i.color }}>{i.value}</span>
-            <span className="text-xs text-[#f5f0ea]/40">{i.unit}</span>
+            <span className="text-xs text-[#fafafa]/40">{i.unit}</span>
           </span>
         ))}
         {currentStage && (
-          <span className="ml-auto rounded-full bg-[#e8944a]/15 px-3 py-1 text-sm font-semibold text-[#e8944a]">
+          <span className="ml-auto rounded-full bg-[#ffc400]/15 px-3 py-1 text-sm font-semibold text-[#ffc400]">
             {currentStage}
           </span>
         )}
@@ -108,7 +110,7 @@ export function ShotCharts({
 
       <div className="relative min-h-0 flex-1">
         {data.length === 0 ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#f5f0ea]/35">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#fafafa]/35">
             {placeholder}
           </div>
         ) : (
@@ -132,6 +134,8 @@ export function ShotCharts({
               {/* Profile stages, behind everything */}
               {spans.map((sp, i) => {
                 const isCurrent = currentStage != null && i === spans.length - 1 && sp.name === currentStage;
+                // Very short stages get no label, so names don't overlap
+                const showLabel = isCurrent || (sp.x2 - sp.x1) / totalT >= 0.08;
                 return (
                   <ReferenceArea
                     key={`${sp.name}-${sp.x1}`}
@@ -143,11 +147,11 @@ export function ShotCharts({
                     fillOpacity={isCurrent ? 0.13 : i % 2 === 0 ? 0.03 : 0.07}
                     stroke={isCurrent ? COLORS.stage : "none"}
                     strokeOpacity={0.4}
-                    label={{
+                    label={!showLabel ? undefined : {
                       value: sp.name,
                       position: "insideTopLeft",
                       offset: 4,
-                      fill: isCurrent ? COLORS.stage : "#f5f0ea",
+                      fill: isCurrent ? COLORS.stage : "#fafafa",
                       fillOpacity: isCurrent ? 1 : 0.45,
                       fontSize: 12,
                       fontWeight: isCurrent ? 700 : 500,

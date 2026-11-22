@@ -34,5 +34,8 @@ export function demoShot(): ShotPoint[] {
       pTarget, fTarget: null,
     });
   }
+  // Scale the cup weight so the shot ends right at a 40 g target
+  const final = pts[pts.length - 1].weight ?? 1;
+  for (const p of pts) if (p.weight != null) p.weight = (p.weight * 40) / final;
   return pts;
 }
