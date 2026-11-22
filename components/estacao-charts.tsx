@@ -226,14 +226,7 @@ export function HeatingProgress({
           <p className="text-sm font-medium uppercase tracking-wider text-[#ff8a00]">Heating</p>
           <p className="font-mono text-5xl font-bold text-[#fafafa]">
             {current != null ? current.toFixed(1) : "—"}
-            <span className="ml-1.5 text-2xl text-[#fafafa]/40">°C</span>
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-medium uppercase tracking-wider text-[#ffc400]">Shot temp</p>
-          <p className="font-mono text-5xl font-bold text-[#ffc400]">
-            {target ?? "—"}
-            <span className="ml-1.5 text-2xl text-[#ffc400]/50">°C</span>
+            <span className="ml-2 text-2xl text-[#fafafa]/40">→ {target ?? "—"} °C</span>
           </p>
         </div>
       </div>
