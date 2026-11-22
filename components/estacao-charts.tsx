@@ -202,9 +202,8 @@ export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string 
 ];
 
 /**
- * Heating progress: current temperature, % of the way from where heating
- * started to the target, and every group temperature sensor climbing toward
- * the target line.
+ * Heating progress: current temperature and every group temperature sensor
+ * climbing toward the target line.
  */
 export function HeatingProgress({
   samples, target, current,
@@ -213,10 +212,6 @@ export function HeatingProgress({
   target: number | null;
   current: number | null;
 }) {
-  const start = samples[0]?.temp ?? current ?? 0;
-  const pct = target != null && current != null && target > start
-    ? Math.max(0, Math.min(1, (current - start) / (target - start)))
-    : 0;
   const last = samples[samples.length - 1];
   const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
   const values = samples.flatMap((p) => shown.map((s) => p[s.key] as number | undefined))
@@ -234,7 +229,6 @@ export function HeatingProgress({
             <span className="ml-2 text-2xl text-[#fafafa]/40">→ {target ?? "—"} °C</span>
           </p>
         </div>
-        <p className="font-mono text-4xl font-bold text-[#ff8a00]">{Math.round(pct * 100)}%</p>
       </div>
       {/* Legend with each sensor's current value */}
       <div className="flex flex-wrap gap-x-4 gap-y-1">
