@@ -387,13 +387,10 @@ export default function StationPage() {
         <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
-          {brewing || (demoEnd && !demoHeat) ? (
-            // During the shot the group temperature drops sharply; show the set temperature instead
-            <Readout label="Temp (set)" value={setTemp != null ? fmt(setTemp) : "—"} unit="°C" color={COLORS.temp} />
-          ) : (
-            <Readout label="Temperature" value={fmt(demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t)}
-              unit={(tempTarget ?? (demoHeat ? setTemp : null)) != null ? `/ ${tempTarget ?? setTemp} °C` : "°C"} color={COLORS.temp} />
-          )}
+          {/* Live temperature, always (including during the shot), with the shot temperature */}
+          <Readout label="Temperature"
+            value={fmt(demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t)}
+            unit={(tempTarget ?? setTemp) != null ? `/ ${tempTarget ?? setTemp} °C` : "°C"} color={COLORS.temp} />
         </div>
 
         {/* Chart */}
