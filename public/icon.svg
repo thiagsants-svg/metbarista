@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- MetBarista Station: a pressure gauge, yellow and black -->
+  <rect width="512" height="512" fill="#ffc400"/>
+  <!-- gauge track (240°), kept inside the maskable safe zone -->
+  <path d="M 158.9 359.1 A 140 140 0 1 1 353.1 359.1" fill="none" stroke="#111" stroke-width="34" stroke-linecap="butt" opacity="0.18"/>
+  <!-- filled up to ~8 bar -->
+  <path d="M 158.9 359.1 A 140 140 0 0 1 335.9 141.3" fill="none" stroke="#111" stroke-width="34" stroke-linecap="butt"/>
+  <!-- needle -->
+  <line x1="256" y1="262" x2="318" y2="176" stroke="#111" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="262" r="26" fill="#111"/>
+  <!-- base bar -->
+  <rect x="196" y="352" width="120" height="22" fill="#111"/>
+</svg>

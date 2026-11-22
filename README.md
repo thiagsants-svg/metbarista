@@ -1,12 +1,17 @@
-# MetBarista ☕
+# MetBarista Station
 
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Live](https://img.shields.io/badge/live-metbarista.com-orange)](https://metbarista.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+> **Fork of [nakashon/metbarista](https://github.com/nakashon/metbarista)** (MIT), the open control plane for Meticulous espresso machines. Everything below the line is the original project's README; credit for MetBarista goes to its author.
 
-**The open community control plane for Meticulous espresso machines.**
+This fork adds **Station** (`/estacao`), a full-screen bar screen for a 10" tablet next to the machine:
 
-Live at → **[metbarista.com](https://metbarista.com)**
+- pick a profile from cover art, set dose, ratio and temperature per shot — the profile is loaded unsaved, so no more duplicated profiles;
+- one main button that follows the machine: Start heating → Water added → Brew (fixes Play after preheat by sending `continue` on PUSH TO BREW);
+- live chart with stage shading, stage targets and the running stage's program; optional temperature sensors chart;
+- idle and heating views with every group thermometer; pressure/temperature gauge;
+- machine messages (e.g. motor strain) with their buttons; light and dark themes in yellow and black;
+- no scrolling on the tablet in either orientation, and auto-reconnect after the screen sleeps.
+
+Live at → **[thiagsants-svg.github.io/metbarista/estacao](https://thiagsants-svg.github.io/metbarista/estacao/)**
 
 ---
 
