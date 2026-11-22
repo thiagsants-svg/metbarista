@@ -279,42 +279,49 @@ export function HeatingProgress({
   );
 }
 
-/** Same sensors and colors as the machine's Sensors → "Group temperatures" chart. */
-const GROUP_SENSORS: { key: keyof HeatPoint; label: string; color: string }[] = [
-  { key: "barUp", label: "Bar up", color: "#4f8cff" },
-  { key: "barMidUp", label: "Bar mid-up", color: "#ff5a36" },
-  { key: "barMidDown", label: "Bar mid-down", color: "#22c55e" },
-  { key: "barDown", label: "Bar down", color: "#f5a524" },
-  { key: "temp", label: "Tube", color: "#f472b6" },
-];
-
 const WINDOWS = [
   { label: "30 s", s: 30 },
   { label: "1 min", s: 60 },
   { label: "5 min", s: 300 },
+  { label: "10 min", s: 600 },
   { label: "15 min", s: 900 },
 ];
 
 /**
- * Idle view: rolling chart of the group thermometers, modelled on the
- * machine's own Sensors page (fixed 0–100 °C, lines only, time window).
+ * Idle view: rolling chart of every thermometer. Scale fits the data so small
+ * changes show; the main temperature (tube, what the dial shows) is a thick
+ * line, the other sensors thin; time window buttons (10 min by default).
  * `samples[].t` is epoch seconds.
  */
 export function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; target: number | null }) {
-  const [windowS, setWindowS] = useState(60);
+  const [windowS, setWindowS] = useState(600);
   const now = samples.length ? samples[samples.length - 1].t : 0;
   const shown = samples.filter((p) => now - p.t <= windowS);
   const last = samples[samples.length - 1];
+  const sensors = HEAT_SENSORS.filter((s) => shown.some((p) => typeof p[s.key] === "number"));
+  const values = shown.flatMap((p) => sensors.map((s) => p[s.key] as number | undefined))
+    .filter((v): v is number => typeof v === "number");
+  const lo = values.length ? Math.floor(Math.min(...values, target ?? Infinity) - 1) : 0;
+  const hi = values.length ? Math.ceil(Math.max(...values, target ?? -Infinity) + 1) : 100;
+  // Seconds on the axis whenever the visible span is short (also right after opening the page)
+  const span = shown.length ? shown[shown.length - 1].t - shown[0].t : 0;
+  const withSeconds = span <= 300;
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-1">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-base font-semibold text-[#fafafa]">Group temperatures</p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-wider text-[#fafafa]/50">Temperatures</p>
+          <p className="font-mono text-5xl font-bold text-[#fafafa]">
+            {typeof last?.temp === "number" ? last.temp.toFixed(1) : "—"}
+            <span className="ml-2 text-2xl text-[#fafafa]/40">°C</span>
+          </p>
+        </div>
         <div className="flex rounded-lg bg-white/[0.06] p-0.5">
           {WINDOWS.map((w) => (
             <button key={w.s} onClick={() => setWindowS(w.s)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                windowS === w.s ? "bg-[#fafafa] text-[#0a0a0a]" : "text-[#fafafa]/60"
+              className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+                windowS === w.s ? "bg-[#ffc400] text-[#0a0a0a]" : "text-[#fafafa]/60"
               }`}>
               {w.label}
             </button>
@@ -322,40 +329,45 @@ export function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; t
         </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {GROUP_SENSORS.map((s) => (
+        {sensors.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
-            <span className="h-0.5 w-3.5 self-center rounded-full" style={{ backgroundColor: s.color }} />
+            <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3.5 self-center rounded-full`} style={{ backgroundColor: s.color }} />
             <span className="text-[#fafafa]/60">{s.label}</span>
-            <span className="font-mono font-bold text-[#fafafa]">
+            <span className="font-mono font-bold" style={{ color: s.color }}>
               {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
             </span>
-            <span className="text-xs text-[#fafafa]/40">°C</span>
           </span>
         ))}
-        <span className="inline-flex items-baseline gap-1.5 text-sm">
-          <span className="w-3.5 self-center border-t-2 border-dotted border-[#fafafa]/60" />
-          <span className="text-[#fafafa]/60">Temperature target</span>
-          <span className="font-mono font-bold text-[#fafafa]">{target ?? "–"}</span>
-          <span className="text-xs text-[#fafafa]/40">°C</span>
-        </span>
+        {target != null && (
+          <span className="inline-flex items-baseline gap-1.5 text-sm">
+            <span className="w-3.5 self-center border-t-2 border-dotted border-[#ffc400]" />
+            <span className="text-[#fafafa]/60">Target</span>
+            <span className="font-mono font-bold text-[#ffc400]">{target}</span>
+          </span>
+        )}
       </div>
       <div className="relative min-h-0 flex-1">
         {shown.length > 1 && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={shown} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" strokeDasharray="2 4" />
               <XAxis dataKey="t" type="number" domain={["dataMin", "dataMax"]}
-                tickFormatter={(v) => new Date(v * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                tickFormatter={(v) => new Date(v * 1000).toLocaleTimeString([], withSeconds
+                  ? { hour: "2-digit", minute: "2-digit", second: "2-digit" }
+                  : { hour: "2-digit", minute: "2-digit" })}
                 tick={AXIS_TICK} tickLine={false} axisLine={false} minTickGap={50} />
-              <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} width={30}
+              <YAxis domain={[lo, hi]} allowDecimals={false} width={34} unit="°"
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               {target != null && (
-                <ReferenceLine y={target} stroke="#fafafa" strokeOpacity={0.6} strokeDasharray="2 4" />
+                <ReferenceLine y={target} stroke="#ffc400" strokeOpacity={0.8} strokeDasharray="2 4" />
               )}
-              {GROUP_SENSORS.map((s) => (
-                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2}
-                  dot={false} isAnimationActive={false} connectNulls />
+              {sensors.filter((s) => s.key !== "temp").map((s) => (
+                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
+                  strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
               ))}
+              {/* Main temperature on top, thick */}
+              <Line type="monotone" dataKey="temp" stroke={HEAT_SENSORS[0].color} strokeWidth={4}
+                dot={false} isAnimationActive={false} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         )}
