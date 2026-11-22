@@ -1,49 +1,18 @@
 "use client";
 
 /**
- * Profile picker with cover art, like the machine's own UI.
- *
- * Covers are served by the machine over plain http. A page served over https
- * cannot show them with a direct <img src="http://..."> (mixed content), so
- * they are fetched like the API calls (local-network fetch) and shown as blob
- * URLs, cached for the session.
+ * Profile picker with cover art, like the machine's own UI. Covers load
+ * straight from the machine, the same way the Profiles page does.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, X, Check } from "lucide-react";
 import { getProfileImageUrl } from "@/lib/machine-api";
-import { localNetworkRequestInit } from "@/lib/local-network";
 import type { Profile } from "@/lib/types";
 
-const coverCache = new Map<string, Promise<string | null>>();
-
-function loadCover(path: string): Promise<string | null> {
-  let p = coverCache.get(path);
-  if (!p) {
-    const url = getProfileImageUrl(path);
-    p = url
-      ? fetch(url, localNetworkRequestInit())
-          .then((r) => (r.ok ? r.blob() : null))
-          .then((b) => (b ? URL.createObjectURL(b) : null))
-          .catch(() => null)
-      : Promise.resolve(null);
-    coverCache.set(path, p);
-  }
-  return p;
-}
-
-function useCover(path: string | undefined): string | null {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    if (path) loadCover(path).then((s) => { if (alive) setSrc(s); });
-    return () => { alive = false; };
-  }, [path]);
-  return path ? src : null;
-}
-
 export function ProfileCover({ profile, className = "" }: { profile: Profile; className?: string }) {
-  const src = useCover(profile.display?.image);
+  const path = profile.display?.image;
+  const src = path ? getProfileImageUrl(path) : "";
   const color = profile.display?.accentColor ?? "#e8944a";
   return (
     <div
@@ -51,7 +20,7 @@ export function ProfileCover({ profile, className = "" }: { profile: Profile; cl
       style={{ background: `linear-gradient(135deg, ${color}, #161210)` }}
     >
       {src && (
-        // eslint-disable-next-line @next/next/no-img-element -- blob URL from the machine
+        // eslint-disable-next-line @next/next/no-img-element -- image served by the machine
         <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
       )}
     </div>
