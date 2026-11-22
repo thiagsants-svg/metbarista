@@ -178,11 +178,33 @@ export function ShotCharts({
   );
 }
 
-export interface HeatPoint { t: number; temp: number }
+/** One heating sample: the main (tube) temperature plus every group sensor. */
+export interface HeatPoint {
+  t: number;      // s since heating started
+  temp: number;   // status temperature (the tube), what the dial shows
+  barUp?: number;
+  barMidUp?: number;
+  barMidDown?: number;
+  barDown?: number;
+  ext1?: number;
+  ext2?: number;
+}
+
+/** Group sensors, named like the machine's own Sensors page. */
+export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string }[] = [
+  { key: "temp", label: "Tube", color: "#ff8a00" },
+  { key: "barUp", label: "Bar up", color: "#ffe066" },
+  { key: "barMidUp", label: "Bar mid-up", color: "#ffc400" },
+  { key: "barMidDown", label: "Bar mid-down", color: "#f43f5e" },
+  { key: "barDown", label: "Bar down", color: "#c084fc" },
+  { key: "ext1", label: "External 1", color: "#38bdf8" },
+  { key: "ext2", label: "External 2", color: "#2dd4bf" },
+];
 
 /**
  * Heating progress: current temperature, % of the way from where heating
- * started to the target, and the temperature curve climbing toward the target.
+ * started to the target, and every group temperature sensor climbing toward
+ * the target line.
  */
 export function HeatingProgress({
   samples, target, current,
@@ -195,11 +217,15 @@ export function HeatingProgress({
   const pct = target != null && current != null && target > start
     ? Math.max(0, Math.min(1, (current - start) / (target - start)))
     : 0;
-  const lo = Math.floor(Math.min(start, current ?? start) - 2);
-  const hi = Math.ceil(Math.max(target ?? 0, current ?? 0) + 2);
+  const last = samples[samples.length - 1];
+  const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
+  const values = samples.flatMap((p) => shown.map((s) => p[s.key] as number | undefined))
+    .filter((v): v is number => typeof v === "number");
+  const lo = Math.floor(Math.min(...values, current ?? Infinity) - 2);
+  const hi = Math.ceil(Math.max(...values, target ?? 0, current ?? 0) + 2);
 
   return (
-    <div className="flex h-full w-full flex-col gap-3 p-1">
+    <div className="flex h-full w-full flex-col gap-2 p-1">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium uppercase tracking-wider text-[#ff8a00]">Heating</p>
@@ -210,11 +236,23 @@ export function HeatingProgress({
         </div>
         <p className="font-mono text-4xl font-bold text-[#ff8a00]">{Math.round(pct * 100)}%</p>
       </div>
+      {/* Legend with each sensor's current value */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {shown.map((s) => (
+          <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
+            <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
+            <span className="text-[#fafafa]/60">{s.label}</span>
+            <span className="font-mono font-bold" style={{ color: s.color }}>
+              {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
+            </span>
+          </span>
+        ))}
+      </div>
       <div className="relative min-h-0 flex-1">
         {samples.length > 1 && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={samples} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-              <defs><Gradient id="g-heat" color="#ff8a00" opacity={0.35} /></defs>
+              <defs><Gradient id="g-heat" color="#ff8a00" opacity={0.3} /></defs>
               <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" strokeDasharray="2 4" />
               <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
                 tickFormatter={(v) => `${Math.round(v)}s`} tick={AXIS_TICK} tickLine={false} axisLine={false} />
@@ -223,7 +261,11 @@ export function HeatingProgress({
                 <ReferenceLine y={target} stroke="#ffc400" strokeDasharray="6 4" strokeOpacity={0.8}
                   label={{ value: `${target} °C`, position: "insideTopRight", fill: "#ffc400", fontSize: 12 }} />
               )}
-              <Area type="monotone" dataKey="temp" stroke="#ff8a00" strokeWidth={2.5} fill="url(#g-heat)"
+              {shown.filter((s) => s.key !== "temp").map((s) => (
+                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
+                  strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
+              ))}
+              <Area type="monotone" dataKey="temp" stroke="#ff8a00" strokeWidth={3} fill="url(#g-heat)"
                 baseValue={lo} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>

@@ -32,7 +32,7 @@ import {
   type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
   loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder,
 } from "@/lib/recipe";
-import type { ActionType, LiveStatus, Profile } from "@/lib/types";
+import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
 /** Gravimetric flow (g/s) from the last ~1 s of scale readings (fallback only). */
 function gravFlow(samples: { t: number; w: number }[]): number | null {
@@ -121,6 +121,8 @@ export default function StationPage() {
   const [demoHeat, setDemoHeat] = useState(false);
   const [heatSamples, setHeatSamples] = useState<HeatPoint[]>([]);
   const heatStartRef = useRef<number | null>(null);
+  /** Latest group temperatures from the machine's "sensors" event. */
+  const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
   /** Last temperature target the machine reported (shown as "set" during the shot). */
   const [setTemp, setSetTemp] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -143,7 +145,13 @@ export default function StationPage() {
     if (demoParam === "heat") {
       // /estacao/?demo=heat previews the heating view
       setDemoHeat(true);
-      setHeatSamples(Array.from({ length: 90 }, (_, i) => ({ t: i * 2, temp: 40 + 45 * (1 - Math.exp(-i / 55)) })));
+      setHeatSamples(Array.from({ length: 90 }, (_, i) => {
+        const k = 1 - Math.exp(-i / 55);
+        return {
+          t: i * 2, temp: 40 + 45 * k, barUp: 39 + 50 * k, barMidUp: 39 + 47 * k,
+          barMidDown: 40 + 42 * k, barDown: 41 + 36 * k, ext1: 39 + 30 * k, ext2: 39 + 28 * k,
+        };
+      }));
       setSetTemp(94);
     } else if (demoParam !== null) {
       const pts = demoShot();
@@ -178,6 +186,7 @@ export default function StationPage() {
       disconnect: () => setConnected(false),
       error: () => setConnected(false),
       heater: (sec) => setPreheatLeft(sec),
+      temperatures: (g) => { groupTempsRef.current = g; },
       status: (s) => {
         setStatus(s);
         setConnected(true);
@@ -192,8 +201,17 @@ export default function StationPage() {
           const temp = s.sensors.t;
           if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
           const t = (now - heatStartRef.current) / 1000;
+          const g = groupTempsRef.current;
+          const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+          const point: HeatPoint = {
+            t, temp,
+            barUp: num(g.t_bar_up), barMidUp: num(g.t_bar_mid_up ?? (g as Record<string, unknown>).t_bar_mu),
+            barMidDown: num(g.t_bar_mid_down ?? (g as Record<string, unknown>).t_bar_md), barDown: num(g.t_bar_down),
+            ext1: num(g.t_external_1 ?? (g as Record<string, unknown>).t_ext_1),
+            ext2: num(g.t_external_2 ?? (g as Record<string, unknown>).t_ext_2),
+          };
           setHeatSamples((prev) =>
-            prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), { t, temp }]);
+            prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), point]);
         } else {
           heatStartRef.current = null;
         }
