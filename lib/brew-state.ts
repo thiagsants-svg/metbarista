@@ -32,6 +32,11 @@ function statusName(s: LiveStatus | null | undefined): string {
   return (s?.name ?? "").toLowerCase();
 }
 
+/** "Pour water and click to continue": the user must fill the chamber first. */
+export function isWaitingForWater(s: LiveStatus | null | undefined): boolean {
+  return statusName(s) === "pour water and click to continue";
+}
+
 export function isWaitingForUser(s: LiveStatus | null | undefined): boolean {
   return WAITING_STATUSES.includes(statusName(s));
 }

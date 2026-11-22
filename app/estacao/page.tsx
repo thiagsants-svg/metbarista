@@ -12,15 +12,16 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Flame, Scale, Wind, Play, Square, Loader2, Maximize, Minimize, Minus, Plus,
+  ArrowLeft, Flame, Scale, Wind, Play, Square, Loader2, Maximize, Minimize, Minus, Plus, Droplets,
 } from "lucide-react";
 import { ShotCharts, COLORS, type ShotPoint } from "@/components/estacao-charts";
 import { demoShot } from "@/lib/demo-shot";
+import { ProfilePicker } from "@/components/profile-picker";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, listProfiles, loadProfileInline } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import {
-  isExtracting, isHeating, isIdle, isWaitingForUser, playAction,
+  isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater, playAction,
 } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, LIMITS, beverageWeight, buildShotProfile, formatRatio, loadRecipe,
@@ -249,10 +250,12 @@ export default function EstacaoPage() {
   }
 
   const brewing = isExtracting(status);
-  const waiting = isWaitingForUser(status);
+  const needsWater = isWaitingForWater(status);
+  const waiting = isWaitingForUser(status) && !needsWater;
   const heating = isHeating(status);
   const idle = isIdle(status);
   const sensors = status?.sensors;
+  const tempTarget = status?.setpoints?.temperature ?? null;
 
   // ── Main button: one button that follows the flow ──
   // idle → Aquecer (preheat) · heating → countdown · waiting → Extrair (continue)
@@ -263,10 +266,15 @@ export default function EstacaoPage() {
     : "escolha um perfil";
   let MainIcon: React.ElementType = Flame;
   if (!connected || !status) { mainLabel = "Conectando"; mainHint = "aguardando a máquina"; MainIcon = Loader2; }
+  else if (needsWater) { mainAction = "continue"; mainLabel = "Água colocada"; mainHint = "Coloque a água e aperte para continuar"; MainIcon = Droplets; }
   else if (waiting) { mainAction = playAction(status); mainLabel = "Extrair"; mainHint = "Máquina pronta"; MainIcon = Play; }
   else if (heating) {
     mainLabel = "Aquecendo";
-    mainHint = heaterLeft != null ? `faltam ${fmtClock(heaterLeft)} · prepare o puck` : "prepare o puck e a xícara";
+    mainHint = heaterLeft != null
+      ? `faltam ${fmtClock(heaterLeft)} · prepare o puck`
+      : tempTarget != null && sensors?.t != null
+      ? `${sensors.t.toFixed(1)} → ${tempTarget} °C · prepare o puck`
+      : "prepare o puck e a xícara";
   } else if (brewing) { mainLabel = "Extraindo"; mainHint = fmtClock(elapsed); MainIcon = Play; }
   else if (idle) { mainAction = baseProfile ? "heat" : null; }
   else { mainLabel = statusLabel(status, connected); mainHint = ""; MainIcon = Loader2; }
@@ -274,6 +282,7 @@ export default function EstacaoPage() {
   const pillColor =
     !connected ? "bg-white/[0.06] text-[#f5f0ea]/50"
     : brewing ? "bg-[#4ade80]/15 text-[#4ade80]"
+    : needsWater ? "bg-[#6cc7f0]/15 text-[#6cc7f0]"
     : waiting ? "bg-[#4ade80]/15 text-[#4ade80]"
     : heating ? "bg-[#e8944a]/15 text-[#e8944a]"
     : "bg-white/[0.06] text-[#f5f0ea]/70";
@@ -291,7 +300,7 @@ export default function EstacaoPage() {
           <p className="truncate text-lg font-semibold">{status?.loaded_profile ?? "—"}</p>
         </div>
         <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-base font-semibold ${pillColor}`}>
-          <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting ? "animate-pulse" : ""}`} />
+          <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting || needsWater ? "animate-pulse" : ""}`} />
           {statusLabel(status, connected)}
         </span>
         <button onClick={toggleFullscreen} aria-label="Tela cheia"
@@ -310,7 +319,8 @@ export default function EstacaoPage() {
         <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
           <Readout label="Tempo" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#f5f0ea" />
           <Readout label="Peso" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
-          <Readout label="Temperatura" value={fmt(sensors?.t)} unit="°C" color={COLORS.temp} />
+          <Readout label="Temperatura" value={fmt(sensors?.t)}
+            unit={tempTarget != null ? `/ ${tempTarget} °C` : "°C"} color={COLORS.temp} />
         </div>
 
         {/* Charts */}
@@ -329,6 +339,8 @@ export default function EstacaoPage() {
                   </p>
                   <p className="text-base">Prepare o puck e a xícara</p>
                 </>
+              ) : needsWater ? (
+                <p className="text-2xl font-semibold text-[#6cc7f0]">Coloque a água e aperte “Água colocada”</p>
               ) : waiting ? (
                 <p className="text-2xl font-semibold text-[#4ade80]">Pronta — aperte Extrair</p>
               ) : (
@@ -352,7 +364,9 @@ export default function EstacaoPage() {
             onClick={() => mainAction === "heat" ? heatWithRecipe() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
             className={`flex min-h-[110px] flex-col items-center justify-center gap-2 rounded-2xl transition-all active:scale-[0.98] disabled:active:scale-100 ${
-              waiting
+              needsWater
+                ? "bg-[#6cc7f0] text-[#0c0a09] shadow-[0_0_50px_rgba(108,199,240,0.35)] animate-pulse"
+                : waiting
                 ? "bg-[#4ade80] text-[#0c0a09] shadow-[0_0_50px_rgba(74,222,128,0.35)] animate-pulse"
                 : mainAction
                 ? "bg-[#e8944a] text-[#0c0a09] shadow-[0_4px_40px_rgba(232,148,74,0.3)]"
@@ -430,16 +444,12 @@ function RecipePanel({
 }) {
   return (
     <div className="portrait:col-span-2 rounded-2xl border border-white/[0.06] bg-[#161210] p-3 space-y-3">
-      <select
-        value={base?.id ?? ""}
-        disabled={!editable || profiles.length === 0}
-        onChange={(e) => onChange({ baseProfileId: e.target.value })}
-        aria-label="Perfil"
-        className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0c0a09] px-3 text-lg font-semibold text-[#f5f0ea] disabled:opacity-60"
-      >
-        {profiles.length === 0 && <option value="">Carregando perfis…</option>}
-        {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
+      <ProfilePicker
+        profiles={profiles}
+        selected={base}
+        disabled={!editable}
+        onSelect={(id) => onChange({ baseProfileId: id })}
+      />
       <div className="grid grid-cols-3 gap-2 landscape:grid-cols-1">
         <Stepper label="Dose" unit="g" value={recipe.dose} limits={LIMITS.dose} disabled={!editable}
           format={(v) => v.toFixed(1).replace(/\.0$/, "")}
