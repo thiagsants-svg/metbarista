@@ -27,9 +27,11 @@ export function demoShot(): ShotPoint[] {
     else { pressure = 9 - (t - 29) * 0.09; flow = 1.0 + (t - 29) * 0.03; }
     const grav = t > 12 ? Math.min(flow * 0.9, 2.2) : 0;
     weight += grav / 5;
+    const pTarget = t < 9 ? 2 : t < 21 ? 3 : t < 29 ? 9 : 9 - (t - 29) * 0.11;
     pts.push({
       t: t * 1000, pressure, flow, grav, weight: weight > 0.1 ? weight : null,
       temp: 94 - Math.min(2, t * 0.05) + Math.sin(t / 3) * 0.2, stage,
+      pTarget, fTarget: null,
     });
   }
   return pts;

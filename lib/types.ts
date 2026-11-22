@@ -238,7 +238,7 @@ export interface MachineConnection {
 export interface LiveStatus {
   name: string;         // machine state name e.g. "idle", "preheating", "extracting"
   state: string;
-  time?: number;        // elapsed shot time in seconds
+  time?: number;        // elapsed shot time in ms (last shot's while idle)
   profile_time: number;
   loaded_profile?: string;
   extracting?: boolean;
@@ -247,8 +247,15 @@ export interface LiveStatus {
     p?: number;  // pressure bar
     f?: number;  // flow ml/s
     w?: number;  // weight g
-    t?: number;  // boiler temp °C
-    g?: number;  // piston position
+    t?: number;  // group (tube) temp °C
+    g?: number;  // gravimetric flow g/s, computed by the machine
+  };
+  /** Targets of the running stage, e.g. { active: "pressure", pressure: 9 } */
+  setpoints?: {
+    active: string | null;
+    pressure?: number;
+    flow?: number;
+    temperature?: number;
   };
 }
 

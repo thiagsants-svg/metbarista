@@ -113,6 +113,8 @@ export default function EstacaoPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   const shotStartRef = useRef<number | null>(null);
+  /** Whether this shot's x axis follows the machine's clock (decided at shot start). */
+  const machineClockRef = useRef(false);
   const statusRef = useRef<LiveStatus | null>(null);
 
   useEffect(() => {
@@ -160,16 +162,20 @@ export default function EstacaoPage() {
           const samples = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
           weightSamplesRef.current = samples;
         }
-        const g = isExtracting(s) ? gravFlow(weightSamplesRef.current) : null;
+        // Prefer the machine's own gravimetric flow; estimate it only if absent
+        const g = isExtracting(s) ? (s.sensors?.g ?? gravFlow(weightSamplesRef.current)) : null;
         setGrav(g);
 
         if (isExtracting(s)) {
           if (shotStartRef.current == null) {
             // New shot: start a fresh chart
             shotStartRef.current = now;
+            // Trust the machine's shot clock only if it restarted with this shot
+            machineClockRef.current = typeof s.time === "number" && s.time >= 0 && s.time < 3000;
             setData([]);
           }
-          const t = now - shotStartRef.current;
+          // Machine's shot clock when available (matches the official app)
+          const t = machineClockRef.current && typeof s.time === "number" ? s.time : now - shotStartRef.current;
           setElapsed(t / 1000);
           setData((prev) => [
             ...prev.slice(-900),
@@ -181,6 +187,8 @@ export default function EstacaoPage() {
               weight: w != null && w > 0 ? w : null,
               temp: s.sensors?.t ?? null,
               stage: s.name ?? null,
+              pTarget: s.setpoints?.pressure ?? null,
+              fTarget: s.setpoints?.flow ?? null,
             },
           ]);
         } else if (shotStartRef.current != null) {

@@ -21,6 +21,8 @@ export interface ShotPoint {
   weight: number | null;   // g
   temp: number | null;     // °C
   stage: string | null;    // profile stage name reported by the machine
+  pTarget?: number | null; // pressure setpoint of the running stage (bar)
+  fTarget?: number | null; // flow setpoint of the running stage (ml/s)
 }
 
 export const COLORS = {
@@ -160,6 +162,9 @@ export function ShotCharts({
               <Area yAxisId="w" type="monotone" dataKey="weight" stroke={COLORS.weight} strokeWidth={2.5} fill="url(#g-weight)" dot={false} isAnimationActive={false} connectNulls />
               <Area yAxisId="l" type="monotone" dataKey="pressure" stroke={COLORS.pressure} strokeWidth={2.5} fill="url(#g-pressure)" dot={false} isAnimationActive={false} connectNulls />
               <Area yAxisId="l" type="monotone" dataKey="flow" stroke={COLORS.flow} strokeWidth={2.5} fill="url(#g-flow)" dot={false} isAnimationActive={false} connectNulls />
+              {/* Stage targets, dotted like the machine's sensor page */}
+              <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
+              <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="monotone" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
               <Line yAxisId="t" type="monotone" dataKey="temp" stroke={COLORS.temp} strokeWidth={1.5} strokeOpacity={0.8} dot={false} isAnimationActive={false} connectNulls />
             </ComposedChart>
