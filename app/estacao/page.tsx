@@ -502,9 +502,10 @@ export default function StationPage() {
       {/* ── Body: side by side in landscape, stacked in portrait ── */}
       <div className="grid min-h-0 flex-1 gap-2 sm:gap-2.5 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(280px,31%)]">
         {/* Readouts */}
-        <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
+        <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
+          <Readout label="Flow" value={fmt(sensors?.f)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
           {tempView ? (
             <TemperatureGauge
@@ -605,11 +606,11 @@ export default function StationPage() {
 
 function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#141414] px-3 py-1.5">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-[#141414] px-3 py-1.5">
       <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">{label}</p>
-      <p className="font-mono text-[clamp(1.3rem,3vmax,2.25rem)] font-bold leading-tight whitespace-nowrap" style={{ color }}>
+      <p className="font-mono text-[clamp(1.2rem,2.7vmax,2.1rem)] font-bold leading-tight whitespace-nowrap" style={{ color }}>
         {value}
-        {unit && value !== "—" && <span className="ml-1 text-sm font-medium text-[#fafafa]/40">{unit}</span>}
+        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[#fafafa]/40">{unit}</span>}
       </p>
     </div>
   );
