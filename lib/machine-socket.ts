@@ -23,6 +23,8 @@ type SocketEventMap = {
   temperatures: (data: LiveTemperatures) => void;
   /** Preheat seconds remaining */
   heater: (secondsRemaining: number) => void;
+  /** A machine message (the event's payload is JSON text) */
+  notification: (n: { id: string; message: string; image?: string | null; responses?: string[] }) => void;
   connect: () => void;
   disconnect: () => void;
   error: (err: Error) => void;
@@ -121,6 +123,12 @@ async function doPoll(): Promise<void> {
       if (event === "sensors")      activeHandlers.temperatures?.(data as LiveTemperatures);
       if (event === "temperatures") activeHandlers.temperatures?.(data as LiveTemperatures);
       if (event === "heater_status" && typeof data === "number") activeHandlers.heater?.(data);
+      if (event === "notification") {
+        try {
+          const n = typeof data === "string" ? JSON.parse(data) : data;
+          if (n && typeof n.id === "string") activeHandlers.notification?.(n);
+        } catch { /* malformed notification */ }
+      }
     }
   } catch { /* network blip — the watchdog reopens if it lasts */ }
 }

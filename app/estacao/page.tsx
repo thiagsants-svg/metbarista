@@ -26,7 +26,11 @@ import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
-import { executeAction, getSettings, listProfiles, loadProfileInline } from "@/lib/machine-api";
+import {
+  acknowledgeNotification, executeAction, getNotifications, getSettings, listProfiles, loadProfileInline,
+  type MachineNotification,
+} from "@/lib/machine-api";
+import { MachineNotice } from "@/components/machine-notice";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import {
   isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater,
@@ -146,6 +150,10 @@ export default function StationPage() {
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** Machine messages waiting for an answer (e.g. motor strain), oldest first. */
+  const [notices, setNotices] = useState<MachineNotification[]>([]);
+  const [noticeBusy, setNoticeBusy] = useState(false);
+  const demoNoticeRef = useRef(false);
 
   const weightSamplesRef = useRef<{ t: number; w: number }[]>([]);
   const shotStartRef = useRef<number | null>(null);
@@ -157,6 +165,15 @@ export default function StationPage() {
     setRecipe(loadRecipe());
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
+    if (demoParam === "notice") {
+      // /estacao/?demo=notice previews a machine message (answering it here sends nothing)
+      demoNoticeRef.current = true;
+      setNotices([{
+        id: "demo",
+        message: "Brewing has been disabled because of a recent high strain on the motor, let it rest for 5 more minutes",
+        responses: ["Ok"],
+      }]);
+    }
     if (demoParam === "heat") {
       // /estacao/?demo=heat previews the heating view
       setDemoHeat(true);
@@ -201,6 +218,9 @@ export default function StationPage() {
       disconnect: () => setConnected(false),
       error: () => setConnected(false),
       heater: (sec) => setPreheatLeft(sec),
+      notification: (n) => setNotices((prev) => prev.some((x) => x.id === n.id)
+        ? prev.map((x) => (x.id === n.id ? { ...x, ...n } : x))
+        : [...prev, n]),
       temperatures: (g) => { groupTempsRef.current = g; },
       status: (s) => {
         setStatus(s);
@@ -291,6 +311,36 @@ export default function StationPage() {
     }).catch((e) => { setConnected(false); setError(String(e)); });
     return () => { disconnectSocket(); };
   }, []);
+
+  // Machine messages: load what is pending, then re-check every 5 s so a
+  // message answered on the dial also closes here (read only)
+  useEffect(() => {
+    if (!getSavedIp()) return;
+    let alive = true;
+    const check = () => {
+      if (demoNoticeRef.current) return;
+      getNotifications()
+        .then((list) => { if (alive) setNotices(Array.isArray(list) ? list : []); })
+        .catch(() => { /* machine unreachable: keep what we have */ });
+    };
+    check();
+    const id = setInterval(check, 5000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  async function respondToNotice(n: MachineNotification, response: string) {
+    if (n.id === "demo") { setNotices((prev) => prev.filter((x) => x.id !== n.id)); return; }
+    setNoticeBusy(true);
+    try {
+      await acknowledgeNotification(n.id, response);
+    } catch (e) {
+      setError(`Couldn't answer the machine message: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      // Answered (or already gone on the machine): drop it here
+      setNotices((prev) => prev.filter((x) => x.id !== n.id));
+      setNoticeBusy(false);
+    }
+  }
 
   // Push collected shot points to the chart a few times per second
   useEffect(() => {
@@ -408,6 +458,8 @@ export default function StationPage() {
       className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[#0a0a0a] p-2.5 text-[#fafafa] select-none sm:gap-2.5 sm:p-3"
       style={{ height: "100dvh" }}
     >
+      <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
+
       {/* ── Top bar ── */}
       <header className="flex shrink-0 items-center gap-2.5">
         <Link href="/dashboard" aria-label="Back"

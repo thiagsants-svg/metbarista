@@ -126,6 +126,32 @@ export async function executeAction(action: ActionType): Promise<void> {
   });
 }
 
+// ── Notifications (machine messages, e.g. motor strain) ──────
+
+export interface MachineNotification {
+  id: string;
+  message: string;
+  /** data: URI, absolute URL or a path on the machine */
+  image?: string | null;
+  /** Buttons to show, e.g. ["Ok"] or ["Yes", "No"] */
+  responses?: string[];
+  timestamp?: string;
+}
+
+/** Unacknowledged notifications (read only). */
+export async function getNotifications(): Promise<MachineNotification[]> {
+  return apiFetch<MachineNotification[]>("/notifications?acknowledged=false");
+}
+
+/** Answer a notification, like tapping its button on the dial. */
+export async function acknowledgeNotification(id: string, response: string): Promise<void> {
+  await apiFetch<unknown>("/notifications/acknowledge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, response }),
+  });
+}
+
 // ── Connection test ──────────────────────────────────────────
 
 export async function testConnection(ip: string): Promise<MachineInfo> {
