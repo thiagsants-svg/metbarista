@@ -21,7 +21,7 @@ import {
   ArrowLeft, ArrowUpToLine, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
   Plus, Scale, Square, Wind,
 } from "lucide-react";
-import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
+import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { demoShot } from "@/lib/demo-shot";
@@ -131,7 +131,7 @@ export default function StationPage() {
   const [autoBrew, setAutoBrew] = useState(false);
   const autoBrewRef = useRef(false);
   const autoFiredRef = useRef(false);
-  /** Rolling 10-minute log of every thermometer, shown while the machine is idle. */
+  /** Rolling 15-minute log of every thermometer, shown while the machine is idle. */
   const [liveTemps, setLiveTemps] = useState<HeatPoint[]>([]);
   /** Latest group temperatures from the machine's "sensors" event. */
   const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
@@ -240,7 +240,7 @@ export default function StationPage() {
           const clockT = now / 1000;
           setLiveTemps((prev) =>
             prev.length && clockT - prev[prev.length - 1].t < 1 ? prev
-              : [...prev.filter((p) => clockT - p.t <= 600), { t: clockT, ...reading }]);
+              : [...prev.filter((p) => clockT - p.t <= 900), { t: clockT, ...reading }]);
           // Curve for the whole pre-shot session (heating view)
           if (preShotRef.current) {
             if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
@@ -457,9 +457,8 @@ export default function StationPage() {
               ) : waiting ? (
                 <p className="text-2xl font-semibold text-[#ffc400]">Ready — tap Brew</p>
               ) : (
-                // Idle: live chart of every thermometer
-                <HeatingProgress samples={liveTemps} target={null} current={sensors?.t ?? null}
-                  title="Temperatures" titleColor="rgba(250,250,250,0.5)" hint="" clock />
+                // Idle: live group temperatures, like the machine's Sensors page
+                <GroupTemperatures samples={liveTemps} target={tempTarget} />
               )
             }
           />
