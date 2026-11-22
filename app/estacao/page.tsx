@@ -19,7 +19,7 @@ import {
   ArrowLeft, ArrowUpToLine, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
   Plus, Scale, Square, Wind,
 } from "lucide-react";
-import { ShotCharts, COLORS, type ShotPoint } from "@/components/estacao-charts";
+import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
@@ -118,6 +118,11 @@ export default function StationPage() {
   const [targetWeight, setTargetWeight] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [demoEnd, setDemoEnd] = useState<ShotPoint | null>(null);
+  const [demoHeat, setDemoHeat] = useState(false);
+  const [heatSamples, setHeatSamples] = useState<HeatPoint[]>([]);
+  const heatStartRef = useRef<number | null>(null);
+  /** Last temperature target the machine reported (shown as "set" during the shot). */
+  const [setTemp, setSetTemp] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState<ActionType | "load" | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -134,13 +139,20 @@ export default function StationPage() {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
     // /estacao/?demo shows a simulated shot to preview the chart
-    if (new URLSearchParams(window.location.search).has("demo")) {
+    const demoParam = new URLSearchParams(window.location.search).get("demo");
+    if (demoParam === "heat") {
+      // /estacao/?demo=heat previews the heating view
+      setDemoHeat(true);
+      setHeatSamples(Array.from({ length: 90 }, (_, i) => ({ t: i * 2, temp: 40 + 45 * (1 - Math.exp(-i / 55)) })));
+      setSetTemp(94);
+    } else if (demoParam !== null) {
       const pts = demoShot();
       setDemo(true);
       setData(pts);
       setTargetWeight(40);
       setElapsed(pts[pts.length - 1].t / 1000);
       setDemoEnd(pts[pts.length - 1]);
+      setSetTemp(94);
     }
     if (!getSavedIp()) return;
     // Same order as the dial (Settings → Profile order); read only
@@ -169,11 +181,23 @@ export default function StationPage() {
       status: (s) => {
         setStatus(s);
         setConnected(true);
+        if (s.setpoints?.temperature != null) setSetTemp(s.setpoints.temperature);
         const now = Date.now();
         const w = s.sensors?.w;
         if (w != null) {
           weightSamplesRef.current = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
         }
+        // Heating progress curve (one point per second)
+        if (isHeating(s) && s.sensors?.t != null) {
+          const temp = s.sensors.t;
+          if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
+          const t = (now - heatStartRef.current) / 1000;
+          setHeatSamples((prev) =>
+            prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), { t, temp }]);
+        } else {
+          heatStartRef.current = null;
+        }
+
         // Machine's own gravimetric flow; estimate it only if absent
         const g = isExtracting(s) ? (s.sensors?.g ?? gravFlow(weightSamplesRef.current)) : null;
         setGrav(g);
@@ -345,26 +369,29 @@ export default function StationPage() {
         <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
-          <Readout label="Temperature" value={fmt(sensors?.t)}
-            unit={tempTarget != null ? `/ ${tempTarget} °C` : "°C"} color={COLORS.temp} />
+          {brewing || (demoEnd && !demoHeat) ? (
+            // During the shot the group temperature drops sharply; show the set temperature instead
+            <Readout label="Temp (set)" value={setTemp != null ? fmt(setTemp) : "—"} unit="°C" color={COLORS.temp} />
+          ) : (
+            <Readout label="Temperature" value={fmt(demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t)}
+              unit={(tempTarget ?? (demoHeat ? setTemp : null)) != null ? `/ ${tempTarget ?? setTemp} °C` : "°C"} color={COLORS.temp} />
+          )}
         </div>
 
         {/* Chart */}
         <div className="flex min-h-0 flex-col landscape:col-start-1">
           <ShotCharts
-            data={data}
+            data={demoHeat ? [] : data}
             targetWeight={targetWeight}
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
             placeholder={
-              heating ? (
-                <>
-                  <Flame className="h-10 w-10 animate-pulse text-[#ffc400]" />
-                  <p className="text-2xl font-semibold text-[#ffc400]">
-                    Heating{tempTarget != null && sensors?.t != null ? ` · ${sensors.t.toFixed(0)} → ${tempTarget} °C` : ""}
-                  </p>
-                  <p className="text-base">Prep the puck and cup</p>
-                </>
+              heating || demoHeat ? (
+                <HeatingProgress
+                  samples={heatSamples}
+                  target={tempTarget ?? setTemp}
+                  current={demoHeat ? heatSamples[heatSamples.length - 1]?.temp ?? null : sensors?.t ?? null}
+                />
               ) : needsWater ? (
                 <p className="text-2xl font-semibold text-[#38bdf8]">Pour the water, then tap “Water added”</p>
               ) : waiting ? (

@@ -5,7 +5,9 @@
  * Meticulous app (filled areas, dark panel), condensed into one chart:
  *  - left axis (0–12): pressure (bar), flow (ml/s), gravimetric flow (g/s)
  *  - right axis: weight (g), with the recipe's target as a dashed line
- *  - temperature as a thin line on its own hidden scale; value in the header
+ *  - no temperature line: it drops sharply during extraction (normal, but
+ *    unhelpful), so like the official charts it is left out; heating
+ *    progress has its own view instead
  *  - profile stages shaded behind the curves, current stage highlighted
  */
 
@@ -87,7 +89,6 @@ export function ShotCharts({
     { label: "Grav", value: fmt(live.grav), unit: "g/s", color: COLORS.grav },
     // Weight and temperature have their own big readouts above the chart
     { label: "Weight", value: "", unit: "", color: COLORS.weight },
-    { label: "Temp", value: "", unit: "", color: COLORS.temp },
   ];
 
   return (
@@ -129,7 +130,6 @@ export function ShotCharts({
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
                 tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
-              <YAxis yAxisId="t" hide domain={[(min: number) => Math.floor(min - 4), (max: number) => Math.ceil(max + 1)]} />
 
               {/* Profile stages, behind everything */}
               {spans.map((sp, i) => {
@@ -170,11 +170,70 @@ export function ShotCharts({
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="monotone" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
-              <Line yAxisId="t" type="monotone" dataKey="temp" stroke={COLORS.temp} strokeWidth={1.5} strokeOpacity={0.8} dot={false} isAnimationActive={false} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
+    </div>
+  );
+}
+
+export interface HeatPoint { t: number; temp: number }
+
+/**
+ * Heating progress: current temperature, a bar from where heating started to
+ * the target, and the temperature curve climbing toward the target line.
+ */
+export function HeatingProgress({
+  samples, target, current,
+}: {
+  samples: HeatPoint[];
+  target: number | null;
+  current: number | null;
+}) {
+  const start = samples[0]?.temp ?? current ?? 0;
+  const pct = target != null && current != null && target > start
+    ? Math.max(0, Math.min(1, (current - start) / (target - start)))
+    : 0;
+  const lo = Math.floor(Math.min(start, current ?? start) - 2);
+  const hi = Math.ceil(Math.max(target ?? 0, current ?? 0) + 2);
+
+  return (
+    <div className="flex h-full w-full flex-col gap-3 p-1">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-wider text-[#ff8a00]">Heating</p>
+          <p className="font-mono text-5xl font-bold text-[#fafafa]">
+            {current != null ? current.toFixed(1) : "—"}
+            <span className="ml-2 text-2xl text-[#fafafa]/40">→ {target ?? "—"} °C</span>
+          </p>
+        </div>
+        <p className="font-mono text-4xl font-bold text-[#ff8a00]">{Math.round(pct * 100)}%</p>
+      </div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-white/[0.08]">
+        <div className="h-full rounded-full bg-gradient-to-r from-[#ff8a00] to-[#ffc400] transition-[width] duration-500"
+          style={{ width: `${pct * 100}%` }} />
+      </div>
+      <div className="relative min-h-0 flex-1">
+        {samples.length > 1 && (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={samples} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <defs><Gradient id="g-heat" color="#ff8a00" opacity={0.35} /></defs>
+              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" strokeDasharray="2 4" />
+              <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
+                tickFormatter={(v) => `${Math.round(v)}s`} tick={AXIS_TICK} tickLine={false} axisLine={false} />
+              <YAxis domain={[lo, hi]} width={34} tick={AXIS_TICK} tickLine={false} axisLine={false} unit="°" />
+              {target != null && (
+                <ReferenceLine y={target} stroke="#ffc400" strokeDasharray="6 4" strokeOpacity={0.8}
+                  label={{ value: `${target} °C`, position: "insideTopRight", fill: "#ffc400", fontSize: 12 }} />
+              )}
+              <Area type="monotone" dataKey="temp" stroke="#ff8a00" strokeWidth={2.5} fill="url(#g-heat)"
+                baseValue={lo} dot={false} isAnimationActive={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+      <p className="text-center text-base text-[#fafafa]/45">Prep the puck and cup</p>
     </div>
   );
 }
