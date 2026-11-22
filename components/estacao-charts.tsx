@@ -22,7 +22,13 @@ export interface ShotPoint {
   flow: number | null;     // ml/s (pump)
   grav: number | null;     // g/s (from the scale)
   weight: number | null;   // g
-  temp: number | null;     // °C
+  temp: number | null;     // °C (tube)
+  barUp?: number;
+  barMidUp?: number;
+  barMidDown?: number;
+  barDown?: number;
+  ext1?: number;
+  ext2?: number;
   stage: string | null;    // profile stage name reported by the machine
   pTarget?: number | null; // pressure setpoint of the running stage (bar)
   fTarget?: number | null; // flow setpoint of the running stage (ml/s)
@@ -71,13 +77,16 @@ function Gradient({ id, color, opacity = 0.4 }: { id: string; color: string; opa
 }
 
 export function ShotCharts({
-  data, live, targetWeight, placeholder, currentStage,
+  data, live, targetWeight, placeholder, currentStage, showTemps = false, onToggleTemps,
 }: {
   data: ShotPoint[];
   live: Partial<ShotPoint>;
   targetWeight: number | null;
   placeholder: React.ReactNode;
   currentStage: string | null;
+  /** Also plot every temperature sensor (for studying how they move during the shot) */
+  showTemps?: boolean;
+  onToggleTemps?: () => void;
 }) {
   const header = [
     { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
@@ -98,12 +107,38 @@ export function ShotCharts({
             <span className="text-xs text-[#fafafa]/40">{i.unit}</span>
           </span>
         ))}
-        {currentStage && (
-          <span className="ml-auto rounded-full bg-[#ffc400]/15 px-3 py-1 text-sm font-semibold text-[#ffc400]">
-            {currentStage}
-          </span>
-        )}
+        <span className="ml-auto flex items-center gap-2">
+          {currentStage && (
+            <span className="rounded-full bg-[#ffc400]/15 px-3 py-1 text-sm font-semibold text-[#ffc400]">
+              {currentStage}
+            </span>
+          )}
+          {onToggleTemps && data.length > 0 && (
+            <button onClick={onToggleTemps} aria-pressed={showTemps} title="Show temperature sensors"
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                showTemps ? "border-[#f43f5e]/60 bg-[#f43f5e]/15 text-[#f43f5e]" : "border-white/[0.1] text-[#fafafa]/40"
+              }`}>
+              Temps
+            </button>
+          )}
+        </span>
       </div>
+      {showTemps && data.length > 0 && (
+        <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-0.5 px-1 pb-1">
+          {HEAT_SENSORS.map((s) => {
+            const v = data[data.length - 1][s.key as keyof ShotPoint];
+            return (
+              <span key={s.key} className="inline-flex items-baseline gap-1 text-xs">
+                <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3 self-center rounded-full`} style={{ backgroundColor: s.color }} />
+                <span className="text-[#fafafa]/55">{s.label}</span>
+                <span className="font-mono font-bold" style={{ color: s.color }}>
+                  {typeof v === "number" ? v.toFixed(1) : "—"}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="relative min-h-0 flex-1">
         {data.length === 0 ? (
@@ -111,7 +146,7 @@ export function ShotCharts({
             {placeholder}
           </div>
         ) : (
-          <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
+          <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} showTemps={showTemps} />
         )}
       </div>
     </div>
@@ -125,12 +160,23 @@ export function ShotCharts({
  * (`linear`) are cheaper than smoothed curves and look the same at ~10 Hz.
  */
 const ShotPlot = memo(function ShotPlot({
-  data, targetWeight, currentStage,
+  data, targetWeight, currentStage, showTemps,
 }: {
   data: ShotPoint[];
   targetWeight: number | null;
   currentStage: string | null;
+  showTemps: boolean;
 }) {
+  // Temperature scale fitted to every sensor, at least 6 °C tall
+  const tempValues = showTemps
+    ? data.flatMap((d) => HEAT_SENSORS.map((s) => d[s.key as keyof ShotPoint]))
+      .filter((v): v is number => typeof v === "number")
+    : [];
+  let tLo = tempValues.length ? Math.min(...tempValues) : 0;
+  let tHi = tempValues.length ? Math.max(...tempValues) : 100;
+  const tPad = Math.max(1, (6 - (tHi - tLo)) / 2);
+  tLo = Math.floor(tLo - tPad);
+  tHi = Math.ceil(tHi + tPad);
   const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
   const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
   const spans = stageSpans(data);
@@ -152,6 +198,10 @@ const ShotPlot = memo(function ShotPlot({
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
                 tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
+              {showTemps && (
+                <YAxis yAxisId="t" orientation="right" domain={[tLo, tHi]} width={34} allowDecimals={false}
+                  tick={{ ...AXIS_TICK, fill: COLORS.temp }} tickLine={false} axisLine={false} unit="°" />
+              )}
 
               {/* Profile stages, behind everything */}
               {spans.map((sp, i) => {
@@ -192,6 +242,12 @@ const ShotPlot = memo(function ShotPlot({
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+              {/* Optional: every temperature sensor, tube thick */}
+              {showTemps && HEAT_SENSORS.map((s) => (
+                <Line key={s.key} yAxisId="t" type="linear" dataKey={s.key} stroke={s.color}
+                  strokeWidth={s.key === "temp" ? 3 : 1.25} strokeOpacity={s.key === "temp" ? 1 : 0.8}
+                  dot={false} activeDot={false} isAnimationActive={false} connectNulls />
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
   );

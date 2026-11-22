@@ -32,6 +32,9 @@ export function demoShot(): ShotPoint[] {
       t: t * 1000, pressure, flow, grav, weight: weight > 0.1 ? weight : null,
       temp: 94 - Math.min(2, t * 0.05) + Math.sin(t / 3) * 0.2, stage,
       pTarget, fTarget: null,
+      barUp: 95 - Math.min(5, t * 0.15), barMidUp: 93.5 - Math.min(6, t * 0.18),
+      barMidDown: 92 - Math.min(7, t * 0.2), barDown: 90 - Math.min(8, t * 0.22),
+      ext1: 88 - t * 0.05, ext2: 87 - t * 0.04,
     });
   }
   // Scale the cup weight so the shot ends right at a 40 g target

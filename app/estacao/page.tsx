@@ -41,6 +41,17 @@ import {
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
+/** Group/external temperatures from the machine's "sensors" event (names vary by firmware). */
+function groupTempsFor(g: Partial<LiveTemperatures>) {
+  const r = g as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  return {
+    barUp: num(r.t_bar_up), barMidUp: num(r.t_bar_mid_up ?? r.t_bar_mu),
+    barMidDown: num(r.t_bar_mid_down ?? r.t_bar_md), barDown: num(r.t_bar_down),
+    ext1: num(r.t_external_1 ?? r.t_ext_1), ext2: num(r.t_external_2 ?? r.t_ext_2),
+  };
+}
+
 /** Gravimetric flow (g/s) from the last ~1 s of scale readings (fallback only). */
 function gravFlow(samples: { t: number; w: number }[]): number | null {
   if (samples.length < 2) return null;
@@ -150,6 +161,8 @@ export default function StationPage() {
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** Plot every temperature sensor on the shot chart (remembered on this device). */
+  const [shotTemps, setShotTemps] = useState(false);
   /** Machine messages waiting for an answer (e.g. motor strain), oldest first. */
   const [notices, setNotices] = useState<MachineNotification[]>([]);
   const [noticeBusy, setNoticeBusy] = useState(false);
@@ -163,6 +176,7 @@ export default function StationPage() {
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
+    setShotTemps(localStorage.getItem("metbarista_shot_temps") === "1");
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
     if (demoParam === "notice") {
@@ -297,6 +311,7 @@ export default function StationPage() {
               grav: g,
               weight: w != null && w > 0 ? w : null,
               temp: s.sensors?.t ?? null,
+              ...groupTempsFor(groupTempsRef.current),
               stage: s.name ?? null,
               pTarget: s.setpoints?.pressure ?? null,
               fTarget: s.setpoints?.flow ?? null,
@@ -505,6 +520,11 @@ export default function StationPage() {
           <ShotCharts
             data={demoHeat ? [] : data}
             targetWeight={targetWeight}
+            showTemps={shotTemps}
+            onToggleTemps={() => setShotTemps((on) => {
+              localStorage.setItem("metbarista_shot_temps", on ? "0" : "1");
+              return !on;
+            })}
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
             placeholder={
