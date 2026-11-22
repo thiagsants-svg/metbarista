@@ -115,10 +115,10 @@ export function ProfilePicker({
                   style={{ backgroundColor: color, outline: isSel ? "3px solid var(--ink)" : "none", outlineOffset: 2 }}
                 >
                   <ProfileCover profile={p} className="min-h-0 w-full flex-1 rounded-md [&>img]:h-full" />
-                  <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_color-mix(in srgb, var(--ink) 60%, transparent)]">
+                  <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
                     {p.name}
                   </p>
-                  <p className="px-1 pb-0.5 text-xs text-[var(--ink)] [text-shadow:0_1px_2px_color-mix(in srgb, var(--ink) 60%, transparent)]">
+                  <p className="px-1 pb-0.5 text-xs text-white/85 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
                     {p.temperature}°C · {p.final_weight}g
                   </p>
                   {isSel && (

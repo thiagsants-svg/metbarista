@@ -43,6 +43,10 @@ let stopped = false;
 let activeHandlers: Partial<SocketEventMap> = {};
 let lastEventAt = 0;
 let reopening: Promise<void> | null = null;
+/** A poll is running; refreshNow() must not start a second one on the same session */
+let polling = false;
+/** After a failed reopen, wait before the next try (machine off or unreachable) */
+let retryAt = 0;
 let onVisibility: (() => void) | null = null;
 
 function getMachineIp(): string | null {
@@ -77,8 +81,12 @@ function parsePackets(raw: string): { events: Array<[string, unknown]>; sessionG
   return { events, sessionGone };
 }
 
-/** Open a socket.io session and join the default namespace; sets activeSid. */
-async function openSession(base: string, timeoutMs: number): Promise<void> {
+/**
+ * Open a socket.io session and join the default namespace; sets activeSid —
+ * unless the page disconnected (or reconnected) meanwhile, in which case the
+ * late session is dropped instead of becoming a stale activeSid.
+ */
+async function openSession(base: string, timeoutMs: number, gen: number): Promise<void> {
   const openRes = await fetch(base, localNetworkRequestInit({ signal: AbortSignal.timeout(timeoutMs) }));
   if (!openRes.ok) throw new Error(`Open failed: ${openRes.status}`);
   const openRaw = await openRes.text();
@@ -91,25 +99,29 @@ async function openSession(base: string, timeoutMs: number): Promise<void> {
     body: "40",
     signal: AbortSignal.timeout(6000),
   }));
+  if (stopped || gen !== generation) return;
   activeSid = sid;
   lastEventAt = Date.now();
 }
 
 /** Replace a dead session with a fresh one (one attempt at a time). */
 function reopen(): Promise<void> {
-  if (reopening || stopped || !activeBase) return reopening ?? Promise.resolve();
+  if (reopening || stopped || !activeBase || Date.now() < retryAt) return reopening ?? Promise.resolve();
   const base = activeBase;
+  const gen = generation;
   activeHandlers.disconnect?.();
-  reopening = openSession(base, 8000)
-    .then(() => { activeHandlers.connect?.(); })
-    .catch(() => { /* machine unreachable — the watchdog tries again */ })
+  reopening = openSession(base, 8000, gen)
+    .then(() => { if (gen === generation && activeSid) activeHandlers.connect?.(); })
+    .catch(() => { retryAt = Date.now() + 3000; /* unreachable — try again in a few seconds */ })
     .finally(() => { reopening = null; });
   return reopening;
 }
 
 async function doPoll(): Promise<void> {
-  if (stopped || !activeSid || !activeBase) return;
-  if (Date.now() - lastEventAt > STALE_AFTER_MS) { await reopen(); return; }
+  if (stopped || !activeBase || polling) return;
+  // No session yet (first open failed) or a dead one: keep trying to reopen
+  if (!activeSid || Date.now() - lastEventAt > STALE_AFTER_MS) { await reopen(); return; }
+  polling = true;
   try {
     const res = await fetch(`${activeBase}&sid=${activeSid}&t=${Date.now()}`, localNetworkRequestInit({
       signal: AbortSignal.timeout(5000),
@@ -131,10 +143,11 @@ async function doPoll(): Promise<void> {
       }
     }
   } catch { /* network blip — the watchdog reopens if it lasts */ }
+  finally { polling = false; }
 }
 
 export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<void> {
-  if (activeSid) return; // already running
+  if (!stopped && activeBase) return; // already running
   stopped = false;
   const gen = ++generation;
   activeHandlers = handlers;
@@ -145,8 +158,13 @@ export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<
   const base = `http://${ip}/socket.io/?EIO=4&transport=polling`;
   activeBase = base;
 
-  await openSession(base, LOCAL_NETWORK_PERMISSION_TIMEOUT_MS);
-  handlers.connect?.();
+  // If the machine can't be reached now, the poll loop below keeps retrying
+  try {
+    await openSession(base, LOCAL_NETWORK_PERMISSION_TIMEOUT_MS, gen);
+    if (activeSid) handlers.connect?.();
+  } catch (e) {
+    handlers.error?.(e instanceof Error ? e : new Error(String(e)));
+  }
 
   // Coming back from a sleeping screen or another app: reconnect immediately
   onVisibility = () => {
@@ -166,6 +184,8 @@ export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<
 export function disconnectSocket(): void {
   stopped = true;
   generation++;
+  reopening = null;
+  polling = false;
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   if (onVisibility) { document.removeEventListener("visibilitychange", onVisibility); onVisibility = null; }
   activeSid = null;

@@ -47,7 +47,8 @@ export function isWaitingForUser(s: LiveStatus | null | undefined): boolean {
 }
 
 export function isHeating(s: LiveStatus | null | undefined): boolean {
-  return statusName(s).includes("heat");
+  // Exact statuses: a profile stage named "Heat …" during a shot is not heating
+  return ["heating", "preheating"].includes(statusName(s));
 }
 
 export function isIdle(s: LiveStatus | null | undefined): boolean {

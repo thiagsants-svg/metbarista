@@ -195,9 +195,12 @@ export default function StationPage() {
   const [notices, setNotices] = useState<MachineNotification[]>([]);
   const [noticeBusy, setNoticeBusy] = useState(false);
   const demoNoticeRef = useRef(false);
+  const answeredRef = useRef(new Set<string>());
 
   const weightSamplesRef = useRef<{ t: number; w: number }[]>([]);
   const shotStartRef = useRef<number | null>(null);
+  /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
+  const startedAtRef = useRef(0);
   /** Whether this shot's x axis follows the machine's clock (decided at shot start). */
   const machineClockRef = useRef(false);
 
@@ -255,12 +258,13 @@ export default function StationPage() {
   }
 
   useEffect(() => {
-    if (!getSavedIp()) return;
+    // ?demo pages are offline previews: no live data mixed into the fake shot
+    if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
     connectSocket({
       connect: () => setConnected(true),
-      disconnect: () => setConnected(false),
       error: () => setConnected(false),
       heater: (sec) => setPreheatLeft(sec),
+      disconnect: () => { setConnected(false); setPreheatLeft(0); },
       notification: (n) => setNotices((prev) => prev.some((x) => x.id === n.id)
         ? prev.map((x) => (x.id === n.id ? { ...x, ...n } : x))
         : [...prev, n]),
@@ -281,6 +285,11 @@ export default function StationPage() {
         } else if (isHeating(s) && !preShotRef.current) {
           preShotRef.current = true;
           autoFiredRef.current = false;
+          dataRef.current = [];
+          dataDirtyRef.current = true;
+          setElapsed(0);
+          // Shot started from the dial, not from here: the old target line doesn't apply
+          if (now - startedAtRef.current > 60_000) setTargetWeight(null);
         }
         setPreShot(preShotRef.current);
 
@@ -294,14 +303,7 @@ export default function StationPage() {
         // Every thermometer, one point per second
         if (s.sensors?.t != null) {
           const temp = s.sensors.t;
-          const g = groupTempsRef.current as Record<string, unknown>;
-          const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-          const reading = {
-            temp,
-            barUp: num(g.t_bar_up), barMidUp: num(g.t_bar_mid_up ?? g.t_bar_mu),
-            barMidDown: num(g.t_bar_mid_down ?? g.t_bar_md), barDown: num(g.t_bar_down),
-            ext1: num(g.t_external_1 ?? g.t_ext_1), ext2: num(g.t_external_2 ?? g.t_ext_2),
-          };
+          const reading = { temp, ...groupTempsFor(groupTempsRef.current) };
           // Rolling log by time of day (idle view)
           const clockT = now / 1000;
           setLiveTemps((prev) =>
@@ -321,6 +323,7 @@ export default function StationPage() {
         setGrav(g);
 
         if (isExtracting(s)) {
+          setPreheatLeft(0);
           if (shotStartRef.current == null) {
             // New shot: start a fresh chart
             shotStartRef.current = now;
@@ -332,7 +335,7 @@ export default function StationPage() {
           const t = machineClockRef.current && typeof s.time === "number" ? s.time : now - shotStartRef.current;
           setElapsed(t / 1000);
           dataRef.current = [
-            ...dataRef.current.slice(-900),
+            ...dataRef.current.slice(-3000),
             {
               t,
               pressure: s.sensors?.p ?? null,
@@ -364,7 +367,9 @@ export default function StationPage() {
     const check = () => {
       if (demoNoticeRef.current) return;
       getNotifications()
-        .then((list) => { if (alive) setNotices(Array.isArray(list) ? list : []); })
+        .then((list) => {
+          if (alive) setNotices((Array.isArray(list) ? list : []).filter((n) => !answeredRef.current.has(n.id)));
+        })
         .catch(() => { /* machine unreachable: keep what we have */ });
     };
     check();
@@ -376,6 +381,7 @@ export default function StationPage() {
     if (n.id === "demo") { setNotices((prev) => prev.filter((x) => x.id !== n.id)); return; }
     setNoticeBusy(true);
     try {
+      answeredRef.current.add(n.id);
       await acknowledgeNotification(n.id, response);
     } catch (e) {
       setError(`Couldn't answer the machine message: ${e instanceof Error ? e.message : String(e)}`);
@@ -403,6 +409,7 @@ export default function StationPage() {
   }, []);
 
   async function run(action: ActionType) {
+    if (action === "continue") autoFiredRef.current = true;
     setBusy(action);
     setError(null);
     try {
@@ -425,6 +432,7 @@ export default function StationPage() {
     setError(null);
     try {
       await loadProfileInline(buildShotProfile(baseProfile, recipe));
+      startedAtRef.current = Date.now();
       setTargetWeight(beverageWeight(recipe));
       updateRecipe({ baseProfileId: baseProfile.id });
       refreshNow();
@@ -573,10 +581,11 @@ export default function StationPage() {
             placeholder={
               tempView ? (
                 <HeatingProgress
-                  title={needsWater ? "Add water" : waiting ? "Ready to brew" : "Heating"}
+                  title={needsWater ? "Add water" : waiting ? (/purge/i.test(status?.name ?? "") ? "Ready to purge" : "Ready to brew") : "Heating"}
                   titleColor={needsWater ? "var(--water)" : waiting ? "var(--accent)" : "var(--heat)"}
                   hint={needsWater ? "Pour the water, then tap Water added"
-                    : waiting ? (autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
+                    : waiting ? (/purge/i.test(status?.name ?? "") ? "Tap Purge to continue"
+                      : autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
                     : "Prep the puck and cup"}
                   samples={heatSamples}
                   target={tempTarget ?? setTemp}
@@ -625,7 +634,7 @@ export default function StationPage() {
 
           <button
             onClick={() => run("stop")}
-            disabled={!online || idle || busy !== null}
+            disabled={idle}
             className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30"
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}

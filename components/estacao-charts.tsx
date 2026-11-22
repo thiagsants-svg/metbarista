@@ -77,7 +77,7 @@ function Gradient({ id, color, opacity = 0.14 }: { id: string; color: string; op
 }
 
 export function ShotCharts({
-  data, live, targetWeight, placeholder, currentStage, showTemps = false, onToggleTemps, footer,
+  data, live, targetWeight, placeholder, currentStage, showTemps = false, footer,
 }: {
   /** Shown under the chart while there is shot data (e.g. the running stage) */
   footer?: React.ReactNode;
@@ -88,7 +88,6 @@ export function ShotCharts({
   currentStage: string | null;
   /** Also plot every temperature sensor (for studying how they move during the shot) */
   showTemps?: boolean;
-  onToggleTemps?: () => void;
 }) {
   const header = [
     { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
@@ -114,14 +113,6 @@ export function ShotCharts({
             <span className="rounded-full bg-[var(--ink)]/[0.06] px-3 py-1 text-sm font-semibold text-[var(--accent)]">
               {currentStage}
             </span>
-          )}
-          {onToggleTemps && data.length > 0 && (
-            <button onClick={onToggleTemps} aria-pressed={showTemps} title="Show temperature sensors"
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                showTemps ? "border-[#f43f5e]/60 bg-[#f43f5e]/15 text-[#f43f5e]" : "border-[var(--ink)]/20 text-[var(--ink)]/40"
-              }`}>
-              Temps
-            </button>
           )}
         </span>
       </div>
