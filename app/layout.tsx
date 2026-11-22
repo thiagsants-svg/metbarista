@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navbar";
 import { MobileHeader } from "@/components/mobile-header";
 import { BottomNav } from "@/components/bottom-nav";
 import { FeedbackButton } from "@/components/feedback-button";
+import { BASE_PATH } from "@/lib/base-path";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
   title: "MetBarista — Precision Espresso Control",
   description:
     "The open community control plane for Meticulous espresso machines. Browse profiles, monitor shots, share data.",
-  manifest: "/manifest.json",
+  manifest: `${BASE_PATH}/manifest.json`,
   metadataBase: new URL("https://metbarista.com"),
   alternates: {
     canonical: "/",
@@ -33,8 +34,8 @@ export const metadata: Metadata = {
     title: "MetBarista",
   },
   icons: {
-    apple: "/apple-touch-icon.png",
-    icon: "/icon-192.png",
+    apple: `${BASE_PATH}/apple-touch-icon.png`,
+    icon: `${BASE_PATH}/icon-192.png`,
   },
 };
 

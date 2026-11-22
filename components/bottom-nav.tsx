@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gauge, History, Layers, Target } from "lucide-react";
+import { Gauge, History, Layers, Target, Tablet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 5 tabs for mobile — most-used actions next to the machine
 const TABS = [
+  { href: "/estacao",   label: "Estação",   icon: Tablet },
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/shots",     label: "Shots",     icon: History },
   { href: "/profiles",  label: "Profiles",  icon: Layers },

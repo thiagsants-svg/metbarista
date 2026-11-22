@@ -10,6 +10,7 @@ import { connectSocket, disconnectSocket } from "@/lib/machine-socket";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import { ShotNoteEditor } from "@/components/shot-note-editor";
 import type { LiveStatus } from "@/lib/types";
+import { isExtracting as isBrewing } from "@/lib/brew-state";
 
 // ── Phase metadata ────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ export default function LivePage() {
         setStatus(s);
         setPhase(s.name ?? s.state ?? "idle");
 
-        if (s.extracting) {
+        if (isBrewing(s)) {
           if (!startRef.current) {
             // New shot starting — reset accumulators
             startRef.current = Date.now();
@@ -318,7 +319,7 @@ export default function LivePage() {
         </div>
 
         {/* Last-shot summary banner */}
-        {shotSummary && !summaryDismissed && !status?.extracting && (
+        {shotSummary && !summaryDismissed && !isBrewing(status) && (
           <div className="rounded-2xl border border-[#e8944a]/20 bg-[#161210] p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#f5f0ea]">Last Shot Summary</p>

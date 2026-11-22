@@ -15,12 +15,18 @@ import {
 type SocketEventMap = {
   status: (data: LiveStatus) => void;
   temperatures: (data: LiveTemperatures) => void;
+  /** Preheat seconds remaining */
+  heater: (secondsRemaining: number) => void;
   connect: () => void;
   disconnect: () => void;
   error: (err: Error) => void;
 };
 
-let pollTimer: ReturnType<typeof setInterval> | null = null;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
+/** Delay between polls. Each GET returns everything buffered since the last one. */
+const POLL_DELAY_MS = 400;
+/** Bumped on every connect/disconnect so an old poll loop stops itself. */
+let generation = 0;
 let activeSid: string | null = null;
 let activeBase: string | null = null;
 let stopped = false;
@@ -67,6 +73,7 @@ async function doPoll(): Promise<void> {
       if (event === "status")       activeHandlers.status?.(data as LiveStatus);
       if (event === "sensors")      activeHandlers.temperatures?.(data as LiveTemperatures);
       if (event === "temperatures") activeHandlers.temperatures?.(data as LiveTemperatures);
+      if (event === "heater_status" && typeof data === "number") activeHandlers.heater?.(data);
     }
   } catch { /* network blip — keep polling */ }
 }
@@ -74,6 +81,7 @@ async function doPoll(): Promise<void> {
 export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<void> {
   if (activeSid) return; // already running
   stopped = false;
+  const gen = ++generation;
   activeHandlers = handlers;
 
   const ip = getMachineIp();
@@ -103,14 +111,19 @@ export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<
 
   handlers.connect?.();
 
-  // Step 3 — poll every 2 s; first poll fires immediately
-  await doPoll();
-  pollTimer = setInterval(doPoll, 2000);
+  // Step 3 — poll in a loop; the next poll starts only after the previous one
+  // finished, so slow responses never pile up.
+  const loop = async () => {
+    await doPoll();
+    if (!stopped && activeSid && gen === generation) pollTimer = setTimeout(loop, POLL_DELAY_MS);
+  };
+  await loop();
 }
 
 export function disconnectSocket(): void {
   stopped = true;
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  generation++;
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   activeSid = null;
   activeBase = null;
   activeHandlers = {};

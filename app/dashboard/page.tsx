@@ -19,9 +19,11 @@ import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socke
 import { ShotNoteEditor } from "@/components/shot-note-editor";
 import { ShotScoreBadge } from "@/components/shot-report-card";
 import { initBarista } from "@/lib/barista";
+import { BASE_PATH } from "@/lib/base-path";
 import { runBackfill, needsBackfill } from "@/lib/history-backfill";
 import type { MachineInfo, ShotEntry, Profile, LiveStatus } from "@/lib/types";
 import type { ActionType } from "@/lib/types";
+import { isExtracting as isBrewing, isWaitingForUser, playAction } from "@/lib/brew-state";
 
 // ── Phase metadata ────────────────────────────────────────────────────────────
 
@@ -265,7 +267,7 @@ export default function DashboardPage() {
           setPreheatRequested(false);
         }
 
-        if (s.extracting) {
+        if (isBrewing(s)) {
           if (!startRef.current) {
             startRef.current = Date.now();
             shotStartTimestampRef.current = Math.floor(Date.now() / 1000);
@@ -388,14 +390,15 @@ export default function DashboardPage() {
   }
 
   const isPreheating = preheatRequested || (liveStatus?.name?.toLowerCase().includes("heat") ?? false);
-  const isExtracting = liveStatus?.extracting;
+  const isExtracting = isBrewing(liveStatus);
+  const waitingForUser = isWaitingForUser(liveStatus);
 
   const ACTIONS: { action: ActionType; label: string; icon: React.ElementType; style: "primary" | "danger" | "outline" }[] = [
     { action: "preheat", label: isPreheating ? "Preheating…" : "Preheat", icon: Flame,   style: "outline" },
     { action: "tare",    label: "Tare Scale", icon: Scale,   style: "outline" },
     { action: "purge",   label: "Purge",      icon: Wind,    style: "outline" },
     { action: "raise",   label: "Raise",      icon: ArrowUp, style: "outline" },
-    { action: "start",   label: isExtracting ? "Extracting…" : "Start Shot", icon: Play, style: "primary" },
+    { action: playAction(liveStatus), label: isExtracting ? "Extracting…" : waitingForUser ? "Brew Now" : "Start Shot", icon: Play, style: "primary" },
     { action: "stop",    label: "Stop",       icon: Square,  style: "danger"  },
   ];
 
@@ -429,7 +432,7 @@ export default function DashboardPage() {
               <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
-              onClick={() => { clearIp(); window.location.href = "/"; }}
+              onClick={() => { clearIp(); window.location.href = `${BASE_PATH}/`; }}
               title="Disconnect machine"
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-transparent px-3 py-2 text-sm font-medium text-[#f5f0ea]/30 hover:bg-red-500/[0.08] hover:text-red-400 hover:border-red-500/20 transition-all"
             >
@@ -567,7 +570,7 @@ export default function DashboardPage() {
         )}
 
         {/* Last shot summary banner */}
-        {shotSummary && !summaryDismissed && !liveStatus?.extracting && (
+        {shotSummary && !summaryDismissed && !isExtracting && (
           <div className="rounded-2xl border border-[#e8944a]/20 bg-[#161210] p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#f5f0ea]">Last Shot Summary</p>

@@ -6,6 +6,7 @@ import { WifiOff, Loader2, X } from "lucide-react";
 import { getSavedIp, clearIp } from "@/lib/connection-store";
 import { testConnection } from "@/lib/machine-api";
 import type { ConnectionStatus } from "@/lib/types";
+import { BASE_PATH } from "@/lib/base-path";
 
 export function ConnectionDot() {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
@@ -26,7 +27,7 @@ export function ConnectionDot() {
     clearIp();
     setStatus("disconnected");
     setMachineName("");
-    window.location.href = "/";
+    window.location.href = `${BASE_PATH}/`;
   }
 
   const label = status === "connected"   ? machineName || "Connected"
