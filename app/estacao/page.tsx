@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
-import { PressureGauge } from "@/components/pressure-gauge";
+import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, getSettings, listProfiles, loadProfileInline } from "@/lib/machine-api";
@@ -388,8 +388,14 @@ export default function StationPage() {
         <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
-          {/* Live pressure gauge, 0–12 bar (temperature lives in the heating view) */}
-          <PressureGauge value={sensors?.p} color={COLORS.pressure} />
+          {/* Gauge: temperature while heating, pressure otherwise */}
+          {heating || demoHeat ? (
+            <TemperatureGauge
+              value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t}
+              target={tempTarget ?? setTemp} />
+          ) : (
+            <PressureGauge value={sensors?.p} color={COLORS.pressure} />
+          )}
         </div>
 
         {/* Chart */}

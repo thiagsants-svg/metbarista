@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Small analog-style pressure gauge (0–12 bar) for the Station's top row:
- * a 240° arc filled up to the current pressure, a needle, tick marks every
- * 2 bar, and the value in the middle.
+ * Small analog-style gauge for the Station's top row: a 240° arc filled up to
+ * the current value, a needle, tick marks, the value in big digits beside it,
+ * and an optional target mark.
+ *
+ * Pressure (0–12 bar) during the shot; temperature (20–100 °C, with the shot
+ * temperature marked) while the machine heats.
  */
 
-const MAX = 12;
 const START = 150; // degrees (clockwise from +x), lower-left
 const SWEEP = 240; // to lower-right
 
@@ -22,47 +24,81 @@ function arc(cx: number, cy: number, r: number, from: number, to: number) {
   return `M ${a.x} ${a.y} A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y}`;
 }
 
-export function PressureGauge({ value, color = "#ffc400" }: { value: number | null | undefined; color?: string }) {
-  const v = value == null || Number.isNaN(value) ? null : Math.max(0, Math.min(MAX, value));
+export function Gauge({
+  label, unit, value, min, max, tickEvery, labelEvery, color, target, digits = 1,
+}: {
+  label: string;
+  unit: string;
+  value: number | null | undefined;
+  min: number;
+  max: number;
+  tickEvery: number;
+  labelEvery: number;
+  color: string;
+  /** Marked on the arc (yellow tick) */
+  target?: number | null;
+  digits?: number;
+}) {
+  const raw = value == null || Number.isNaN(value) ? null : value;
+  const v = raw == null ? null : Math.max(min, Math.min(max, raw));
   const cx = 60, cy = 52, r = 42;
-  const end = START + (SWEEP * (v ?? 0)) / MAX;
+  const angle = (x: number) => START + (SWEEP * (x - min)) / (max - min);
+  const end = angle(v ?? min);
   const needle = polar(cx, cy, r - 10, end);
+  const ticks = Array.from({ length: Math.round((max - min) / tickEvery) + 1 }, (_, i) => min + i * tickEvery);
 
   return (
     <div className="flex h-full items-center justify-between gap-1 rounded-2xl border border-white/[0.06] bg-[#141414] px-3 py-1">
-      <div className="flex flex-col">
-        <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">Pressure</p>
-        <p className="font-mono text-[clamp(1.3rem,3vmax,2.25rem)] font-bold leading-tight" style={{ color }}>
-          {v == null ? "—" : v.toFixed(1)}
-          <span className="ml-1 text-sm font-medium text-[#fafafa]/40">bar</span>
+      <div className="flex min-w-0 flex-col">
+        <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">{label}</p>
+        <p className="whitespace-nowrap font-mono text-[clamp(1.3rem,3vmax,2.25rem)] font-bold leading-tight" style={{ color }}>
+          {raw == null ? "—" : raw.toFixed(digits)}
+          <span className="ml-1 text-sm font-medium text-[#fafafa]/40">
+            {unit}
+          </span>
         </p>
       </div>
       <svg viewBox="0 0 120 96" className="h-full max-h-[84px] w-auto shrink-0" aria-hidden>
-        {/* track */}
         <path d={arc(cx, cy, r, START, START + SWEEP)} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={9} strokeLinecap="round" />
-        {/* value */}
-        {v != null && v > 0.05 && (
+        {v != null && v > min + (max - min) * 0.005 && (
           <path d={arc(cx, cy, r, START, end)} fill="none" stroke={color} strokeWidth={9} strokeLinecap="round" />
         )}
-        {/* ticks every 2 bar, labels every 4 */}
-        {Array.from({ length: MAX / 2 + 1 }, (_, i) => i * 2).map((bar) => {
-          const deg = START + (SWEEP * bar) / MAX;
+        {ticks.map((x) => {
+          const deg = angle(x);
           const p1 = polar(cx, cy, r - 8, deg);
           const p2 = polar(cx, cy, r - 13, deg);
           const lbl = polar(cx, cy, r - 22, deg);
           return (
-            <g key={bar}>
+            <g key={x}>
               <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} />
-              {bar % 4 === 0 && (
-                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.45)">{bar}</text>
+              {(x - min) % labelEvery === 0 && (
+                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.45)">{x}</text>
               )}
             </g>
           );
         })}
-        {/* needle */}
+        {/* target mark just outside the arc */}
+        {target != null && target >= min && target <= max && (() => {
+          const a = polar(cx, cy, r + 2, angle(target));
+          const b = polar(cx, cy, r + 9, angle(target));
+          return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ffc400" strokeWidth={3} strokeLinecap="round" />;
+        })()}
         <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="#fafafa" strokeWidth={2.5} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={4} fill="#fafafa" />
       </svg>
     </div>
+  );
+}
+
+export function PressureGauge({ value, color = "#ffc400" }: { value: number | null | undefined; color?: string }) {
+  return <Gauge label="Pressure" unit="bar" value={value} min={0} max={12} tickEvery={2} labelEvery={4} color={color} />;
+}
+
+export function TemperatureGauge({
+  value, target, color = "#ff8a00",
+}: { value: number | null | undefined; target?: number | null; color?: string }) {
+  return (
+    <Gauge label="Temperature" unit="°C" value={value} min={20} max={100} tickEvery={10} labelEvery={20}
+      color={color} target={target} />
   );
 }
