@@ -661,12 +661,12 @@ function RecipePanel({
           format={(v) => v.toFixed(1).replace(/\.0$/, "")}
           onChange={(temperature) => onChange({ temperature })} />
       </div>
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-7 gap-1.5 landscape:gap-1">
         {RATIO_PRESETS.map((r) => {
           const on = Math.abs(recipe.ratio - r) < 0.001;
           return (
             <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
-              className={`h-9 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 ${
+              className={`h-9 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
                 on
                   ? "border-[#ffc400] bg-[#ffc400] text-[#0a0a0a]"
                   : "border-white/[0.08] bg-[#0a0a0a] text-[#fafafa]/75"

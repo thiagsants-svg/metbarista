@@ -30,7 +30,7 @@ export const LIMITS = {
 } as const;
 
 /** One-tap ratios; the stepper refines in 0.1 steps. */
-export const RATIO_PRESETS = [1, 2, 2.5, 3, 4, 5];
+export const RATIO_PRESETS = [1, 1.5, 2, 2.5, 3, 4, 5];
 
 const STORAGE_KEY = "metbarista_recipe";
 
