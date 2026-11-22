@@ -14,9 +14,8 @@ import Link from "next/link";
 import {
   ArrowLeft, Flame, Scale, Wind, Play, Square, Loader2, Maximize, Minimize, Minus, Plus,
 } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-} from "recharts";
+import { ShotCharts, COLORS, type ShotPoint } from "@/components/estacao-charts";
+import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, listProfiles, loadProfileInline } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
@@ -29,7 +28,15 @@ import {
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, Profile } from "@/lib/types";
 
-interface Point { t: number; pressure: number | null; flow: number | null; weight: number | null }
+/** Gravimetric flow (g/s) from the last ~1 s of scale readings. */
+function gravFlow(samples: { t: number; w: number }[]): number | null {
+  if (samples.length < 2) return null;
+  const last = samples[samples.length - 1];
+  const first = samples.find((x) => last.t - x.t <= 1200) ?? samples[0];
+  const dt = (last.t - first.t) / 1000;
+  if (dt < 0.3) return null;
+  return Math.max(0, (last.w - first.w) / dt);
+}
 
 const STATUS_LABELS: Record<string, string> = {
   idle: "Pronta",
@@ -93,7 +100,11 @@ export default function EstacaoPage() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState<LiveStatus | null>(null);
   const [heaterLeft, setHeaterLeft] = useState<number | null>(null);
-  const [data, setData] = useState<Point[]>([]);
+  const [data, setData] = useState<ShotPoint[]>([]);
+  const [grav, setGrav] = useState<number | null>(null);
+  const [targetWeight, setTargetWeight] = useState<number | null>(null);
+  const [demo, setDemo] = useState(false);
+  const weightSamplesRef = useRef<{ t: number; w: number }[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState<ActionType | "heat" | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -107,6 +118,14 @@ export default function EstacaoPage() {
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
+    // /estacao/?demo shows a simulated shot to preview the chart
+    if (new URLSearchParams(window.location.search).has("demo")) {
+      const pts = demoShot();
+      setDemo(true);
+      setData(pts);
+      setTargetWeight(40);
+      setElapsed(pts[pts.length - 1].t / 1000);
+    }
     if (!getSavedIp()) return;
     listProfiles()
       .then((list) => setProfiles([...list].sort((a, b) => a.name.localeCompare(b.name))))
@@ -134,18 +153,35 @@ export default function EstacaoPage() {
         setStatus(s);
         statusRef.current = s;
         setConnected(true);
+        // Gravimetric flow from recent scale readings
+        const now = Date.now();
+        const w = s.sensors?.w;
+        if (w != null) {
+          const samples = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
+          weightSamplesRef.current = samples;
+        }
+        const g = isExtracting(s) ? gravFlow(weightSamplesRef.current) : null;
+        setGrav(g);
+
         if (isExtracting(s)) {
           if (shotStartRef.current == null) {
             // New shot: start a fresh chart
-            shotStartRef.current = Date.now();
+            shotStartRef.current = now;
             setData([]);
           }
-          const t = Date.now() - shotStartRef.current;
+          const t = now - shotStartRef.current;
           setElapsed(t / 1000);
-          const w = s.sensors?.w;
           setData((prev) => [
-            ...prev.slice(-600),
-            { t, pressure: s.sensors?.p ?? null, flow: s.sensors?.f ?? null, weight: w != null && w > 0 ? w : null },
+            ...prev.slice(-900),
+            {
+              t,
+              pressure: s.sensors?.p ?? null,
+              flow: s.sensors?.f ?? null,
+              grav: g,
+              weight: w != null && w > 0 ? w : null,
+              temp: s.sensors?.t ?? null,
+              stage: s.name ?? null,
+            },
           ]);
         } else if (shotStartRef.current != null) {
           // Shot ended: keep the chart and final time on screen until the next one
@@ -183,6 +219,7 @@ export default function EstacaoPage() {
     setError(null);
     try {
       await loadProfileInline(buildShotProfile(baseProfile, recipe));
+      setTargetWeight(beverageWeight(recipe));
       updateRecipe({ baseProfileId: baseProfile.id });
       // Loading may already start the heating stage; if the machine is still
       // idle shortly after, ask it to preheat with the profile just loaded.
@@ -262,56 +299,35 @@ export default function EstacaoPage() {
       {/* ── Body: side-by-side in landscape, stacked in portrait ── */}
       <div className="grid min-h-0 flex-1 gap-3 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(260px,30%)]">
         {/* Readouts */}
-        <div className="grid grid-cols-5 gap-2 landscape:col-start-1">
+        <div className="grid grid-cols-3 gap-2 landscape:col-start-1">
           <Readout label="Tempo" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#f5f0ea" />
-          <Readout label="Peso" value={fmt(sensors?.w)} unit="g" color="#e8944a" />
-          <Readout label="Pressão" value={fmt(sensors?.p)} unit="bar" color="#60a5fa" />
-          <Readout label="Fluxo" value={fmt(sensors?.f)} unit="ml/s" color="#22d3ee" />
-          <Readout label="Temp." value={fmt(sensors?.t)} unit="°C" color="#f87171" />
+          <Readout label="Peso" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
+          <Readout label="Temperatura" value={fmt(sensors?.t)} unit="°C" color={COLORS.temp} />
         </div>
 
-        {/* Chart */}
-        <div className="flex min-h-0 flex-col rounded-2xl border border-white/[0.06] bg-[#161210] p-3 landscape:col-start-1">
-          <div className="flex shrink-0 items-center gap-4 px-1 pb-2 text-xs text-[#f5f0ea]/50">
-            <Legend color="#60a5fa" label="Pressão (bar)" />
-            <Legend color="#22d3ee" label="Fluxo (ml/s)" />
-            <Legend color="#e8944a" label="Peso (g)" />
-          </div>
-          <div className="relative min-h-0 flex-1">
-            {data.length === 0 ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#f5f0ea]/35">
-                {heating ? (
-                  <>
-                    <Flame className="h-10 w-10 animate-pulse text-[#e8944a]" />
-                    <p className="text-2xl font-semibold text-[#e8944a]">
-                      Aquecendo{heaterLeft != null ? ` · ${fmtClock(heaterLeft)}` : ""}
-                    </p>
-                    <p className="text-base">Prepare o puck e a xícara</p>
-                  </>
-                ) : waiting ? (
-                  <p className="text-2xl font-semibold text-[#4ade80]">Pronta — aperte Extrair</p>
-                ) : (
-                  <p className="text-lg">O gráfico aparece quando a extração começar</p>
-                )}
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
-                    tickFormatter={(v) => `${Math.round(v / 1000)}s`}
-                    tick={{ fontSize: 13, fill: "#f5f0ea", fillOpacity: 0.4 }} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="left" domain={[0, 12]} width={30}
-                    tick={{ fontSize: 13, fill: "#f5f0ea", fillOpacity: 0.4 }} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, "auto"]} width={36}
-                    tick={{ fontSize: 13, fill: "#f5f0ea", fillOpacity: 0.4 }} tickLine={false} axisLine={false} />
-                  <Line yAxisId="left" type="monotone" dataKey="pressure" stroke="#60a5fa" strokeWidth={3} dot={false} isAnimationActive={false} />
-                  <Line yAxisId="left" type="monotone" dataKey="flow" stroke="#22d3ee" strokeWidth={3} dot={false} isAnimationActive={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="weight" stroke="#e8944a" strokeWidth={3} dot={false} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+        {/* Charts */}
+        <div className="flex min-h-0 flex-col landscape:col-start-1">
+          <ShotCharts
+            data={data}
+            targetWeight={targetWeight}
+            currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
+            live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
+            placeholder={
+              heating ? (
+                <>
+                  <Flame className="h-10 w-10 animate-pulse text-[#e8944a]" />
+                  <p className="text-2xl font-semibold text-[#e8944a]">
+                    Aquecendo{heaterLeft != null ? ` · ${fmtClock(heaterLeft)}` : ""}
+                  </p>
+                  <p className="text-base">Prepare o puck e a xícara</p>
+                </>
+              ) : waiting ? (
+                <p className="text-2xl font-semibold text-[#4ade80]">Pronta — aperte Extrair</p>
+              ) : (
+                <p className="text-lg">O gráfico aparece quando a extração começar</p>
+              )
+            }
+          />
         </div>
 
         {/* Controls */}
@@ -377,15 +393,6 @@ function Readout({ label, value, unit, color }: { label: string; value: string; 
         {unit && value !== "—" && <span className="ml-1 text-sm font-medium text-[#f5f0ea]/40">{unit}</span>}
       </p>
     </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-1 w-4 rounded-full" style={{ backgroundColor: color }} />
-      {label}
-    </span>
   );
 }
 
