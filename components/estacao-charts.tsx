@@ -206,11 +206,14 @@ export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string 
  * climbing toward the target line.
  */
 export function HeatingProgress({
-  samples, target, current,
+  samples, target, current, title = "Heating", titleColor = "#ff8a00", hint = "Prep the puck and cup",
 }: {
   samples: HeatPoint[];
   target: number | null;
   current: number | null;
+  title?: string;
+  titleColor?: string;
+  hint?: string;
 }) {
   const last = samples[samples.length - 1];
   const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
@@ -223,7 +226,7 @@ export function HeatingProgress({
     <div className="flex h-full w-full flex-col gap-2 p-1">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wider text-[#ff8a00]">Heating</p>
+          <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
           <p className="font-mono text-5xl font-bold text-[#fafafa]">
             {current != null ? current.toFixed(1) : "—"}
             <span className="ml-2 text-2xl text-[#fafafa]/40">→ {target ?? "—"} °C</span>
@@ -265,7 +268,7 @@ export function HeatingProgress({
           </ResponsiveContainer>
         )}
       </div>
-      <p className="text-center text-base text-[#fafafa]/45">Prep the puck and cup</p>
+      <p className="text-center text-base text-[#fafafa]/45">{hint}</p>
     </div>
   );
 }

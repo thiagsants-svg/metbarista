@@ -5,10 +5,12 @@
  * (sized for a Galaxy Tab A 10.1, ~800×1280 CSS px, either orientation).
  * Everything fits on one screen: no scrolling.
  *
- * Flow: pick profile, dose, ratio and temperature → Start shot (loads the
+ * Flow: pick profile, dose, ratio and temperature → Start heating (loads the
  * profile with that temperature and yield, unsaved; the machine then heats,
  * like the official "Start shot") → Water added / Brew when the machine waits
- * for a click (`continue`, like the dial's button).
+ * for a click (`continue`, like the dial's button). The temperature view stays
+ * up from heating until the shot starts. Optional "Auto brew" (off by
+ * default, not remembered) taps Brew by itself once the machine is ready.
  * Small controls match the machine's own web UI: Tare, Purge, Raise (home),
  * Preheat (toggle).
  */
@@ -122,6 +124,13 @@ export default function StationPage() {
   const [demoHeat, setDemoHeat] = useState(false);
   const [heatSamples, setHeatSamples] = useState<HeatPoint[]>([]);
   const heatStartRef = useRef<number | null>(null);
+  /** From the first "heating" until extraction starts (or the machine goes idle). */
+  const preShotRef = useRef(false);
+  const [preShot, setPreShot] = useState(false);
+  /** Auto brew: off by default and on every page load, on purpose. */
+  const [autoBrew, setAutoBrew] = useState(false);
+  const autoBrewRef = useRef(false);
+  const autoFiredRef = useRef(false);
   /** Latest group temperatures from the machine's "sensors" event. */
   const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
   /** Last temperature target the machine reported (shown as "set" during the shot). */
@@ -197,8 +206,25 @@ export default function StationPage() {
         if (w != null) {
           weightSamplesRef.current = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
         }
-        // Heating progress curve (one point per second)
-        if (isHeating(s) && s.sensors?.t != null) {
+        // Pre-shot session: heating → (water) → ready, until extraction starts
+        if (isIdle(s) || isExtracting(s)) {
+          preShotRef.current = false;
+          if (isIdle(s)) heatStartRef.current = null;
+        } else if (isHeating(s) && !preShotRef.current) {
+          preShotRef.current = true;
+          autoFiredRef.current = false;
+        }
+        setPreShot(preShotRef.current);
+
+        // Auto brew: tap Brew once when the machine is ready, if the user asked for it
+        if (autoBrewRef.current && preShotRef.current && !autoFiredRef.current
+            && (s.name ?? "").toLowerCase() === "click to start") {
+          autoFiredRef.current = true;
+          executeAction("continue").then(refreshNow).catch((e) => setError(`Auto brew: ${e instanceof Error ? e.message : e}`));
+        }
+
+        // Temperature curve for the whole pre-shot session (one point per second)
+        if (preShotRef.current && s.sensors?.t != null) {
           const temp = s.sensors.t;
           if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
           const t = (now - heatStartRef.current) / 1000;
@@ -213,8 +239,6 @@ export default function StationPage() {
           };
           setHeatSamples((prev) =>
             prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), point]);
-        } else {
-          heatStartRef.current = null;
         }
 
         // Machine's own gravimetric flow; estimate it only if absent
@@ -302,6 +326,8 @@ export default function StationPage() {
   const needsWater = isWaitingForWater(status);
   const waiting = isWaitingForUser(status) && !needsWater;
   const heating = isHeating(status);
+  /** Temperature view (chart + gauge) from heating until Brew starts the shot. */
+  const tempView = demoHeat || heating || (preShot && !isExtracting(status) && !isIdle(status));
   const idle = isIdle(status);
   const preheating = preheatLeft > 0;
   // In demo mode the readouts show the simulated shot's final values
@@ -312,9 +338,9 @@ export default function StationPage() {
   const online = connected && !!status;
 
   // ── Main button follows the flow ──
-  // idle → Start shot · heating → progress · water → Water added · ready → Brew
+  // idle → Start heating · heating → progress · water → Water added · ready → Brew
   let mainAction: ActionType | "load" | null = null;
-  let mainLabel = "Start shot";
+  let mainLabel = "Start heating";
   let mainHint = baseProfile
     ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C`
     : "Pick a profile";
@@ -389,7 +415,7 @@ export default function StationPage() {
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
           {/* Gauge: temperature while heating, pressure otherwise */}
-          {heating || demoHeat ? (
+          {tempView ? (
             <TemperatureGauge
               value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t}
               target={tempTarget ?? setTemp} />
@@ -406,8 +432,13 @@ export default function StationPage() {
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
             placeholder={
-              heating || demoHeat ? (
+              tempView ? (
                 <HeatingProgress
+                  title={needsWater ? "Add water" : waiting ? "Ready to brew" : "Heating"}
+                  titleColor={needsWater ? "#38bdf8" : waiting ? "#ffc400" : "#ff8a00"}
+                  hint={needsWater ? "Pour the water, then tap Water added"
+                    : waiting ? (autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
+                    : "Prep the puck and cup"}
                   samples={heatSamples}
                   target={tempTarget ?? setTemp}
                   current={demoHeat ? heatSamples[heatSamples.length - 1]?.temp ?? null : sensors?.t ?? null}
@@ -431,6 +462,8 @@ export default function StationPage() {
             recipe={recipe}
             editable={idle && online && busy === null}
             onChange={updateRecipe}
+            autoBrew={autoBrew}
+            onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
           />
 
           <button
@@ -506,10 +539,11 @@ function SmallButton({
 }
 
 function RecipePanel({
-  profiles, base, recipe, editable, onChange,
+  profiles, base, recipe, editable, onChange, autoBrew, onAutoBrew,
 }: {
   profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
   onChange: (patch: Partial<Recipe>) => void;
+  autoBrew: boolean; onAutoBrew: (on: boolean) => void;
 }) {
   return (
     <div className="portrait:col-span-2 space-y-2 rounded-2xl border border-white/[0.06] bg-[#141414] p-2.5">
@@ -545,6 +579,12 @@ function RecipePanel({
           );
         })}
       </div>
+      {/* Not remembered: off on every page load, so a shot never starts by surprise */}
+      <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
+        <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
+          className="h-5 w-5 accent-[#ffc400]" />
+        Auto brew when the target temperature is reached
+      </label>
     </div>
   );
 }
