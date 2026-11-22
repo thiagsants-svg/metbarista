@@ -397,7 +397,7 @@ export default function DashboardPage() {
     { action: "preheat", label: isPreheating ? "Preheating…" : "Preheat", icon: Flame,   style: "outline" },
     { action: "tare",    label: "Tare Scale", icon: Scale,   style: "outline" },
     { action: "purge",   label: "Purge",      icon: Wind,    style: "outline" },
-    { action: "raise",   label: "Raise",      icon: ArrowUp, style: "outline" },
+    { action: "home",    label: "Raise",      icon: ArrowUp, style: "outline" },
     { action: playAction(liveStatus), label: isExtracting ? "Extracting…" : waitingForUser ? "Brew Now" : "Start Shot", icon: Play, style: "primary" },
     { action: "stop",    label: "Stop",       icon: Square,  style: "danger"  },
   ];

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { ConnectionDot } from "./connection-dot";
 
 const NAV_LINKS = [
-  { href: "/estacao",    label: "Estação",   icon: Tablet },
+  { href: "/estacao",    label: "Station", icon: Tablet },
   { href: "/dashboard",  label: "Dashboard", icon: Gauge },
   { href: "/shots",      label: "Shots",     icon: History },
   { href: "/profiles",   label: "Profiles",  icon: Layers },

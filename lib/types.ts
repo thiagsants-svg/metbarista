@@ -207,6 +207,7 @@ export interface MachineSettings {
 export type ActionType =
   | "start"
   | "continue"
+  | "home"
   | "stop"
   | "preheat"
   | "tare"

@@ -37,8 +37,13 @@ export function isWaitingForWater(s: LiveStatus | null | undefined): boolean {
   return statusName(s) === "pour water and click to continue";
 }
 
+/**
+ * Stages that wait for a click, like the dial's button: "click to start",
+ * "Pour water and click to continue", "Click to purge" (same rule as the
+ * machine's own web UI).
+ */
 export function isWaitingForUser(s: LiveStatus | null | undefined): boolean {
-  return WAITING_STATUSES.includes(statusName(s));
+  return /click to/i.test(s?.name ?? "") && !isIdle(s);
 }
 
 export function isHeating(s: LiveStatus | null | undefined): boolean {
@@ -52,6 +57,7 @@ export function isIdle(s: LiveStatus | null | undefined): boolean {
 /** True only while coffee is actually being pulled. */
 export function isExtracting(s: LiveStatus | null | undefined): boolean {
   if (!s?.extracting) return false;
+  if (/click to/i.test(s.name ?? "")) return false;
   return !NON_EXTRACTION_STATUSES.includes(statusName(s));
 }
 

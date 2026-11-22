@@ -49,9 +49,9 @@ export function ProfilePicker({
           ? <ProfileCover profile={selected} className="h-14 w-14 shrink-0 rounded-lg" />
           : <div className="h-14 w-14 shrink-0 rounded-lg bg-white/[0.06]" />}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-[#f5f0ea]/40">Perfil</p>
+          <p className="text-[11px] uppercase tracking-wider text-[#f5f0ea]/40">Profile</p>
           <p className="truncate text-lg font-semibold text-[#f5f0ea]">
-            {selected?.name ?? (profiles.length ? "Escolher perfil" : "Carregando perfis…")}
+            {selected?.name ?? (profiles.length ? "Choose a profile" : "Loading profiles…")}
           </p>
         </div>
         <ChevronRight className="h-5 w-5 shrink-0 text-[#f5f0ea]/40" />
@@ -60,8 +60,8 @@ export function ProfilePicker({
       {open && (
         <div className="fixed inset-0 z-[120] flex flex-col bg-[#0c0a09]/95 p-4 backdrop-blur-sm">
           <div className="mb-4 flex shrink-0 items-center justify-between">
-            <p className="text-2xl font-bold text-[#f5f0ea]">Escolha o perfil</p>
-            <button onClick={() => setOpen(false)} aria-label="Fechar"
+            <p className="text-2xl font-bold text-[#f5f0ea]">Choose a profile</p>
+            <button onClick={() => setOpen(false)} aria-label="Close"
               className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] text-[#f5f0ea]/70 active:scale-95">
               <X className="h-6 w-6" />
             </button>

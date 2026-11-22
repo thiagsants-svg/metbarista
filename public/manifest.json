@@ -1,6 +1,6 @@
 {
-  "name": "MetBarista Estação",
-  "short_name": "Estação",
+  "name": "MetBarista Station",
+  "short_name": "Station",
   "description": "The open control plane for Meticulous espresso machines",
   "start_url": "./estacao/",
   "scope": "./",

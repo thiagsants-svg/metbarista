@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Live shot chart for the Estação screen, in the style of the official
+ * Live shot chart for the Station screen, in the style of the official
  * Meticulous app (filled areas, dark panel), condensed into one chart:
  *  - left axis (0–12): pressure (bar), flow (ml/s), gravimetric flow (g/s)
  *  - right axis: weight (g), with the recipe's target as a dashed line
@@ -80,12 +80,12 @@ export function ShotCharts({
   const spans = stageSpans(data);
 
   const header = [
-    { label: "Pressão", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
-    { label: "Fluxo", value: fmt(live.flow), unit: "ml/s", color: COLORS.flow },
+    { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
+    { label: "Flow", value: fmt(live.flow), unit: "ml/s", color: COLORS.flow },
     { label: "Grav", value: fmt(live.grav), unit: "g/s", color: COLORS.grav },
     // Weight and temperature have their own big readouts above the chart
-    { label: "Peso", value: "", unit: "", color: COLORS.weight },
-    { label: "Temp.", value: "", unit: "", color: COLORS.temp },
+    { label: "Weight", value: "", unit: "", color: COLORS.weight },
+    { label: "Temp", value: "", unit: "", color: COLORS.temp },
   ];
 
   return (
