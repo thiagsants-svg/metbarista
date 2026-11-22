@@ -48,18 +48,18 @@ export function Gauge({
   const ticks = Array.from({ length: Math.round((max - min) / tickEvery) + 1 }, (_, i) => min + i * tickEvery);
 
   return (
-    <div className="flex h-full items-center justify-between gap-1 rounded-2xl border border-white/[0.06] bg-[#141414] px-3 py-1">
+    <div className="flex h-full items-center justify-between gap-1 border-t-2 border-[#111] pt-1">
       <div className="flex min-w-0 flex-col">
-        <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">{label}</p>
-        <p className="whitespace-nowrap font-mono text-[clamp(1.3rem,3vmax,2.25rem)] font-bold leading-tight" style={{ color }}>
+        <p className="text-[11px] uppercase tracking-wider text-[#111]/40">{label}</p>
+        <p className="whitespace-nowrap text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight leading-tight" style={{ color }}>
           {raw == null ? "—" : raw.toFixed(digits)}
-          <span className="ml-1 text-sm font-medium text-[#fafafa]/40">
+          <span className="ml-1 text-sm font-medium text-[#111]/40">
             {unit}
           </span>
         </p>
       </div>
       <svg viewBox="0 0 120 96" className="h-full max-h-[84px] w-auto shrink-0" aria-hidden>
-        <path d={arc(cx, cy, r, START, START + SWEEP)} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={9} strokeLinecap="round" />
+        <path d={arc(cx, cy, r, START, START + SWEEP)} fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth={9} strokeLinecap="round" />
         {v != null && v > min + (max - min) * 0.005 && (
           <path d={arc(cx, cy, r, START, end)} fill="none" stroke={color} strokeWidth={9} strokeLinecap="round" />
         )}
@@ -70,9 +70,9 @@ export function Gauge({
           const lbl = polar(cx, cy, r - 22, deg);
           return (
             <g key={x}>
-              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(0,0,0,0.45)" strokeWidth={1.5} />
               {(x - min) % labelEvery === 0 && (
-                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.45)">{x}</text>
+                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={9} fill="rgba(0,0,0,0.6)">{x}</text>
               )}
             </g>
           );
@@ -81,21 +81,21 @@ export function Gauge({
         {target != null && target >= min && target <= max && (() => {
           const a = polar(cx, cy, r + 2, angle(target));
           const b = polar(cx, cy, r + 9, angle(target));
-          return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ffc400" strokeWidth={3} strokeLinecap="round" />;
+          return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#e30613" strokeWidth={3} strokeLinecap="round" />;
         })()}
-        <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="#fafafa" strokeWidth={2.5} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={4} fill="#fafafa" />
+        <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="#111" strokeWidth={2.5} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={4} fill="#111" />
       </svg>
     </div>
   );
 }
 
-export function PressureGauge({ value, color = "#ffc400" }: { value: number | null | undefined; color?: string }) {
+export function PressureGauge({ value, color = "#e30613" }: { value: number | null | undefined; color?: string }) {
   return <Gauge label="Pressure" unit="bar" value={value} min={0} max={12} tickEvery={2} labelEvery={4} color={color} />;
 }
 
 export function TemperatureGauge({
-  value, target, color = "#ff8a00",
+  value, target, color = "#c2410c",
 }: { value: number | null | undefined; target?: number | null; color?: string }) {
   return (
     <Gauge label="Temperature" unit="°C" value={value} min={20} max={100} tickEvery={10} labelEvery={20}

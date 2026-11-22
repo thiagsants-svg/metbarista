@@ -455,24 +455,24 @@ export default function StationPage() {
   else { mainLabel = statusLabel(status, connected); mainHint = ""; MainIcon = Loader2; tone = "off"; }
 
   const toneClass = {
-    start: "bg-[#ffc400] text-[#0a0a0a] shadow-[0_4px_40px_rgba(255,196,0,0.25)]",
-    water: "bg-[#38bdf8] text-[#0a0a0a] shadow-[0_0_50px_rgba(56,189,248,0.35)] animate-pulse",
-    brew: "bg-[#ffc400] text-[#0a0a0a] shadow-[0_0_50px_rgba(255,196,0,0.35)] animate-pulse",
-    heat: "border border-[#ff8a00]/40 bg-[#ff8a00]/10 text-[#ff8a00]",
-    busy: "border border-[#ffc400]/30 bg-[#ffc400]/10 text-[#ffc400]",
-    off: "bg-white/[0.06] text-[#fafafa]/50",
+    start: "bg-[#111] text-[#ebeae6]",
+    water: "bg-[#0369a1] text-[#ebeae6] animate-pulse",
+    brew: "bg-[#111] text-[#ebeae6] animate-pulse",
+    heat: "border border-[#c2410c]/40 bg-[#c2410c]/10 text-[#c2410c]",
+    busy: "border border-black/30 bg-black/[0.06] text-[#e30613]",
+    off: "bg-black/[0.05] text-[#111]/50",
   }[tone];
 
   const pillColor =
-    !connected ? "bg-white/[0.06] text-[#fafafa]/50"
-    : brewing || waiting ? "bg-[#ffc400]/15 text-[#ffc400]"
-    : needsWater ? "bg-[#38bdf8]/15 text-[#38bdf8]"
-    : heating || preheating ? "bg-[#ffc400]/15 text-[#ffc400]"
-    : "bg-white/[0.06] text-[#fafafa]/70";
+    !connected ? "bg-black/[0.05] text-[#111]/50"
+    : brewing || waiting ? "bg-black/[0.06] text-[#e30613]"
+    : needsWater ? "bg-[#0369a1]/15 text-[#0369a1]"
+    : heating || preheating ? "bg-black/[0.06] text-[#e30613]"
+    : "bg-black/[0.05] text-[#111]/70";
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[#0a0a0a] p-2.5 text-[#fafafa] select-none sm:gap-2.5 sm:p-3"
+      className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[#ebeae6] p-2.5 text-[#111] select-none sm:gap-2.5 sm:p-3"
       style={{ height: "100dvh" }}
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
@@ -480,7 +480,7 @@ export default function StationPage() {
       {/* ── Top bar ── */}
       <header className="flex shrink-0 items-center gap-2.5">
         <Link href="/dashboard" aria-label="Back"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-[#fafafa]/60 active:scale-95">
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-black/20 text-[#111]/60 active:scale-95">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <p className="min-w-0 flex-1 truncate text-lg font-semibold">{status?.loaded_profile ?? "—"}</p>
@@ -489,15 +489,15 @@ export default function StationPage() {
           {preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
         </span>
         <button onClick={toggleFullscreen} aria-label="Full screen"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-[#fafafa]/60 active:scale-95">
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-black/20 text-[#111]/60 active:scale-95">
           {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
         </button>
       </header>
 
       {error && (
         <button onClick={() => setError(null)}
-          className="shrink-0 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-left text-sm text-red-300">
-          {error} <span className="text-red-300/50">· tap to dismiss</span>
+          className="shrink-0 rounded-md border border-[#e30613]/40 bg-[#e30613]/5 px-3 py-1.5 text-left text-sm text-[#e30613]">
+          {error} <span className="text-[#e30613]/50">· tap to dismiss</span>
         </button>
       )}
 
@@ -505,7 +505,7 @@ export default function StationPage() {
       <div className="grid min-h-0 flex-1 gap-2 sm:gap-2.5 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(280px,31%)]">
         {/* Readouts */}
         <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
-          <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#fafafa" />
+          <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#111" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
           <Readout label="Flow" value={fmt(sensors?.f)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
@@ -538,7 +538,7 @@ export default function StationPage() {
               tempView ? (
                 <HeatingProgress
                   title={needsWater ? "Add water" : waiting ? "Ready to brew" : "Heating"}
-                  titleColor={needsWater ? "#38bdf8" : waiting ? "#ffc400" : "#ff8a00"}
+                  titleColor={needsWater ? "#0369a1" : waiting ? "#e30613" : "#c2410c"}
                   hint={needsWater ? "Pour the water, then tap Water added"
                     : waiting ? (autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
                     : "Prep the puck and cup"}
@@ -547,9 +547,9 @@ export default function StationPage() {
                   current={heatSamples[heatSamples.length - 1]?.temp ?? sensors?.t ?? null}
                 />
               ) : needsWater ? (
-                <p className="text-2xl font-semibold text-[#38bdf8]">Pour the water, then tap “Water added”</p>
+                <p className="text-2xl font-semibold text-[#0369a1]">Pour the water, then tap “Water added”</p>
               ) : waiting ? (
-                <p className="text-2xl font-semibold text-[#ffc400]">Ready — tap Brew</p>
+                <p className="text-2xl font-semibold text-[#e30613]">Ready — tap Brew</p>
               ) : (
                 // Idle: live group temperatures, like the machine's Sensors page
                 <GroupTemperatures samples={liveTemps} target={tempTarget} />
@@ -575,7 +575,7 @@ export default function StationPage() {
           <button
             onClick={() => mainAction === "load" ? startShot() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
-            className={`flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-2xl transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
+            className={`flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-md transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
           >
             <span className="flex items-center gap-2.5">
               {busy !== null && busy === mainAction
@@ -590,7 +590,7 @@ export default function StationPage() {
           <button
             onClick={() => run("stop")}
             disabled={!online || idle || busy !== null}
-            className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-2xl border border-red-500/30 bg-red-500/15 text-xl font-bold text-red-300 active:scale-[0.98] disabled:opacity-30"
+            className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[#e30613] bg-transparent text-xl font-bold text-[#e30613] active:scale-[0.98] disabled:opacity-30"
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}
             Stop
@@ -616,11 +616,11 @@ export default function StationPage() {
 
 function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-[#141414] px-3 py-1.5">
-      <p className="text-[11px] uppercase tracking-wider text-[#fafafa]/40">{label}</p>
-      <p className="font-mono text-[clamp(1.2rem,2.7vmax,2.1rem)] font-bold leading-tight whitespace-nowrap" style={{ color }}>
+    <div className="min-w-0 overflow-hidden border-t-2 border-[#111] pt-1.5">
+      <p className="text-[11px] uppercase tracking-wider text-[#111]/40">{label}</p>
+      <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight leading-tight whitespace-nowrap" style={{ color }}>
         {value}
-        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[#fafafa]/40">{unit}</span>}
+        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[#111]/40">{unit}</span>}
       </p>
     </div>
   );
@@ -633,10 +633,10 @@ function SmallButton({
 }) {
   return (
     <button onClick={onClick} disabled={disabled} title={active ? "Preheating. Tap to stop." : undefined}
-      className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border text-sm font-semibold transition-all active:scale-95 disabled:opacity-30 ${
+      className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-sm font-semibold transition-all active:scale-95 disabled:opacity-30 ${
         active
-          ? "border-[#ffc400]/50 bg-[#ffc400]/15 text-[#ffc400]"
-          : "border-white/[0.08] bg-[#141414] text-[#fafafa]/80"
+          ? "border-black/30 bg-black/[0.06] text-[#e30613]"
+          : "border-black/20 bg-transparent text-[#111]/80"
       }`}>
       {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Icon className={`h-5 w-5 ${active ? "animate-pulse" : ""}`} />}
       {label}
@@ -653,7 +653,7 @@ function RecipePanel({
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
   return (
-    <div className="portrait:col-span-2 space-y-2 rounded-2xl border border-white/[0.06] bg-[#141414] p-2.5">
+    <div className="portrait:col-span-2 space-y-2 border-t-2 border-[#111] pt-2.5">
       <ProfilePicker
         profiles={profiles}
         selected={base}
@@ -678,8 +678,8 @@ function RecipePanel({
             <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
               className={`h-9 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
                 on
-                  ? "border-[#ffc400] bg-[#ffc400] text-[#0a0a0a]"
-                  : "border-white/[0.08] bg-[#0a0a0a] text-[#fafafa]/75"
+                  ? "border-[#111] bg-[#111] text-[#ebeae6]"
+                  : "border-black/20 bg-[#ebeae6] text-[#111]/75"
               }`}>
               {formatRatio(r)}
             </button>
@@ -688,15 +688,15 @@ function RecipePanel({
       </div>
       <div className="grid grid-cols-2 gap-x-3 landscape:grid-cols-1">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#111]/75">
           <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[#ffc400]" />
+            className="h-5 w-5 shrink-0 accent-[#111]" />
           <span className="truncate">Auto brew at target temperature</span>
         </label>
         {/* Remembered on this device */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#111]/75">
           <input type="checkbox" checked={shotTemps} onChange={(e) => onShotTemps(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[#ffc400]" />
+            className="h-5 w-5 shrink-0 accent-[#111]" />
           <span className="truncate">Temperatures on the shot chart</span>
         </label>
       </div>
@@ -712,16 +712,16 @@ function Stepper({
   format: (v: number) => string; onChange: (v: number) => void;
 }) {
   const set = (v: number) => onChange(roundTo(Math.min(limits.max, Math.max(limits.min, v)), limits.step));
-  const btn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0a0a0a] text-[#fafafa]/80 active:scale-95 disabled:opacity-30";
+  const btn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-black/20 bg-[#ebeae6] text-[#111]/80 active:scale-95 disabled:opacity-30";
   return (
     <div className="flex items-center gap-1.5">
       <button className={btn} disabled={disabled || value <= limits.min} onClick={() => set(value - limits.step)} aria-label={`Decrease ${label}`}>
         <Minus className="h-5 w-5" />
       </button>
       <div className="min-w-0 flex-1 text-center leading-tight">
-        <p className="text-[10px] uppercase tracking-wider text-[#fafafa]/40">{label}</p>
+        <p className="text-[10px] uppercase tracking-wider text-[#111]/40">{label}</p>
         <p className="font-mono text-lg font-bold whitespace-nowrap">
-          {format(value)} <span className="text-xs font-medium text-[#fafafa]/45">{unit}</span>
+          {format(value)} <span className="text-xs font-medium text-[#111]/45">{unit}</span>
         </p>
       </div>
       <button className={btn} disabled={disabled || value >= limits.max} onClick={() => set(value + limits.step)} aria-label={`Increase ${label}`}>
