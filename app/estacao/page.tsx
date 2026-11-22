@@ -521,10 +521,6 @@ export default function StationPage() {
             data={demoHeat ? [] : data}
             targetWeight={targetWeight}
             showTemps={shotTemps}
-            onToggleTemps={() => setShotTemps((on) => {
-              localStorage.setItem("metbarista_shot_temps", on ? "0" : "1");
-              return !on;
-            })}
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
             placeholder={
@@ -561,6 +557,8 @@ export default function StationPage() {
             onChange={updateRecipe}
             autoBrew={autoBrew}
             onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
+            shotTemps={shotTemps}
+            onShotTemps={(on) => { setShotTemps(on); localStorage.setItem("metbarista_shot_temps", on ? "1" : "0"); }}
           />
 
           <button
@@ -636,11 +634,12 @@ function SmallButton({
 }
 
 function RecipePanel({
-  profiles, base, recipe, editable, onChange, autoBrew, onAutoBrew,
+  profiles, base, recipe, editable, onChange, autoBrew, onAutoBrew, shotTemps, onShotTemps,
 }: {
   profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
   onChange: (patch: Partial<Recipe>) => void;
   autoBrew: boolean; onAutoBrew: (on: boolean) => void;
+  shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
   return (
     <div className="portrait:col-span-2 space-y-2 rounded-2xl border border-white/[0.06] bg-[#141414] p-2.5">
@@ -676,12 +675,20 @@ function RecipePanel({
           );
         })}
       </div>
-      {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-      <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
-        <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-          className="h-5 w-5 accent-[#ffc400]" />
-        Auto brew when the target temperature is reached
-      </label>
+      <div className="grid grid-cols-2 gap-x-3 landscape:grid-cols-1">
+        {/* Not remembered: off on every page load, so a shot never starts by surprise */}
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
+          <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
+            className="h-5 w-5 shrink-0 accent-[#ffc400]" />
+          <span className="truncate">Auto brew at target temperature</span>
+        </label>
+        {/* Remembered on this device */}
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#fafafa]/75">
+          <input type="checkbox" checked={shotTemps} onChange={(e) => onShotTemps(e.target.checked)}
+            className="h-5 w-5 shrink-0 accent-[#ffc400]" />
+          <span className="truncate">Temperatures on the shot chart</span>
+        </label>
+      </div>
     </div>
   );
 }
