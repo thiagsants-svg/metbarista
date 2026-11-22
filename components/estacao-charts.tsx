@@ -11,7 +11,7 @@
  *  - profile stages shaded behind the curves, current stage highlighted
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, XAxis, YAxis,
 } from "recharts";
@@ -79,11 +79,6 @@ export function ShotCharts({
   placeholder: React.ReactNode;
   currentStage: string | null;
 }) {
-  const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
-  const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
-  const spans = stageSpans(data);
-  const totalT = data.length ? data[data.length - 1].t : 1;
-
   const header = [
     { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
     { label: "Flow", value: fmt(live.flow), unit: "ml/s", color: COLORS.flow },
@@ -116,6 +111,32 @@ export function ShotCharts({
             {placeholder}
           </div>
         ) : (
+          <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The shot chart itself. Memoized: it only redraws when the data array (or
+ * target/stage) changes, not on every live reading — old tablets struggle to
+ * redraw a few hundred points several times a second. Straight segments
+ * (`linear`) are cheaper than smoothed curves and look the same at ~10 Hz.
+ */
+const ShotPlot = memo(function ShotPlot({
+  data, targetWeight, currentStage,
+}: {
+  data: ShotPoint[];
+  targetWeight: number | null;
+  currentStage: string | null;
+}) {
+  const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
+  const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
+  const spans = stageSpans(data);
+  const totalT = data.length ? data[data.length - 1].t : 1;
+
+  return (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 22, right: 4, bottom: 0, left: 0 }}>
               <defs>
@@ -164,22 +185,18 @@ export function ShotCharts({
               {targetWeight != null && (
                 <ReferenceLine yAxisId="w" y={targetWeight} stroke={COLORS.weight} strokeOpacity={0.6} strokeDasharray="6 4" />
               )}
-              <Area yAxisId="w" type="monotone" dataKey="weight" stroke={COLORS.weight} strokeWidth={2.5} fill="url(#g-weight)" dot={false} isAnimationActive={false} connectNulls />
-              <Area yAxisId="l" type="monotone" dataKey="pressure" stroke={COLORS.pressure} strokeWidth={2.5} fill="url(#g-pressure)" dot={false} isAnimationActive={false} connectNulls />
-              <Area yAxisId="l" type="monotone" dataKey="flow" stroke={COLORS.flow} strokeWidth={2.5} fill="url(#g-flow)" dot={false} isAnimationActive={false} connectNulls />
+              <Area yAxisId="w" type="linear" dataKey="weight" stroke={COLORS.weight} strokeWidth={2.5} fill="url(#g-weight)" dot={false} isAnimationActive={false} connectNulls />
+              <Area yAxisId="l" type="linear" dataKey="pressure" stroke={COLORS.pressure} strokeWidth={2.5} fill="url(#g-pressure)" dot={false} isAnimationActive={false} connectNulls />
+              <Area yAxisId="l" type="linear" dataKey="flow" stroke={COLORS.flow} strokeWidth={2.5} fill="url(#g-flow)" dot={false} isAnimationActive={false} connectNulls />
               {/* Stage targets, dotted like the machine's sensor page */}
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
-              <Line yAxisId="l" type="monotone" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+              <Line yAxisId="l" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
-        )}
-      </div>
-    </div>
   );
-}
+});
 
-/** One heating sample: the main (tube) temperature plus every group sensor. */
 export interface HeatPoint {
   t: number;      // s since heating started
   temp: number;   // status temperature (the tube), what the dial shows
@@ -206,7 +223,7 @@ export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string 
  * Heating progress: current temperature and every group temperature sensor
  * climbing toward the target line.
  */
-export function HeatingProgress({
+export const HeatingProgress = memo(function HeatingProgress({
   samples, target, current, title = "Heating", titleColor = "#ff8a00", hint = "Prep the puck and cup", clock = false,
 }: {
   samples: HeatPoint[];
@@ -277,7 +294,7 @@ export function HeatingProgress({
       {hint && <p className="text-center text-base text-[#fafafa]/45">{hint}</p>}
     </div>
   );
-}
+});
 
 const WINDOWS = [
   { label: "30 s", s: 30 },
@@ -293,7 +310,7 @@ const WINDOWS = [
  * line, the other sensors thin; time window buttons (10 min by default).
  * `samples[].t` is epoch seconds.
  */
-export function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; target: number | null }) {
+export const GroupTemperatures = memo(function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; target: number | null }) {
   const [windowS, setWindowS] = useState(600);
   const now = samples.length ? samples[samples.length - 1].t : 0;
   const shown = samples.filter((p) => now - p.t <= windowS);
@@ -374,4 +391,4 @@ export function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; t
       </div>
     </div>
   );
-}
+});

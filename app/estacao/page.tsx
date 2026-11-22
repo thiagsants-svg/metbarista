@@ -117,6 +117,9 @@ export default function StationPage() {
   const [status, setStatus] = useState<LiveStatus | null>(null);
   const [preheatLeft, setPreheatLeft] = useState(0);
   const [data, setData] = useState<ShotPoint[]>([]);
+  /** Shot points collect here and reach the chart at most ~4×/s (see flush effect). */
+  const dataRef = useRef<ShotPoint[]>([]);
+  const dataDirtyRef = useRef(false);
   const [grav, setGrav] = useState<number | null>(null);
   const [targetWeight, setTargetWeight] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
@@ -260,12 +263,13 @@ export default function StationPage() {
             shotStartRef.current = now;
             // Trust the machine's shot clock only if it restarted with this shot
             machineClockRef.current = typeof s.time === "number" && s.time >= 0 && s.time < 3000;
-            setData([]);
+            dataRef.current = [];
+            dataDirtyRef.current = true;
           }
           const t = machineClockRef.current && typeof s.time === "number" ? s.time : now - shotStartRef.current;
           setElapsed(t / 1000);
-          setData((prev) => [
-            ...prev.slice(-900),
+          dataRef.current = [
+            ...dataRef.current.slice(-900),
             {
               t,
               pressure: s.sensors?.p ?? null,
@@ -277,7 +281,8 @@ export default function StationPage() {
               pTarget: s.setpoints?.pressure ?? null,
               fTarget: s.setpoints?.flow ?? null,
             },
-          ]);
+          ];
+          dataDirtyRef.current = true;
         } else if (shotStartRef.current != null) {
           // Shot ended: keep the chart and final time on screen until the next one
           shotStartRef.current = null;
@@ -285,6 +290,16 @@ export default function StationPage() {
       },
     }).catch((e) => { setConnected(false); setError(String(e)); });
     return () => { disconnectSocket(); };
+  }, []);
+
+  // Push collected shot points to the chart a few times per second
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!dataDirtyRef.current) return;
+      dataDirtyRef.current = false;
+      setData(dataRef.current);
+    }, 250);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -450,7 +465,7 @@ export default function StationPage() {
                     : "Prep the puck and cup"}
                   samples={heatSamples}
                   target={tempTarget ?? setTemp}
-                  current={demoHeat ? heatSamples[heatSamples.length - 1]?.temp ?? null : sensors?.t ?? null}
+                  current={heatSamples[heatSamples.length - 1]?.temp ?? sensors?.t ?? null}
                 />
               ) : needsWater ? (
                 <p className="text-2xl font-semibold text-[#38bdf8]">Pour the water, then tap “Water added”</p>

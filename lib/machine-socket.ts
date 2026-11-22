@@ -30,7 +30,7 @@ type SocketEventMap = {
 
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 /** Delay between polls. Each GET returns everything buffered since the last one. */
-const POLL_DELAY_MS = 400;
+const POLL_DELAY_MS = 150;
 /** The machine sends status ~10×/s; this long without any event means the session is dead. */
 const STALE_AFTER_MS = 5000;
 /** Bumped on every connect/disconnect so an old poll loop stops itself. */
