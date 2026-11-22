@@ -113,12 +113,13 @@ function reopen(): Promise<void> {
   reopening = openSession(base, 8000, gen)
     .then(() => { if (gen === generation && activeSid) activeHandlers.connect?.(); })
     .catch(() => { retryAt = Date.now() + 3000; /* unreachable — try again in a few seconds */ })
-    .finally(() => { reopening = null; });
+    .finally(() => { if (gen === generation) reopening = null; });
   return reopening;
 }
 
 async function doPoll(): Promise<void> {
   if (stopped || !activeBase || polling) return;
+  const gen = generation;
   // No session yet (first open failed) or a dead one: keep trying to reopen
   if (!activeSid || Date.now() - lastEventAt > STALE_AFTER_MS) { await reopen(); return; }
   polling = true;
@@ -126,8 +127,11 @@ async function doPoll(): Promise<void> {
     const res = await fetch(`${activeBase}&sid=${activeSid}&t=${Date.now()}`, localNetworkRequestInit({
       signal: AbortSignal.timeout(5000),
     }));
+    if (gen !== generation) return; // page disconnected meanwhile: drop this poll
     if (!res.ok) { await reopen(); return; }
-    const { events, sessionGone } = parsePackets(await res.text());
+    const raw = await res.text();
+    if (gen !== generation) return;
+    const { events, sessionGone } = parsePackets(raw);
     if (sessionGone) { await reopen(); return; }
     if (events.length) lastEventAt = Date.now();
     for (const [event, data] of events) {
@@ -143,7 +147,7 @@ async function doPoll(): Promise<void> {
       }
     }
   } catch { /* network blip — the watchdog reopens if it lasts */ }
-  finally { polling = false; }
+  finally { if (gen === generation) polling = false; }
 }
 
 export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<void> {
@@ -165,6 +169,8 @@ export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<
   } catch (e) {
     handlers.error?.(e instanceof Error ? e : new Error(String(e)));
   }
+  // Disconnected (or reconnected) while the session was opening: leave nothing behind
+  if (stopped || gen !== generation) return;
 
   // Coming back from a sleeping screen or another app: reconnect immediately
   onVisibility = () => {

@@ -199,6 +199,8 @@ export default function StationPage() {
 
   const weightSamplesRef = useRef<{ t: number; w: number }[]>([]);
   const shotStartRef = useRef<number | null>(null);
+  /** Latest status, for decisions made outside render (manual Brew vs auto brew) */
+  const statusRef = useRef<LiveStatus | null>(null);
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   const startedAtRef = useRef(0);
   /** Whether this shot's x axis follows the machine's clock (decided at shot start). */
@@ -265,12 +267,13 @@ export default function StationPage() {
       error: () => setConnected(false),
       heater: (sec) => setPreheatLeft(sec),
       disconnect: () => { setConnected(false); setPreheatLeft(0); },
-      notification: (n) => setNotices((prev) => prev.some((x) => x.id === n.id)
+      notification: (n) => answeredRef.current.has(n.id) ? undefined : setNotices((prev) => prev.some((x) => x.id === n.id)
         ? prev.map((x) => (x.id === n.id ? { ...x, ...n } : x))
         : [...prev, n]),
       temperatures: (g) => { groupTempsRef.current = g; },
       status: (s) => {
         setStatus(s);
+        statusRef.current = s;
         setConnected(true);
         if (s.setpoints?.temperature != null) setSetTemp(s.setpoints.temperature);
         const now = Date.now();
@@ -282,7 +285,8 @@ export default function StationPage() {
         if (isIdle(s) || isExtracting(s)) {
           preShotRef.current = false;
           if (isIdle(s)) heatStartRef.current = null;
-        } else if (isHeating(s) && !preShotRef.current) {
+        } else if (!preShotRef.current && (isHeating(s) || isWaitingForWater(s)
+            || (s.name ?? "").toLowerCase() === "click to start")) {
           preShotRef.current = true;
           autoFiredRef.current = false;
           dataRef.current = [];
@@ -297,7 +301,11 @@ export default function StationPage() {
         if (autoBrewRef.current && preShotRef.current && !autoFiredRef.current
             && (s.name ?? "").toLowerCase() === "click to start") {
           autoFiredRef.current = true;
-          executeAction("continue").then(refreshNow).catch((e) => setError(`Auto brew: ${e instanceof Error ? e.message : e}`));
+          setBusy("continue");
+          executeAction("continue")
+            .then(refreshNow)
+            .catch((e) => setError(`Auto brew: ${e instanceof Error ? e.message : e}`))
+            .finally(() => setBusy(null));
         }
 
         // Every thermometer, one point per second
@@ -364,6 +372,7 @@ export default function StationPage() {
   useEffect(() => {
     if (!getSavedIp()) return;
     let alive = true;
+    if (new URLSearchParams(window.location.search).has("demo")) return;
     const check = () => {
       if (demoNoticeRef.current) return;
       getNotifications()
@@ -384,10 +393,11 @@ export default function StationPage() {
       answeredRef.current.add(n.id);
       await acknowledgeNotification(n.id, response);
     } catch (e) {
+      answeredRef.current.delete(n.id);
       setError(`Couldn't answer the machine message: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      // Answered (or already gone on the machine): drop it here
-      setNotices((prev) => prev.filter((x) => x.id !== n.id));
+      // Answered: drop it here (a failed answer stays, and the 5 s check brings it back)
+      if (answeredRef.current.has(n.id)) setNotices((prev) => prev.filter((x) => x.id !== n.id));
       setNoticeBusy(false);
     }
   }
@@ -409,7 +419,9 @@ export default function StationPage() {
   }, []);
 
   async function run(action: ActionType) {
-    if (action === "continue") autoFiredRef.current = true;
+    if (action === "continue" && (statusRef.current?.name ?? "").toLowerCase() === "click to start") {
+      autoFiredRef.current = true;
+    }
     setBusy(action);
     setError(null);
     try {
@@ -634,7 +646,7 @@ export default function StationPage() {
 
           <button
             onClick={() => run("stop")}
-            disabled={idle}
+            disabled={!!status && idle}
             className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30"
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}
