@@ -206,7 +206,7 @@ export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string 
  * climbing toward the target line.
  */
 export function HeatingProgress({
-  samples, target, current, title = "Heating", titleColor = "#ff8a00", hint = "Prep the puck and cup",
+  samples, target, current, title = "Heating", titleColor = "#ff8a00", hint = "Prep the puck and cup", clock = false,
 }: {
   samples: HeatPoint[];
   target: number | null;
@@ -214,6 +214,8 @@ export function HeatingProgress({
   title?: string;
   titleColor?: string;
   hint?: string;
+  /** x is epoch seconds: show a rolling window labelled with the time of day */
+  clock?: boolean;
 }) {
   const last = samples[samples.length - 1];
   const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
@@ -229,7 +231,7 @@ export function HeatingProgress({
           <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
           <p className="font-mono text-5xl font-bold text-[#fafafa]">
             {current != null ? current.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[#fafafa]/40">→ {target ?? "—"} °C</span>
+            <span className="ml-2 text-2xl text-[#fafafa]/40">{target != null ? `→ ${target} °C` : "°C"}</span>
           </p>
         </div>
       </div>
@@ -251,8 +253,11 @@ export function HeatingProgress({
             <ComposedChart data={samples} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs><Gradient id="g-heat" color="#ff8a00" opacity={0.3} /></defs>
               <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" strokeDasharray="2 4" />
-              <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
-                tickFormatter={(v) => `${Math.round(v)}s`} tick={AXIS_TICK} tickLine={false} axisLine={false} />
+              <XAxis dataKey="t" type="number" domain={clock ? ["dataMin", "dataMax"] : [0, "dataMax"]}
+                tickFormatter={(v) => clock
+                  ? new Date(v * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : `${Math.round(v)}s`}
+                tick={AXIS_TICK} tickLine={false} axisLine={false} minTickGap={40} />
               <YAxis domain={[lo, hi]} width={34} tick={AXIS_TICK} tickLine={false} axisLine={false} unit="°" />
               {target != null && (
                 <ReferenceLine y={target} stroke="#ffc400" strokeDasharray="6 4" strokeOpacity={0.8}
@@ -268,7 +273,7 @@ export function HeatingProgress({
           </ResponsiveContainer>
         )}
       </div>
-      <p className="text-center text-base text-[#fafafa]/45">{hint}</p>
+      {hint && <p className="text-center text-base text-[#fafafa]/45">{hint}</p>}
     </div>
   );
 }

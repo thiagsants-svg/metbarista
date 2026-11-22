@@ -131,6 +131,8 @@ export default function StationPage() {
   const [autoBrew, setAutoBrew] = useState(false);
   const autoBrewRef = useRef(false);
   const autoFiredRef = useRef(false);
+  /** Rolling 10-minute log of every thermometer, shown while the machine is idle. */
+  const [liveTemps, setLiveTemps] = useState<HeatPoint[]>([]);
   /** Latest group temperatures from the machine's "sensors" event. */
   const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
   /** Last temperature target the machine reported (shown as "set" during the shot). */
@@ -223,22 +225,29 @@ export default function StationPage() {
           executeAction("continue").then(refreshNow).catch((e) => setError(`Auto brew: ${e instanceof Error ? e.message : e}`));
         }
 
-        // Temperature curve for the whole pre-shot session (one point per second)
-        if (preShotRef.current && s.sensors?.t != null) {
+        // Every thermometer, one point per second
+        if (s.sensors?.t != null) {
           const temp = s.sensors.t;
-          if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
-          const t = (now - heatStartRef.current) / 1000;
-          const g = groupTempsRef.current;
+          const g = groupTempsRef.current as Record<string, unknown>;
           const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-          const point: HeatPoint = {
-            t, temp,
-            barUp: num(g.t_bar_up), barMidUp: num(g.t_bar_mid_up ?? (g as Record<string, unknown>).t_bar_mu),
-            barMidDown: num(g.t_bar_mid_down ?? (g as Record<string, unknown>).t_bar_md), barDown: num(g.t_bar_down),
-            ext1: num(g.t_external_1 ?? (g as Record<string, unknown>).t_ext_1),
-            ext2: num(g.t_external_2 ?? (g as Record<string, unknown>).t_ext_2),
+          const reading = {
+            temp,
+            barUp: num(g.t_bar_up), barMidUp: num(g.t_bar_mid_up ?? g.t_bar_mu),
+            barMidDown: num(g.t_bar_mid_down ?? g.t_bar_md), barDown: num(g.t_bar_down),
+            ext1: num(g.t_external_1 ?? g.t_ext_1), ext2: num(g.t_external_2 ?? g.t_ext_2),
           };
-          setHeatSamples((prev) =>
-            prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), point]);
+          // Rolling log by time of day (idle view)
+          const clockT = now / 1000;
+          setLiveTemps((prev) =>
+            prev.length && clockT - prev[prev.length - 1].t < 1 ? prev
+              : [...prev.filter((p) => clockT - p.t <= 600), { t: clockT, ...reading }]);
+          // Curve for the whole pre-shot session (heating view)
+          if (preShotRef.current) {
+            if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
+            const t = (now - heatStartRef.current) / 1000;
+            setHeatSamples((prev) =>
+              prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), { t, ...reading }]);
+          }
         }
 
         // Machine's own gravimetric flow; estimate it only if absent
@@ -448,7 +457,9 @@ export default function StationPage() {
               ) : waiting ? (
                 <p className="text-2xl font-semibold text-[#ffc400]">Ready — tap Brew</p>
               ) : (
-                <p className="text-lg">The chart shows up when extraction starts</p>
+                // Idle: live chart of every thermometer
+                <HeatingProgress samples={liveTemps} target={null} current={sensors?.t ?? null}
+                  title="Temperatures" titleColor="rgba(250,250,250,0.5)" hint="" clock />
               )
             }
           />
