@@ -146,7 +146,19 @@ export function ShotCharts({
             {placeholder}
           </div>
         ) : (
-          <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} showTemps={showTemps} />
+          showTemps ? (
+            // Two charts, same time axis: the shot on top, temperatures below
+            <div className="absolute inset-0 flex flex-col gap-2">
+              <div className="relative min-h-0 flex-[3]">
+                <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
+              </div>
+              <div className="relative min-h-0 flex-[2] border-t border-white/[0.06] pt-1">
+                <TempPlot data={data} currentStage={currentStage} />
+              </div>
+            </div>
+          ) : (
+            <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
+          )
         )}
       </div>
     </div>
@@ -160,23 +172,12 @@ export function ShotCharts({
  * (`linear`) are cheaper than smoothed curves and look the same at ~10 Hz.
  */
 const ShotPlot = memo(function ShotPlot({
-  data, targetWeight, currentStage, showTemps,
+  data, targetWeight, currentStage,
 }: {
   data: ShotPoint[];
   targetWeight: number | null;
   currentStage: string | null;
-  showTemps: boolean;
 }) {
-  // Temperature scale fitted to every sensor, at least 6 °C tall
-  const tempValues = showTemps
-    ? data.flatMap((d) => HEAT_SENSORS.map((s) => d[s.key as keyof ShotPoint]))
-      .filter((v): v is number => typeof v === "number")
-    : [];
-  let tLo = tempValues.length ? Math.min(...tempValues) : 0;
-  let tHi = tempValues.length ? Math.max(...tempValues) : 100;
-  const tPad = Math.max(1, (6 - (tHi - tLo)) / 2);
-  tLo = Math.floor(tLo - tPad);
-  tHi = Math.ceil(tHi + tPad);
   const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
   const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
   const spans = stageSpans(data);
@@ -198,10 +199,7 @@ const ShotPlot = memo(function ShotPlot({
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
                 tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
-              {showTemps && (
-                <YAxis yAxisId="t" orientation="right" domain={[tLo, tHi]} width={34} allowDecimals={false}
-                  tick={{ ...AXIS_TICK, fill: COLORS.temp }} tickLine={false} axisLine={false} unit="°" />
-              )}
+
 
               {/* Profile stages, behind everything */}
               {spans.map((sp, i) => {
@@ -242,14 +240,52 @@ const ShotPlot = memo(function ShotPlot({
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
-              {/* Optional: every temperature sensor, tube thick */}
-              {showTemps && HEAT_SENSORS.map((s) => (
-                <Line key={s.key} yAxisId="t" type="linear" dataKey={s.key} stroke={s.color}
-                  strokeWidth={s.key === "temp" ? 3 : 1.25} strokeOpacity={s.key === "temp" ? 1 : 0.8}
-                  dot={false} activeDot={false} isAnimationActive={false} connectNulls />
-              ))}
+
             </ComposedChart>
           </ResponsiveContainer>
+  );
+});
+
+/**
+ * Temperature sensors during the shot, under the shot chart: same time axis,
+ * same stage bands (no labels), every sensor with the tube thick, scale fitted
+ * to the readings (at least 6 °C tall).
+ */
+const TempPlot = memo(function TempPlot({ data, currentStage }: { data: ShotPoint[]; currentStage: string | null }) {
+  const values = data.flatMap((d) => HEAT_SENSORS.map((s) => d[s.key as keyof ShotPoint]))
+    .filter((v): v is number => typeof v === "number");
+  let lo = values.length ? Math.min(...values) : 0;
+  let hi = values.length ? Math.max(...values) : 100;
+  const pad = Math.max(1, (6 - (hi - lo)) / 2);
+  lo = Math.floor(lo - pad);
+  hi = Math.ceil(hi + pad);
+  const spans = stageSpans(data);
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 4, right: 40, bottom: 0, left: 0 }}>
+        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" strokeDasharray="2 4" />
+        <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
+          tickFormatter={(v) => `${Math.round(v / 1000)}s`}
+          tick={AXIS_TICK} tickLine={false} axisLine={false} />
+        <YAxis domain={[lo, hi]} allowDecimals={false} width={28} unit="°"
+          tick={{ ...AXIS_TICK, fill: COLORS.temp }} tickLine={false} axisLine={false} />
+        {spans.map((sp, i) => {
+          const isCurrent = currentStage != null && i === spans.length - 1 && sp.name === currentStage;
+          return (
+            <ReferenceArea key={`${sp.name}-${sp.x1}`} x1={sp.x1} x2={Math.max(sp.x2, sp.x1 + 1)} ifOverflow="hidden"
+              fill={isCurrent ? COLORS.stage : "#ffffff"}
+              fillOpacity={isCurrent ? 0.1 : i % 2 === 0 ? 0.03 : 0.07} />
+          );
+        })}
+        {HEAT_SENSORS.filter((s) => s.key !== "temp").map((s) => (
+          <Line key={s.key} type="linear" dataKey={s.key} stroke={s.color} strokeWidth={1.25} strokeOpacity={0.85}
+            dot={false} activeDot={false} isAnimationActive={false} connectNulls />
+        ))}
+        <Line type="linear" dataKey="temp" stroke={HEAT_SENSORS[0].color} strokeWidth={3}
+          dot={false} activeDot={false} isAnimationActive={false} connectNulls />
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 });
 
