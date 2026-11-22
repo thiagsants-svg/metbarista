@@ -35,16 +35,16 @@ export interface ShotPoint {
 }
 
 export const COLORS = {
-  // Swiss: ink and one red; data colors kept few and distinct on the light paper
-  pressure: "#e30613",
-  flow: "#111111",
-  grav: "#8a8a85",
-  weight: "#1d4ed8",
-  temp: "#e30613",
-  stage: "#e30613",
+  // Theme variables (set on the Station root): light Swiss or dark bumblebee
+  pressure: "var(--accent)",
+  flow: "var(--ink)",
+  grav: "var(--grav)",
+  weight: "var(--weight)",
+  temp: "var(--temp)",
+  stage: "var(--accent)",
 };
 
-const AXIS_TICK = { fontSize: 13, fill: "#111", fillOpacity: 0.4 };
+const AXIS_TICK = { fontSize: 13, fill: "var(--ink)", fillOpacity: 0.4 };
 
 interface StageSpan { name: string; x1: number; x2: number }
 
@@ -99,26 +99,26 @@ export function ShotCharts({
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border-t-2 border-[#111] pt-2">
+    <div className="flex min-h-0 flex-1 flex-col border-t-2 border-[var(--ink)] pt-2">
       <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 px-1 pb-1">
         {header.map((i) => (
           <span key={i.label} className="inline-flex items-baseline gap-1.5">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: i.color }} />
-            <span className="text-sm font-medium text-[#111]/60">{i.label}</span>
+            <span className="text-sm font-medium text-[var(--ink)]/60">{i.label}</span>
             <span className="font-mono text-lg font-bold" style={{ color: i.color }}>{i.value}</span>
-            <span className="text-xs text-[#111]/40">{i.unit}</span>
+            <span className="text-xs text-[var(--ink)]/40">{i.unit}</span>
           </span>
         ))}
         <span className="ml-auto flex items-center gap-2">
           {currentStage && (
-            <span className="rounded-full bg-black/[0.06] px-3 py-1 text-sm font-semibold text-[#e30613]">
+            <span className="rounded-full bg-[var(--ink)]/[0.06] px-3 py-1 text-sm font-semibold text-[var(--accent)]">
               {currentStage}
             </span>
           )}
           {onToggleTemps && data.length > 0 && (
             <button onClick={onToggleTemps} aria-pressed={showTemps} title="Show temperature sensors"
               className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                showTemps ? "border-[#f43f5e]/60 bg-[#f43f5e]/15 text-[#f43f5e]" : "border-black/20 text-[#111]/40"
+                showTemps ? "border-[#f43f5e]/60 bg-[#f43f5e]/15 text-[#f43f5e]" : "border-[var(--ink)]/20 text-[var(--ink)]/40"
               }`}>
               Temps
             </button>
@@ -132,7 +132,7 @@ export function ShotCharts({
             return (
               <span key={s.key} className="inline-flex items-baseline gap-1 text-xs">
                 <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3 self-center rounded-full`} style={{ backgroundColor: s.color }} />
-                <span className="text-[#111]/55">{s.label}</span>
+                <span className="text-[var(--ink)]/55">{s.label}</span>
                 <span className="font-mono font-bold" style={{ color: s.color }}>
                   {typeof v === "number" ? v.toFixed(1) : "—"}
                 </span>
@@ -144,7 +144,7 @@ export function ShotCharts({
 
       <div className="relative min-h-0 flex-1">
         {data.length === 0 ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#111]/35">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--ink)]/35">
             {placeholder}
           </div>
         ) : (
@@ -154,7 +154,7 @@ export function ShotCharts({
               <div className="relative min-h-0 flex-[3]">
                 <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
               </div>
-              <div className="relative min-h-0 flex-[2] border-t border-black/20 pt-1">
+              <div className="relative min-h-0 flex-[2] border-t border-[var(--ink)]/20 pt-1">
                 <TempPlot data={data} currentStage={currentStage} />
               </div>
             </div>
@@ -194,7 +194,7 @@ const ShotPlot = memo(function ShotPlot({
                 <Gradient id="g-flow" color={COLORS.flow} />
                 <Gradient id="g-weight" color={COLORS.weight} opacity={0.08} />
               </defs>
-              <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.12)" strokeDasharray="2 4" />
+              <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
               <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
                 tickFormatter={(v) => `${Math.round(v / 1000)}s`}
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
@@ -216,7 +216,7 @@ const ShotPlot = memo(function ShotPlot({
                     x1={sp.x1}
                     x2={Math.max(sp.x2, sp.x1 + 1)}
                     ifOverflow="hidden"
-                    fill={isCurrent ? COLORS.stage : "#000000"}
+                    fill={isCurrent ? COLORS.stage : "var(--ink)"}
                     fillOpacity={isCurrent ? 0.06 : i % 2 === 0 ? 0.02 : 0.045}
                     stroke={isCurrent ? COLORS.stage : "none"}
                     strokeOpacity={0.4}
@@ -224,7 +224,7 @@ const ShotPlot = memo(function ShotPlot({
                       value: sp.name,
                       position: "insideTopLeft",
                       offset: 4,
-                      fill: isCurrent ? COLORS.stage : "#111",
+                      fill: isCurrent ? COLORS.stage : "var(--ink)",
                       fillOpacity: isCurrent ? 1 : 0.45,
                       fontSize: 12,
                       fontWeight: isCurrent ? 700 : 500,
@@ -267,7 +267,7 @@ const TempPlot = memo(function TempPlot({ data, currentStage }: { data: ShotPoin
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 4, right: 40, bottom: 0, left: 0 }}>
-        <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.12)" strokeDasharray="2 4" />
+        <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
         <XAxis dataKey="t" type="number" domain={[0, "dataMax"]}
           tickFormatter={(v) => `${Math.round(v / 1000)}s`}
           tick={AXIS_TICK} tickLine={false} axisLine={false} />
@@ -277,7 +277,7 @@ const TempPlot = memo(function TempPlot({ data, currentStage }: { data: ShotPoin
           const isCurrent = currentStage != null && i === spans.length - 1 && sp.name === currentStage;
           return (
             <ReferenceArea key={`${sp.name}-${sp.x1}`} x1={sp.x1} x2={Math.max(sp.x2, sp.x1 + 1)} ifOverflow="hidden"
-              fill={isCurrent ? COLORS.stage : "#000000"}
+              fill={isCurrent ? COLORS.stage : "var(--ink)"}
               fillOpacity={isCurrent ? 0.1 : i % 2 === 0 ? 0.03 : 0.07} />
           );
         })}
@@ -305,13 +305,13 @@ export interface HeatPoint {
 
 /** Group sensors, named like the machine's own Sensors page. */
 export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string }[] = [
-  { key: "temp", label: "Tube", color: "#e30613" },
-  { key: "barUp", label: "Bar up", color: "#111111" },
-  { key: "barMidUp", label: "Bar mid-up", color: "#55554f" },
-  { key: "barMidDown", label: "Bar mid-down", color: "#8f8e88" },
-  { key: "barDown", label: "Bar down", color: "#b9b7b0" },
-  { key: "ext1", label: "External 1", color: "#1d4ed8" },
-  { key: "ext2", label: "External 2", color: "#7aa2f7" },
+  { key: "temp", label: "Tube", color: "var(--h0)" },
+  { key: "barUp", label: "Bar up", color: "var(--h1)" },
+  { key: "barMidUp", label: "Bar mid-up", color: "var(--h2)" },
+  { key: "barMidDown", label: "Bar mid-down", color: "var(--h3)" },
+  { key: "barDown", label: "Bar down", color: "var(--h4)" },
+  { key: "ext1", label: "External 1", color: "var(--h5)" },
+  { key: "ext2", label: "External 2", color: "var(--h6)" },
 ];
 
 /**
@@ -319,7 +319,7 @@ export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string 
  * climbing toward the target line.
  */
 export const HeatingProgress = memo(function HeatingProgress({
-  samples, target, current, title = "Heating", titleColor = "#c2410c", hint = "Prep the puck and cup", clock = false,
+  samples, target, current, title = "Heating", titleColor = "var(--heat)", hint = "Prep the puck and cup", clock = false,
 }: {
   samples: HeatPoint[];
   target: number | null;
@@ -342,9 +342,9 @@ export const HeatingProgress = memo(function HeatingProgress({
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
-          <p className="text-6xl font-extrabold tracking-tighter text-[#111]">
+          <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
             {current != null ? current.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[#111]/40">{target != null ? `→ ${target} °C` : "°C"}</span>
+            <span className="ml-2 text-2xl text-[var(--ink)]/40">{target != null ? `→ ${target} °C` : "°C"}</span>
           </p>
         </div>
       </div>
@@ -353,7 +353,7 @@ export const HeatingProgress = memo(function HeatingProgress({
         {shown.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
-            <span className="text-[#111]/60">{s.label}</span>
+            <span className="text-[var(--ink)]/60">{s.label}</span>
             <span className="font-mono font-bold" style={{ color: s.color }}>
               {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
             </span>
@@ -364,8 +364,8 @@ export const HeatingProgress = memo(function HeatingProgress({
         {samples.length > 1 && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={samples} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-              <defs><Gradient id="g-heat" color="#c2410c" opacity={0.3} /></defs>
-              <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.12)" strokeDasharray="2 4" />
+              <defs><Gradient id="g-heat" color="var(--heat)" opacity={0.3} /></defs>
+              <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
               <XAxis dataKey="t" type="number" domain={clock ? ["dataMin", "dataMax"] : [0, "dataMax"]}
                 tickFormatter={(v) => clock
                   ? new Date(v * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -373,20 +373,20 @@ export const HeatingProgress = memo(function HeatingProgress({
                 tick={AXIS_TICK} tickLine={false} axisLine={false} minTickGap={40} />
               <YAxis domain={[lo, hi]} width={34} tick={AXIS_TICK} tickLine={false} axisLine={false} unit="°" />
               {target != null && (
-                <ReferenceLine y={target} stroke="#111" strokeDasharray="6 4" strokeOpacity={0.8}
-                  label={{ value: `${target} °C`, position: "insideTopRight", fill: "#111", fontSize: 12 }} />
+                <ReferenceLine y={target} stroke="var(--ink)" strokeDasharray="6 4" strokeOpacity={0.8}
+                  label={{ value: `${target} °C`, position: "insideTopRight", fill: "var(--ink)", fontSize: 12 }} />
               )}
               {shown.filter((s) => s.key !== "temp").map((s) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
                   strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
               ))}
-              <Area type="monotone" dataKey="temp" stroke="#c2410c" strokeWidth={3} fill="url(#g-heat)"
+              <Area type="monotone" dataKey="temp" stroke="var(--heat)" strokeWidth={3} fill="url(#g-heat)"
                 baseValue={lo} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
-      {hint && <p className="text-center text-base text-[#111]/45">{hint}</p>}
+      {hint && <p className="text-center text-base text-[var(--ink)]/45">{hint}</p>}
     </div>
   );
 });
@@ -457,17 +457,17 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
     <div className="flex h-full w-full flex-col gap-2 p-1">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wider text-[#111]/50">Temperatures</p>
-          <p className="text-6xl font-extrabold tracking-tighter text-[#111]">
+          <p className="text-sm font-medium uppercase tracking-wider text-[var(--ink)]/50">Temperatures</p>
+          <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
             {typeof last?.temp === "number" ? last.temp.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[#111]/40">°C</span>
+            <span className="ml-2 text-2xl text-[var(--ink)]/40">°C</span>
           </p>
         </div>
-        <div className="flex rounded-lg bg-black/[0.05] p-0.5">
+        <div className="flex rounded-lg bg-[var(--ink)]/[0.05] p-0.5">
           {WINDOWS.map((w) => (
             <button key={w.s} onClick={() => setWindowS(w.s)}
               className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-                windowS === w.s ? "bg-[#111] text-[#ebeae6]" : "text-[#111]/60"
+                windowS === w.s ? "bg-[var(--primary)] text-[var(--on-primary)]" : "text-[var(--ink)]/60"
               }`}>
               {w.label}
             </button>
@@ -478,7 +478,7 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
         {sensors.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3.5 self-center rounded-full`} style={{ backgroundColor: s.color }} />
-            <span className="text-[#111]/60">{s.label}</span>
+            <span className="text-[var(--ink)]/60">{s.label}</span>
             <span className="font-mono font-bold" style={{ color: s.color }}>
               {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
             </span>
@@ -486,9 +486,9 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
         ))}
         {target != null && (
           <span className="inline-flex items-baseline gap-1.5 text-sm">
-            <span className="w-3.5 self-center border-t-2 border-dotted border-[#111]" />
-            <span className="text-[#111]/60">Target</span>
-            <span className="font-mono font-bold text-[#e30613]">{target}</span>
+            <span className="w-3.5 self-center border-t-2 border-dotted border-[var(--ink)]" />
+            <span className="text-[var(--ink)]/60">Target</span>
+            <span className="font-mono font-bold text-[var(--accent)]">{target}</span>
           </span>
         )}
       </div>
@@ -496,7 +496,7 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
         {shown.length > 1 && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={shown} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.12)" strokeDasharray="2 4" />
+              <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
               <XAxis dataKey="t" type="number" domain={["dataMin", "dataMax"]}
                 tickFormatter={(v) => new Date(v * 1000).toLocaleTimeString([], withSeconds
                   ? { hour: "2-digit", minute: "2-digit", second: "2-digit" }
@@ -505,7 +505,7 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
               <YAxis domain={[lo, hi]} allowDecimals={false} width={34} unit="°"
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               {target != null && (
-                <ReferenceLine y={target} stroke="#111" strokeOpacity={0.8} strokeDasharray="2 4" />
+                <ReferenceLine y={target} stroke="var(--ink)" strokeOpacity={0.8} strokeDasharray="2 4" />
               )}
               {sensors.filter((s) => s.key !== "temp").map((s) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}

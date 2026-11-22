@@ -18,7 +18,7 @@ export function ProfileCover({ profile, className = "" }: { profile: Profile; cl
   return (
     <div
       className={`overflow-hidden ${className}`}
-      style={{ background: `linear-gradient(135deg, ${color}, #d6d4cd)` }}
+      style={{ background: `linear-gradient(135deg, ${color}, var(--paper))` }}
     >
       {src && (
         // eslint-disable-next-line @next/next/no-img-element -- image served by the machine
@@ -70,29 +70,29 @@ export function ProfilePicker({
       <button
         onClick={() => setOpen(true)}
         disabled={disabled || profiles.length === 0}
-        className="flex w-full items-center gap-3 rounded-md border border-black/20 bg-[#ebeae6] p-2 text-left active:scale-[0.99] disabled:opacity-60"
+        className="flex w-full items-center gap-3 rounded-md border border-[var(--ink)]/20 bg-[var(--paper)] p-2 text-left active:scale-[0.99] disabled:opacity-60"
       >
         {selected
           ? <ProfileCover profile={selected} className="h-14 w-14 shrink-0 rounded-lg" />
-          : <div className="h-14 w-14 shrink-0 rounded-lg bg-black/[0.05]" />}
+          : <div className="h-14 w-14 shrink-0 rounded-lg bg-[var(--ink)]/[0.05]" />}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-[#111]/40">Profile</p>
-          <p className="truncate text-lg font-semibold text-[#111]">
+          <p className="text-[11px] uppercase tracking-wider text-[var(--ink)]/40">Profile</p>
+          <p className="truncate text-lg font-semibold text-[var(--ink)]">
             {selected?.name ?? (profiles.length ? "Choose a profile" : "Loading profiles…")}
           </p>
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-[#111]/40" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-[var(--ink)]/40" />
       </button>
 
       {open && (
         <div
-          className="fixed inset-x-0 top-0 z-[120] flex flex-col overflow-hidden bg-[#ebeae6] p-3"
+          className="fixed inset-x-0 top-0 z-[120] flex flex-col overflow-hidden bg-[var(--paper)] p-3"
           style={{ height: "100dvh" }}
         >
           <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-            <p className="text-xl font-bold text-[#111]">Choose a profile</p>
+            <p className="text-xl font-bold text-[var(--ink)]">Choose a profile</p>
             <button onClick={() => setOpen(false)} aria-label="Close"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-black/20 text-[#111]/70 active:scale-95">
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -112,24 +112,24 @@ export function ProfilePicker({
                 <button
                   onClick={() => { onSelect(p.id); setOpen(false); }}
                   className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md p-1.5 text-left transition-transform active:scale-[0.97]"
-                  style={{ backgroundColor: color, outline: isSel ? "3px solid #111" : "none", outlineOffset: 2 }}
+                  style={{ backgroundColor: color, outline: isSel ? "3px solid var(--ink)" : "none", outlineOffset: 2 }}
                 >
                   <ProfileCover profile={p} className="min-h-0 w-full flex-1 rounded-md [&>img]:h-full" />
-                  <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+                  <p className="mt-1.5 truncate px-1 text-sm font-semibold leading-tight text-white [text-shadow:0_1px_2px_color-mix(in srgb, var(--ink) 60%, transparent)]">
                     {p.name}
                   </p>
-                  <p className="px-1 pb-0.5 text-xs text-[#111] [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+                  <p className="px-1 pb-0.5 text-xs text-[var(--ink)] [text-shadow:0_1px_2px_color-mix(in srgb, var(--ink) 60%, transparent)]">
                     {p.temperature}°C · {p.final_weight}g
                   </p>
                   {isSel && (
-                    <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#111] text-[#ebeae6]">
+                    <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)]">
                       <Check className="h-4 w-4" />
                     </span>
                   )}
                 </button>
                 {/* Stage program of this profile */}
                 <button onClick={() => setProgramFor(p)} aria-label={`Program of ${p.name}`}
-                  className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[#111] active:scale-95">
+                  className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--paper)]/85 text-[var(--ink)] active:scale-95">
                   <Info className="h-5 w-5" />
                 </button>
                 </div>

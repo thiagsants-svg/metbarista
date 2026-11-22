@@ -29,29 +29,29 @@ export function MachineNotice({
   const src = imageSrc(notice.image);
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#ebeae6]/90 p-6"
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[var(--paper)]/90 p-6"
       role="alertdialog" aria-modal="true" aria-label="Machine message">
-      <div className="flex w-full max-w-xl flex-col items-center gap-5 rounded-md border-2 border-[#111] bg-transparent p-7 text-center">
+      <div className="flex w-full max-w-xl flex-col items-center gap-5 rounded-md border-2 border-[var(--ink)] bg-transparent p-7 text-center">
         <div className="flex w-full items-center justify-between">
-          <p className="text-sm font-semibold uppercase tracking-wider text-[#e30613]">Machine message</p>
+          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--accent)]">Machine message</p>
           {notices.length > 1 && (
-            <p className="text-sm text-[#111]/50">1 of {notices.length}</p>
+            <p className="text-sm text-[var(--ink)]/50">1 of {notices.length}</p>
           )}
         </div>
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element -- image sent by the machine
           <img src={src} alt="" className="h-24 w-24 object-contain" />
         ) : (
-          <AlertTriangle className="h-16 w-16 text-[#e30613]" />
+          <AlertTriangle className="h-16 w-16 text-[var(--accent)]" />
         )}
-        <p className="whitespace-pre-line text-2xl font-semibold leading-snug text-[#111]">{notice.message}</p>
+        <p className="whitespace-pre-line text-2xl font-semibold leading-snug text-[var(--ink)]">{notice.message}</p>
         <div className="flex w-full flex-wrap justify-center gap-3">
           {responses.map((r, i) => (
             <button key={r} disabled={busy} onClick={() => onRespond(notice, r)}
               className={`min-h-[64px] min-w-[140px] flex-1 rounded-md px-6 text-xl font-bold transition-all active:scale-[0.98] disabled:opacity-50 ${
                 i === 0
-                  ? "bg-[#111] text-[#ebeae6]"
-                  : "border border-black/20 bg-[#ebeae6] text-[#111]"
+                  ? "bg-[var(--primary)] text-[var(--on-primary)]"
+                  : "border border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]"
               }`}>
               {busy ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : r}
             </button>

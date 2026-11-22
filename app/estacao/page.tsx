@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowUpToLine, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
-  Plus, Scale, Square, Wind,
+  Moon, Plus, Scale, Square, Sun, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
@@ -42,6 +42,29 @@ import {
   loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder,
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
+
+/**
+ * Color themes, applied as CSS variables on the Station root: light Swiss
+ * (the official app's paper and ink, one red) and dark bumblebee (black and
+ * yellow). Every Station color reads these variables.
+ */
+const THEMES = {
+  light: {
+    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#e30613",
+    "--primary": "#111111", "--on-primary": "#ebeae6", "--stop": "#e30613",
+    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#e30613",
+    "--h0": "#e30613", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
+    "--h5": "#1d4ed8", "--h6": "#7aa2f7",
+  },
+  dark: {
+    "--paper": "#0a0a0a", "--ink": "#fafafa", "--accent": "#ffc400",
+    "--primary": "#ffc400", "--on-primary": "#0a0a0a", "--stop": "#ef4444",
+    "--heat": "#ff8a00", "--water": "#38bdf8", "--weight": "#38bdf8", "--grav": "#ff8a00", "--temp": "#f43f5e",
+    "--h0": "#ff8a00", "--h1": "#ffe066", "--h2": "#ffc400", "--h3": "#f43f5e", "--h4": "#c084fc",
+    "--h5": "#38bdf8", "--h6": "#2dd4bf",
+  },
+} as const;
+type ThemeName = keyof typeof THEMES;
 
 /** Group/external temperatures from the machine's "sensors" event (names vary by firmware). */
 function groupTempsFor(g: Partial<LiveTemperatures>) {
@@ -163,6 +186,8 @@ export default function StationPage() {
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** Light Swiss or dark bumblebee, remembered on this device */
+  const [theme, setTheme] = useState<ThemeName>("light");
   /** Plot every temperature sensor on the shot chart (remembered on this device). */
   const [shotTemps, setShotTemps] = useState(false);
   /** Machine messages waiting for an answer (e.g. motor strain), oldest first. */
@@ -179,6 +204,7 @@ export default function StationPage() {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
     setShotTemps(localStorage.getItem("metbarista_shot_temps") === "1");
+    if (localStorage.getItem("metbarista_theme") === "dark") setTheme("dark");
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
     if (demoParam === "notice") {
@@ -455,32 +481,32 @@ export default function StationPage() {
   else { mainLabel = statusLabel(status, connected); mainHint = ""; MainIcon = Loader2; tone = "off"; }
 
   const toneClass = {
-    start: "bg-[#111] text-[#ebeae6]",
-    water: "bg-[#0369a1] text-[#ebeae6] animate-pulse",
-    brew: "bg-[#111] text-[#ebeae6] animate-pulse",
-    heat: "border border-[#c2410c]/40 bg-[#c2410c]/10 text-[#c2410c]",
-    busy: "border border-black/30 bg-black/[0.06] text-[#e30613]",
-    off: "bg-black/[0.05] text-[#111]/50",
+    start: "bg-[var(--primary)] text-[var(--on-primary)]",
+    water: "bg-[var(--water)] text-[var(--paper)] animate-pulse",
+    brew: "bg-[var(--primary)] text-[var(--on-primary)] animate-pulse",
+    heat: "border border-[var(--heat)]/40 bg-[var(--heat)]/10 text-[var(--heat)]",
+    busy: "border border-[var(--ink)]/30 bg-[var(--ink)]/[0.06] text-[var(--accent)]",
+    off: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/50",
   }[tone];
 
   const pillColor =
-    !connected ? "bg-black/[0.05] text-[#111]/50"
-    : brewing || waiting ? "bg-black/[0.06] text-[#e30613]"
-    : needsWater ? "bg-[#0369a1]/15 text-[#0369a1]"
-    : heating || preheating ? "bg-black/[0.06] text-[#e30613]"
-    : "bg-black/[0.05] text-[#111]/70";
+    !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/50"
+    : brewing || waiting ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
+    : needsWater ? "bg-[var(--water)]/15 text-[var(--water)]"
+    : heating || preheating ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
+    : "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70";
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[#ebeae6] p-2.5 text-[#111] select-none sm:gap-2.5 sm:p-3"
-      style={{ height: "100dvh" }}
+      className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[var(--paper)] p-2.5 text-[var(--ink)] select-none sm:gap-2.5 sm:p-3"
+      style={{ height: "100dvh", ...(THEMES[theme] as unknown as React.CSSProperties) }}
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
 
       {/* ── Top bar ── */}
       <header className="flex shrink-0 items-center gap-2.5">
         <Link href="/dashboard" aria-label="Back"
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-black/20 text-[#111]/60 active:scale-95">
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <p className="min-w-0 flex-1 truncate text-lg font-semibold">{status?.loaded_profile ?? "—"}</p>
@@ -488,16 +514,25 @@ export default function StationPage() {
           <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting || needsWater || preheating ? "animate-pulse" : ""}`} />
           {preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
         </span>
+        <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
+          onClick={() => setTheme((t) => {
+            const next = t === "dark" ? "light" : "dark";
+            localStorage.setItem("metbarista_theme", next);
+            return next;
+          })}
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
+          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
         <button onClick={toggleFullscreen} aria-label="Full screen"
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-black/20 text-[#111]/60 active:scale-95">
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
           {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
         </button>
       </header>
 
       {error && (
         <button onClick={() => setError(null)}
-          className="shrink-0 rounded-md border border-[#e30613]/40 bg-[#e30613]/5 px-3 py-1.5 text-left text-sm text-[#e30613]">
-          {error} <span className="text-[#e30613]/50">· tap to dismiss</span>
+          className="shrink-0 rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-3 py-1.5 text-left text-sm text-[var(--accent)]">
+          {error} <span className="text-[var(--accent)]/50">· tap to dismiss</span>
         </button>
       )}
 
@@ -505,7 +540,7 @@ export default function StationPage() {
       <div className="grid min-h-0 flex-1 gap-2 sm:gap-2.5 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(280px,31%)]">
         {/* Readouts */}
         <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
-          <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="#111" />
+          <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="var(--ink)" />
           <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
           <Readout label="Flow" value={fmt(sensors?.f)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
@@ -538,7 +573,7 @@ export default function StationPage() {
               tempView ? (
                 <HeatingProgress
                   title={needsWater ? "Add water" : waiting ? "Ready to brew" : "Heating"}
-                  titleColor={needsWater ? "#0369a1" : waiting ? "#e30613" : "#c2410c"}
+                  titleColor={needsWater ? "var(--water)" : waiting ? "var(--accent)" : "var(--heat)"}
                   hint={needsWater ? "Pour the water, then tap Water added"
                     : waiting ? (autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
                     : "Prep the puck and cup"}
@@ -547,9 +582,9 @@ export default function StationPage() {
                   current={heatSamples[heatSamples.length - 1]?.temp ?? sensors?.t ?? null}
                 />
               ) : needsWater ? (
-                <p className="text-2xl font-semibold text-[#0369a1]">Pour the water, then tap “Water added”</p>
+                <p className="text-2xl font-semibold text-[var(--water)]">Pour the water, then tap “Water added”</p>
               ) : waiting ? (
-                <p className="text-2xl font-semibold text-[#e30613]">Ready — tap Brew</p>
+                <p className="text-2xl font-semibold text-[var(--accent)]">Ready — tap Brew</p>
               ) : (
                 // Idle: live group temperatures, like the machine's Sensors page
                 <GroupTemperatures samples={liveTemps} target={tempTarget} />
@@ -590,7 +625,7 @@ export default function StationPage() {
           <button
             onClick={() => run("stop")}
             disabled={!online || idle || busy !== null}
-            className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[#e30613] bg-transparent text-xl font-bold text-[#e30613] active:scale-[0.98] disabled:opacity-30"
+            className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30"
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}
             Stop
@@ -616,11 +651,11 @@ export default function StationPage() {
 
 function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
-    <div className="min-w-0 overflow-hidden border-t-2 border-[#111] pt-1.5">
-      <p className="text-[11px] uppercase tracking-wider text-[#111]/40">{label}</p>
+    <div className="min-w-0 overflow-hidden border-t-2 border-[var(--ink)] pt-1.5">
+      <p className="text-[11px] uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
       <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight leading-tight whitespace-nowrap" style={{ color }}>
         {value}
-        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[#111]/40">{unit}</span>}
+        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[var(--ink)]/40">{unit}</span>}
       </p>
     </div>
   );
@@ -635,8 +670,8 @@ function SmallButton({
     <button onClick={onClick} disabled={disabled} title={active ? "Preheating. Tap to stop." : undefined}
       className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-sm font-semibold transition-all active:scale-95 disabled:opacity-30 ${
         active
-          ? "border-black/30 bg-black/[0.06] text-[#e30613]"
-          : "border-black/20 bg-transparent text-[#111]/80"
+          ? "border-[var(--ink)]/30 bg-[var(--ink)]/[0.06] text-[var(--accent)]"
+          : "border-[var(--ink)]/20 bg-transparent text-[var(--ink)]/80"
       }`}>
       {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Icon className={`h-5 w-5 ${active ? "animate-pulse" : ""}`} />}
       {label}
@@ -653,7 +688,7 @@ function RecipePanel({
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
   return (
-    <div className="portrait:col-span-2 space-y-2 border-t-2 border-[#111] pt-2.5">
+    <div className="portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
       <ProfilePicker
         profiles={profiles}
         selected={base}
@@ -678,8 +713,8 @@ function RecipePanel({
             <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
               className={`h-9 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
                 on
-                  ? "border-[#111] bg-[#111] text-[#ebeae6]"
-                  : "border-black/20 bg-[#ebeae6] text-[#111]/75"
+                  ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
+                  : "border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/75"
               }`}>
               {formatRatio(r)}
             </button>
@@ -688,15 +723,15 @@ function RecipePanel({
       </div>
       <div className="grid grid-cols-2 gap-x-3 landscape:grid-cols-1">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#111]/75">
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
           <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[#111]" />
+            className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
           <span className="truncate">Auto brew at target temperature</span>
         </label>
         {/* Remembered on this device */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[#111]/75">
+        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
           <input type="checkbox" checked={shotTemps} onChange={(e) => onShotTemps(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[#111]" />
+            className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
           <span className="truncate">Temperatures on the shot chart</span>
         </label>
       </div>
@@ -712,16 +747,16 @@ function Stepper({
   format: (v: number) => string; onChange: (v: number) => void;
 }) {
   const set = (v: number) => onChange(roundTo(Math.min(limits.max, Math.max(limits.min, v)), limits.step));
-  const btn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-black/20 bg-[#ebeae6] text-[#111]/80 active:scale-95 disabled:opacity-30";
+  const btn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/80 active:scale-95 disabled:opacity-30";
   return (
     <div className="flex items-center gap-1.5">
       <button className={btn} disabled={disabled || value <= limits.min} onClick={() => set(value - limits.step)} aria-label={`Decrease ${label}`}>
         <Minus className="h-5 w-5" />
       </button>
       <div className="min-w-0 flex-1 text-center leading-tight">
-        <p className="text-[10px] uppercase tracking-wider text-[#111]/40">{label}</p>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
         <p className="font-mono text-lg font-bold whitespace-nowrap">
-          {format(value)} <span className="text-xs font-medium text-[#111]/45">{unit}</span>
+          {format(value)} <span className="text-xs font-medium text-[var(--ink)]/45">{unit}</span>
         </p>
       </div>
       <button className={btn} disabled={disabled || value >= limits.max} onClick={() => set(value + limits.step)} aria-label={`Increase ${label}`}>
