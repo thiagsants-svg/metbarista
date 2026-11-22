@@ -31,6 +31,8 @@ import {
   type MachineNotification,
 } from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
+import { StageNow } from "@/components/profile-program-view";
+import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import {
   isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater,
@@ -522,6 +524,14 @@ export default function StationPage() {
             data={demoHeat ? [] : data}
             targetWeight={targetWeight}
             showTemps={shotTemps}
+            footer={(() => {
+              // Program of the running stage: the loaded profile (same id as its base) or the chosen one
+              const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
+              if (!stageName) return null;
+              const prof = profiles.find((x) => x.id === status?.id) ?? baseProfile;
+              const st = currentAndNext(prof, stageName);
+              return <StageNow current={st.current} next={st.next} index={st.index} total={st.total} />;
+            })()}
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
             placeholder={

@@ -242,6 +242,8 @@ export interface LiveStatus {
   time?: number;        // elapsed shot time in ms (last shot's while idle)
   profile_time: number;
   loaded_profile?: string;
+  /** id of the loaded profile (the base profile's id for a shot loaded from the Station) */
+  id?: string;
   extracting?: boolean;
   shot?: ShotDataPoint;
   sensors?: {

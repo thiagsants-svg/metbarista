@@ -77,8 +77,10 @@ function Gradient({ id, color, opacity = 0.4 }: { id: string; color: string; opa
 }
 
 export function ShotCharts({
-  data, live, targetWeight, placeholder, currentStage, showTemps = false, onToggleTemps,
+  data, live, targetWeight, placeholder, currentStage, showTemps = false, onToggleTemps, footer,
 }: {
+  /** Shown under the chart while there is shot data (e.g. the running stage) */
+  footer?: React.ReactNode;
   data: ShotPoint[];
   live: Partial<ShotPoint>;
   targetWeight: number | null;
@@ -161,6 +163,7 @@ export function ShotCharts({
           )
         )}
       </div>
+      {data.length > 0 && footer && <div className="mt-2 shrink-0">{footer}</div>}
     </div>
   );
 }

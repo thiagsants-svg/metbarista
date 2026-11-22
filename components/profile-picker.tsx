@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { ChevronRight, X, Check } from "lucide-react";
+import { ChevronRight, X, Check, Info } from "lucide-react";
+import { ProgramPanel } from "@/components/profile-program-view";
 import { getProfileImageUrl } from "@/lib/machine-api";
 import type { Profile } from "@/lib/types";
 
@@ -60,6 +61,8 @@ export function ProfilePicker({
   onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  /** Profile whose stage program is shown over the grid */
+  const [programFor, setProgramFor] = useState<Profile | null>(null);
   const grid = useGridShape(profiles.length, open);
 
   return (
@@ -105,10 +108,10 @@ export function ProfilePicker({
               const isSel = p.id === selected?.id;
               const color = p.display?.accentColor ?? "#ffc400";
               return (
+                <div key={p.id} className="relative min-h-0 min-w-0">
                 <button
-                  key={p.id}
                   onClick={() => { onSelect(p.id); setOpen(false); }}
-                  className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-1.5 text-left transition-transform active:scale-[0.97]"
+                  className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-1.5 text-left transition-transform active:scale-[0.97]"
                   style={{ backgroundColor: color, outline: isSel ? "3px solid #fafafa" : "none", outlineOffset: 2 }}
                 >
                   <ProfileCover profile={p} className="min-h-0 w-full flex-1 rounded-xl [&>img]:h-full" />
@@ -124,10 +127,23 @@ export function ProfilePicker({
                     </span>
                   )}
                 </button>
+                {/* Stage program of this profile */}
+                <button onClick={() => setProgramFor(p)} aria-label={`Program of ${p.name}`}
+                  className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm active:scale-95">
+                  <Info className="h-5 w-5" />
+                </button>
+                </div>
               );
             })}
           </div>
         </div>
+      )}
+      {open && programFor && (
+        <ProgramPanel
+          profile={programFor}
+          onClose={() => setProgramFor(null)}
+          onUse={() => { onSelect(programFor.id); setProgramFor(null); setOpen(false); }}
+        />
       )}
     </>
   );
