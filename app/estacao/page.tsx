@@ -4,25 +4,30 @@
  * Estação — full-screen bar station for a tablet next to the machine
  * (sized for a Galaxy Tab A 10.1, ~1280×800 CSS px, either orientation).
  *
- * Flow it is built around: Aquecer → prep puck and cup → Extrair when
- * watching. Extrair sends `continue` while the machine waits on PUSH TO BREW.
+ * Flow it is built around: pick profile, dose, ratio and temperature →
+ * Aquecer (loads the profile with that temperature and yield, unsaved) →
+ * prep puck and cup → Extrair when watching (`continue` on PUSH TO BREW).
  */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Flame, Scale, Wind, Play, Square, Loader2, Maximize, Minimize,
+  ArrowLeft, Flame, Scale, Wind, Play, Square, Loader2, Maximize, Minimize, Minus, Plus,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
 } from "recharts";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
-import { executeAction } from "@/lib/machine-api";
+import { executeAction, listProfiles, loadProfileInline } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import {
   isExtracting, isHeating, isIdle, isWaitingForUser, playAction,
 } from "@/lib/brew-state";
-import type { ActionType, LiveStatus } from "@/lib/types";
+import {
+  type Recipe, DEFAULT_RECIPE, LIMITS, beverageWeight, buildShotProfile, formatRatio, loadRecipe,
+  pickBaseProfile, roundTo, saveRecipe,
+} from "@/lib/recipe";
+import type { ActionType, LiveStatus, Profile } from "@/lib/types";
 
 interface Point { t: number; pressure: number | null; flow: number | null; weight: number | null }
 
@@ -90,11 +95,33 @@ export default function EstacaoPage() {
   const [heaterLeft, setHeaterLeft] = useState<number | null>(null);
   const [data, setData] = useState<Point[]>([]);
   const [elapsed, setElapsed] = useState(0);
-  const [busy, setBusy] = useState<ActionType | null>(null);
+  const [busy, setBusy] = useState<ActionType | "heat" | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   const shotStartRef = useRef<number | null>(null);
+  const statusRef = useRef<LiveStatus | null>(null);
+
+  useEffect(() => {
+    // Saved recipe lives in localStorage, read after mount to match the static HTML
+    setRecipe(loadRecipe());
+    if (!getSavedIp()) return;
+    listProfiles()
+      .then((list) => setProfiles([...list].sort((a, b) => a.name.localeCompare(b.name))))
+      .catch((e) => setError(`Não consegui ler os perfis: ${e instanceof Error ? e.message : e}`));
+  }, []);
+
+  const baseProfile = pickBaseProfile(profiles, recipe.baseProfileId);
+
+  function updateRecipe(patch: Partial<Recipe>) {
+    setRecipe((r) => {
+      const next = { ...r, ...patch };
+      saveRecipe(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!getSavedIp()) return;
@@ -105,6 +132,7 @@ export default function EstacaoPage() {
       heater: (sec) => setHeaterLeft(sec),
       status: (s) => {
         setStatus(s);
+        statusRef.current = s;
         setConnected(true);
         if (isExtracting(s)) {
           if (shotStartRef.current == null) {
@@ -148,6 +176,28 @@ export default function EstacaoPage() {
     }
   }
 
+  /** Load the base profile with this recipe (not saved) and start heating. */
+  async function heatWithRecipe() {
+    if (!baseProfile) return;
+    setBusy("heat");
+    setError(null);
+    try {
+      await loadProfileInline(buildShotProfile(baseProfile, recipe));
+      updateRecipe({ baseProfileId: baseProfile.id });
+      // Loading may already start the heating stage; if the machine is still
+      // idle shortly after, ask it to preheat with the profile just loaded.
+      await new Promise((r) => setTimeout(r, 1500));
+      refreshNow();
+      await new Promise((r) => setTimeout(r, 700));
+      if (isIdle(statusRef.current)) await executeAction("preheat");
+      refreshNow();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
@@ -161,9 +211,11 @@ export default function EstacaoPage() {
 
   // ── Main button: one button that follows the flow ──
   // idle → Aquecer (preheat) · heating → countdown · waiting → Extrair (continue)
-  let mainAction: ActionType | null = null;
+  let mainAction: ActionType | "heat" | null = null;
   let mainLabel = "Aquecer";
-  let mainHint = "Aquece e espera você apertar Extrair";
+  let mainHint = baseProfile
+    ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C`
+    : "escolha um perfil";
   let MainIcon: React.ElementType = Flame;
   if (!connected || !status) { mainLabel = "Conectando"; mainHint = "aguardando a máquina"; MainIcon = Loader2; }
   else if (waiting) { mainAction = playAction(status); mainLabel = "Extrair"; mainHint = "Máquina pronta"; MainIcon = Play; }
@@ -171,7 +223,7 @@ export default function EstacaoPage() {
     mainLabel = "Aquecendo";
     mainHint = heaterLeft != null ? `faltam ${fmtClock(heaterLeft)} · prepare o puck` : "prepare o puck e a xícara";
   } else if (brewing) { mainLabel = "Extraindo"; mainHint = fmtClock(elapsed); MainIcon = Play; }
-  else if (idle) { mainAction = "preheat"; }
+  else if (idle) { mainAction = baseProfile ? "heat" : null; }
   else { mainLabel = statusLabel(status, connected); mainHint = ""; MainIcon = Loader2; }
 
   const pillColor =
@@ -263,11 +315,19 @@ export default function EstacaoPage() {
         </div>
 
         {/* Controls */}
-        <div className="grid gap-3 grid-cols-[2fr_1fr] grid-rows-[auto_auto] landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 landscape:grid-cols-1 landscape:grid-rows-[minmax(0,1fr)_auto_auto]">
+        <div className="grid min-h-0 gap-3 grid-cols-[2fr_1fr] grid-rows-[auto_auto_auto] landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 landscape:grid-cols-1 landscape:grid-rows-[auto_minmax(0,1fr)_auto_auto]">
+          <RecipePanel
+            profiles={profiles}
+            base={baseProfile}
+            recipe={recipe}
+            editable={idle && connected && busy === null}
+            onChange={updateRecipe}
+          />
+
           <button
-            onClick={() => mainAction && run(mainAction)}
+            onClick={() => mainAction === "heat" ? heatWithRecipe() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
-            className={`flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-2xl transition-all active:scale-[0.98] disabled:active:scale-100 ${
+            className={`flex min-h-[110px] flex-col items-center justify-center gap-2 rounded-2xl transition-all active:scale-[0.98] disabled:active:scale-100 ${
               waiting
                 ? "bg-[#4ade80] text-[#0c0a09] shadow-[0_0_50px_rgba(74,222,128,0.35)] animate-pulse"
                 : mainAction
@@ -344,5 +404,65 @@ function SmallButton({
       {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : <Icon className={`h-6 w-6 ${active ? "animate-pulse" : ""}`} />}
       {label}
     </button>
+  );
+}
+
+function RecipePanel({
+  profiles, base, recipe, editable, onChange,
+}: {
+  profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
+  onChange: (patch: Partial<Recipe>) => void;
+}) {
+  return (
+    <div className="portrait:col-span-2 rounded-2xl border border-white/[0.06] bg-[#161210] p-3 space-y-3">
+      <select
+        value={base?.id ?? ""}
+        disabled={!editable || profiles.length === 0}
+        onChange={(e) => onChange({ baseProfileId: e.target.value })}
+        aria-label="Perfil"
+        className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0c0a09] px-3 text-lg font-semibold text-[#f5f0ea] disabled:opacity-60"
+      >
+        {profiles.length === 0 && <option value="">Carregando perfis…</option>}
+        {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      <div className="grid grid-cols-3 gap-2 landscape:grid-cols-1">
+        <Stepper label="Dose" unit="g" value={recipe.dose} limits={LIMITS.dose} disabled={!editable}
+          format={(v) => v.toFixed(1).replace(/\.0$/, "")}
+          onChange={(dose) => onChange({ dose })} />
+        <Stepper label="Ratio" unit={`= ${beverageWeight(recipe)}g`} value={recipe.ratio} limits={LIMITS.ratio} disabled={!editable}
+          format={(v) => formatRatio(v)}
+          onChange={(ratio) => onChange({ ratio })} />
+        <Stepper label="Temp." unit="°C" value={recipe.temperature} limits={LIMITS.temperature} disabled={!editable}
+          format={(v) => v.toFixed(1).replace(/\.0$/, "")}
+          onChange={(temperature) => onChange({ temperature })} />
+      </div>
+    </div>
+  );
+}
+
+function Stepper({
+  label, unit, value, limits, disabled, format, onChange,
+}: {
+  label: string; unit: string; value: number; disabled: boolean;
+  limits: { min: number; max: number; step: number };
+  format: (v: number) => string; onChange: (v: number) => void;
+}) {
+  const set = (v: number) => onChange(roundTo(Math.min(limits.max, Math.max(limits.min, v)), limits.step));
+  const btn = "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0c0a09] text-[#f5f0ea]/80 active:scale-95 disabled:opacity-30";
+  return (
+    <div className="flex items-center gap-2">
+      <button className={btn} disabled={disabled || value <= limits.min} onClick={() => set(value - limits.step)} aria-label={`Diminuir ${label}`}>
+        <Minus className="h-5 w-5" />
+      </button>
+      <div className="min-w-0 flex-1 text-center leading-tight">
+        <p className="text-[11px] uppercase tracking-wider text-[#f5f0ea]/40">{label}</p>
+        <p className="font-mono text-xl font-bold whitespace-nowrap">
+          {format(value)} <span className="text-xs font-medium text-[#f5f0ea]/45">{unit}</span>
+        </p>
+      </div>
+      <button className={btn} disabled={disabled || value >= limits.max} onClick={() => set(value + limits.step)} aria-label={`Aumentar ${label}`}>
+        <Plus className="h-5 w-5" />
+      </button>
+    </div>
   );
 }
