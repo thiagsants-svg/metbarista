@@ -98,7 +98,8 @@ export function buildShotProfile(base: Profile, r: Recipe): Profile {
   const copy: Profile = structuredClone(base);
   copy.temperature = r.temperature;
   copy.final_weight = beverageWeight(r);
-  copy.name = `${base.name} · ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}°`;
+  // Plain ASCII: the dial's font may not have "·" or "°"
+  copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C`;
   // Fields that describe the saved file, not the shot
   delete copy.isLast;
   delete copy.last_changed;
