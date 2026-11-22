@@ -59,6 +59,19 @@ export function formatRatio(ratio: number): string {
   return `1:${ratio.toFixed(1).replace(/\.0$/, "")}`;
 }
 
+/**
+ * Sorts profiles like the dial does: by the machine's "Profile order" setting,
+ * then any profile missing from it by name.
+ */
+export function sortByMachineOrder(profiles: Profile[], order: string[] | undefined): Profile[] {
+  const rank = new Map((order ?? []).map((id, i) => [id, i]));
+  return [...profiles].sort((a, b) => {
+    const ra = rank.get(a.id) ?? Infinity;
+    const rb = rank.get(b.id) ?? Infinity;
+    return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
+  });
+}
+
 /** Damian's LRv2 as imported on this machine (it may have been renamed). */
 const LRV2_ID = "07c4eec6-caf1-410a-b3f5-40d437304567";
 

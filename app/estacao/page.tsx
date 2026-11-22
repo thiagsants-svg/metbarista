@@ -18,14 +18,14 @@ import { ShotCharts, COLORS, type ShotPoint } from "@/components/estacao-charts"
 import { demoShot } from "@/lib/demo-shot";
 import { ProfilePicker } from "@/components/profile-picker";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
-import { executeAction, listProfiles, loadProfileInline } from "@/lib/machine-api";
+import { executeAction, getSettings, listProfiles, loadProfileInline } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import {
   isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater, playAction,
 } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, LIMITS, beverageWeight, buildShotProfile, formatRatio, loadRecipe,
-  pickBaseProfile, roundTo, saveRecipe,
+  pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder,
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, Profile } from "@/lib/types";
 
@@ -130,8 +130,9 @@ export default function EstacaoPage() {
       setElapsed(pts[pts.length - 1].t / 1000);
     }
     if (!getSavedIp()) return;
-    listProfiles()
-      .then((list) => setProfiles([...list].sort((a, b) => a.name.localeCompare(b.name))))
+    // Same order as the dial (Settings → Profile order); read only
+    Promise.all([listProfiles(), getSettings().catch(() => null)])
+      .then(([list, settings]) => setProfiles(sortByMachineOrder(list, settings?.profile_order)))
       .catch((e) => setError(`Não consegui ler os perfis: ${e instanceof Error ? e.message : e}`));
   }, []);
 
