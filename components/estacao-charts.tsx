@@ -181,8 +181,8 @@ export function ShotCharts({
 export interface HeatPoint { t: number; temp: number }
 
 /**
- * Heating progress: current temperature, a bar from where heating started to
- * the target, and the temperature curve climbing toward the target line.
+ * Heating progress: current temperature, % of the way from where heating
+ * started to the target, and the temperature curve climbing toward the target.
  */
 export function HeatingProgress({
   samples, target, current,
@@ -209,10 +209,6 @@ export function HeatingProgress({
           </p>
         </div>
         <p className="font-mono text-4xl font-bold text-[#ff8a00]">{Math.round(pct * 100)}%</p>
-      </div>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-white/[0.08]">
-        <div className="h-full rounded-full bg-gradient-to-r from-[#ff8a00] to-[#ffc400] transition-[width] duration-500"
-          style={{ width: `${pct * 100}%` }} />
       </div>
       <div className="relative min-h-0 flex-1">
         {samples.length > 1 && (
