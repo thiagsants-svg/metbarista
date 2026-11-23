@@ -26,6 +26,7 @@ import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { WheelPicker } from "@/components/wheel-picker";
 import { ShotRating, type Face } from "@/components/shot-rating";
+import { SlideToStart } from "@/components/slide-to-start";
 import { getShotNote, saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
@@ -838,6 +839,11 @@ export default function StationPage() {
             onShotTemps={(on) => { setShotTemps(on); localStorage.setItem("metbarista_shot_temps", on ? "1" : "0"); }}
           />
 
+          {/* Start heating: slide, so a stray tap can't start the machine */}
+          {mainAction === "load" && busy === null ? (
+            <SlideToStart label="Slide to heat" hint={mainHint} onConfirm={startShot}
+              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:min-h-[56px]`} />
+          ) : (
           <button
             onClick={() => mainAction === "load" ? startShot() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
@@ -852,6 +858,7 @@ export default function StationPage() {
             </span>
             {mainHint && <span className="text-sm font-medium opacity-75">{mainHint}</span>}
           </button>
+          )}
 
           <button
             onClick={() => run("stop")}
