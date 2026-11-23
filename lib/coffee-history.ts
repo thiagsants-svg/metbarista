@@ -10,7 +10,7 @@
 import { analyzeShot } from "./shot-analysis";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
-import { asciiName, baseName, parseShotNotes, SHOT_NAME_RE, type Recipe } from "./recipe";
+import { asciiName, baseName, parseShotNotes, recentBeans, SHOT_NAME_RE, type Recipe } from "./recipe";
 import type { Profile, ShotEntry } from "./types";
 
 const LOG_KEY = "metbarista_shot_log";
@@ -143,7 +143,10 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
   const stats = computeShotStats(shot.data ?? []);
   const analysis = analyzeShot(shot);
   return {
-    coffee: notes.coffee ?? "",
+    // Shots keep plain ASCII ("Etiopia"): show it as written in the coffee list ("Etiópia")
+    coffee: notes.coffee
+      ? recentBeans().find((b) => asciiName(b).toLowerCase() === asciiName(notes.coffee!).toLowerCase()) ?? notes.coffee
+      : "",
     when: shot.time * 1000,
     profileName: baseName(shot.name ?? ""),
     patch,
@@ -173,10 +176,15 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
   return { ...saved, stars: getShotNote(saved.when / 1000)?.rating || saved.stars };
 }
 
-/** Records the newest shot under its coffee (called right after a shot ends). */
-export function rememberLatestShot(history: ShotEntry[], profiles: Profile[]): void {
+/**
+ * Records the newest shot under its coffee (called right after a shot ends)
+ * and returns its summary (coffee may be empty when none was set).
+ */
+export function rememberLatestShot(history: ShotEntry[], profiles: Profile[]): CoffeeLastShot | null {
   const shot = [...history].sort((a, b) => b.time - a.time)[0];
-  if (!shot) return;
+  if (!shot) return null;
   const notes = notesFor(shot, readLog());
-  if (notes.coffee) cache(summarize(shot, notes, profiles));
+  const summary = summarize(shot, notes, profiles);
+  if (notes.coffee) cache(summary);
+  return summary;
 }

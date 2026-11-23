@@ -587,6 +587,19 @@ export default function StationPage() {
   }
 
   const brewing = isExtracting(status);
+  // When the Station opens: last shot of the coffee in the recipe, or the machine's latest shot
+  const lastLoadedRef = useRef(false);
+  useEffect(() => {
+    if (demo || lastLoadedRef.current || profiles.length === 0) return;
+    lastLoadedRef.current = true;
+    getHistory(60).then((h) => {
+      const coffee = loadRecipe().coffee?.trim();
+      const found = coffee ? findLastShotForCoffee(coffee, h, profiles) : null;
+      const last = found ?? rememberLatestShot(h, profiles);
+      if (last) setLastCoffee(last);
+    }).catch(() => { /* no history: nothing to show */ });
+  }, [demo, profiles]);
+
   const wasBrewingRef = useRef(false);
   // Shot starts: record what the grinder had at that moment.
   // Shot over: record it under its coffee, so its last shot is found even months later.
@@ -607,7 +620,11 @@ export default function StationPage() {
     setTimeout(() => setRateOpen(true), 1500);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     setTimeout(() => {
-      getHistory(3).then((h) => rememberLatestShot(h, profiles)).catch(() => { /* next lookup reads the history */ });
+      getHistory(3).then((h) => {
+        // The shot just made becomes the "last shot" line
+        const last = rememberLatestShot(h, profiles);
+        if (last) setLastCoffee(last);
+      }).catch(() => { /* next lookup reads the history */ });
     }, 8000);
   }, [brewing, demo, profiles, recipe.grinder]);
   const needsWater = isWaitingForWater(status);
@@ -757,10 +774,10 @@ export default function StationPage() {
                     );
                   }
                   const p = lastCoffee.patch;
-                  return (
-                    <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 border-t-2 border-[var(--ink)] pt-2">
+                  const items = (
+                    <>
                       <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">
-                        Last · {lastCoffee.coffee} · {new Date(lastCoffee.when).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                        {lastCoffee.coffee ? `Last · ${lastCoffee.coffee}` : "Last shot"} · {new Date(lastCoffee.when).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
                       </span>
                       {lastCoffee.score != null && (
                         <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
@@ -774,6 +791,17 @@ export default function StationPage() {
                       {(p.grindUm != null || p.grindSetting != null) && (
                         <span className="text-base font-semibold tabular-nums">{grindText(p).replace(/^Motto 80 /, "")}</span>
                       )}
+                      <span className="text-sm text-[var(--ink)]/70">{lastCoffee.profileName}</span>
+                    </>
+                  );
+                  // One line scrolling slowly (twice the content, so the loop has no jump)
+                  return (
+                    <div className="w-full min-w-0 shrink-0 overflow-hidden border-t-2 border-[var(--ink)] pt-2 [contain:inline-size] [mask-image:linear-gradient(90deg,transparent,black_3%,black_97%,transparent)]">
+                      <div className="flex w-max animate-ticker whitespace-nowrap motion-reduce:animate-none">
+                        {[0, 1].map((i) => (
+                          <div key={i} aria-hidden={i === 1} className="flex shrink-0 items-baseline gap-x-5 pr-24">{items}</div>
+                        ))}
+                      </div>
                     </div>
                   );
                 }
