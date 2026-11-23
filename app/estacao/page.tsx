@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
+  ArrowLeft, ArrowUpToLine, Bluetooth, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
   Moon, Plus, Scale, Square, Sun, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
@@ -27,7 +27,7 @@ import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
-  acknowledgeNotification, executeAction, getNotifications, getSettings, listProfiles, loadProfileInline,
+  acknowledgeNotification, executeAction, getHistory, getNotifications, getSettings, listProfiles, loadProfileInline,
   type MachineNotification,
 } from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
@@ -39,8 +39,10 @@ import {
 } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, recentBeans, rememberBeans,
+  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, recentBeans, rememberBeans,
 } from "@/lib/recipe";
+import { findLastShotForCoffee, logShotNotes, type CoffeeLastShot } from "@/lib/coffee-history";
+import { bluetoothSupported, readMotto80 } from "@/lib/motto80";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
 /**
@@ -186,6 +188,9 @@ export default function StationPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
+  /** Last shot of the coffee picked in the recipe (shown under the chart while idle) */
+  const [lastCoffee, setLastCoffee] = useState<CoffeeLastShot | { coffee: string; none: true } | null>(null);
+  const [grinderBusy, setGrinderBusy] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   /** Light Swiss or dark bumblebee, remembered on this device */
   const [theme, setTheme] = useState<ThemeName>("light");
@@ -289,6 +294,7 @@ export default function StationPage() {
             || (s.name ?? "").toLowerCase() === "click to start")) {
           preShotRef.current = true;
           autoFiredRef.current = false;
+          setLastCoffee(null);
           dataRef.current = [];
           dataDirtyRef.current = true;
           setElapsed(0);
@@ -445,6 +451,8 @@ export default function StationPage() {
     try {
       await loadProfileInline(buildShotProfile(baseProfile, { ...GRINDER_DEFAULTS, ...recipe }));
       rememberBeans(recipe.coffee);
+      logShotNotes(recipe.coffee, grindText({ ...GRINDER_DEFAULTS, ...recipe }));
+      setLastCoffee(null);
       startedAtRef.current = Date.now();
       setTargetWeight(beverageWeight(recipe));
       updateRecipe({ baseProfileId: baseProfile.id });
@@ -453,6 +461,39 @@ export default function StationPage() {
       setError(`Couldn't start ${baseProfile.name}: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(null);
+    }
+  }
+
+  /** Coffee picked from the recent list: bring back its last shot (recipe, grind, time, score). */
+  async function pickCoffee(name: string) {
+    if (demo) return;
+    try {
+      const found = findLastShotForCoffee(name, await getHistory(60), profiles);
+      if (found) {
+        updateRecipe(found.patch);
+        setLastCoffee(found);
+      } else {
+        setLastCoffee({ coffee: name, none: true });
+      }
+    } catch (e) {
+      setError(`Couldn't read the shot history: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  /** Reads the Motto 80's current grind over Bluetooth (read only) */
+  async function readGrinder() {
+    setGrinderBusy(true);
+    setError(null);
+    try {
+      const g = await readMotto80();
+      updateRecipe({ grinder: "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm });
+    } catch (e) {
+      // Closing Chrome's device list is not an error
+      if (!(e instanceof Error && e.name === "NotFoundError")) {
+        setError(`Grinder: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } finally {
+      setGrinderBusy(false);
     }
   }
 
@@ -589,7 +630,37 @@ export default function StationPage() {
               // Program of the running stage: the loaded profile (same id as its base) or the chosen one
               const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
               if (!stageName) {
-                if (brewing || data.length === 0 || tempView) return null;
+                if (brewing || tempView) return null;
+                if (lastCoffee) {
+                  if ("none" in lastCoffee) {
+                    return (
+                      <div className="shrink-0 border-t-2 border-[var(--ink)] pt-2 text-sm text-[var(--ink)]/75">
+                        No shots yet with <span className="font-semibold text-[var(--ink)]">{lastCoffee.coffee}</span>
+                      </div>
+                    );
+                  }
+                  const p = lastCoffee.patch;
+                  return (
+                    <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 border-t-2 border-[var(--ink)] pt-2">
+                      <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">
+                        Last · {lastCoffee.coffee} · {new Date(lastCoffee.when).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                      </span>
+                      {lastCoffee.score != null && (
+                        <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
+                      )}
+                      {lastCoffee.stars != null && <span className="text-lg text-[var(--accent)]">{"\u2605".repeat(lastCoffee.stars)}</span>}
+                      <span className="text-xl font-extrabold tabular-nums">{lastCoffee.weight.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">g</span></span>
+                      <span className="text-xl font-extrabold tabular-nums">{fmtClock(lastCoffee.seconds)}</span>
+                      {p.dose != null && p.ratio != null && (
+                        <span className="text-base font-semibold tabular-nums">{p.dose}g {formatRatio(p.ratio)} {p.temperature}°C</span>
+                      )}
+                      {p.grindUm != null && (
+                        <span className="text-base font-semibold tabular-nums">{p.grindUm}µm · feed {p.feed} · {p.rpm}rpm</span>
+                      )}
+                    </div>
+                  );
+                }
+                if (data.length === 0) return null;
                 const last = data[data.length - 1];
                 const finalW = last.weight ?? 0;
                 const peak = Math.max(0, ...data.map((d) => d.pressure ?? 0));
@@ -642,6 +713,9 @@ export default function StationPage() {
             recipe={recipe}
             editable={idle && online && busy === null}
             onChange={updateRecipe}
+            onPickCoffee={pickCoffee}
+            onReadGrinder={readGrinder}
+            grinderBusy={grinderBusy}
             autoBrew={autoBrew}
             onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
             shotTemps={shotTemps}
@@ -721,10 +795,14 @@ function SmallButton({
 }
 
 function RecipePanel({
-  profiles, base, recipe, editable, onChange, autoBrew, onAutoBrew, shotTemps, onShotTemps,
+  profiles, base, recipe, editable, onChange, onPickCoffee, onReadGrinder, grinderBusy,
+  autoBrew, onAutoBrew, shotTemps, onShotTemps,
 }: {
   profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
   onChange: (patch: Partial<Recipe>) => void;
+  onPickCoffee: (name: string) => void;
+  onReadGrinder: () => void;
+  grinderBusy: boolean;
   autoBrew: boolean; onAutoBrew: (on: boolean) => void;
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
@@ -765,20 +843,32 @@ function RecipePanel({
         })}
       </div>
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
-      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-2">
+      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-2">
         <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans" onFocus={() => setBeans(recentBeans())}
-          onChange={(e) => onChange({ coffee: e.target.value })} aria-label="Coffee"
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange({ coffee: v });
+            // Picked from the list (or typed in full): bring back that coffee's last shot
+            const hit = beans.find((b) => b.toLowerCase() === v.trim().toLowerCase());
+            if (hit) onPickCoffee(hit);
+          }} aria-label="Coffee"
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
         <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
           onChange={(e) => onChange({ grinder: e.target.value })} aria-label="Grinder"
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+        {/* Read the Motto 80's current settings over Bluetooth */}
+        <button type="button" onClick={onReadGrinder} disabled={!editable || grinderBusy || !bluetoothSupported()}
+          aria-label="Read from grinder" title="Read from grinder"
+          className="flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/80 active:scale-95 disabled:opacity-30">
+          {grinderBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
+        </button>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {([
           ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
-          ["feed", "feed", 1, 65, GRINDER_DEFAULTS.feed],
-          ["rpm", "rpm", 300, 1500, GRINDER_DEFAULTS.rpm],
+          ["feed", "feed", 10, 65, GRINDER_DEFAULTS.feed],
+          ["rpm", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
         ] as const).map(([key, unit, min, max, def]) => (
           <label key={key} className="flex h-11 landscape:h-9 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5">
             <input type="number" inputMode="numeric" min={min} max={max} disabled={!editable}

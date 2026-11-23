@@ -17,14 +17,14 @@ export interface Recipe {
   coffee?: string;     // beans in use (free text)
   grinder?: string;    // grinder model, e.g. "Motto 80"
   grindUm?: number;    // grind setting in microns
-  feed?: number;       // feed rate (Motto 80: up to 65)
-  rpm?: number;        // burr speed (Motto 80: 300-1500)
+  feed?: number;       // feed rate (Motto 80: 10-65)
+  rpm?: number;        // burr speed (Motto 80: 500-1500)
   /** Legacy free-text grind (older versions) */
   grind?: string;
 }
 
 /** Defaults for the user's grinder (Timemore Motto 80 style controls). */
-export const GRINDER_DEFAULTS = { grinder: "Motto 80", grindUm: 140, feed: 65, rpm: 1000 };
+export const GRINDER_DEFAULTS = { grinder: "Motto 80", grindUm: 150, feed: 65, rpm: 1000 };
 
 const RECENT_BEANS_KEY = "metbarista_recent_beans";
 

@@ -154,7 +154,7 @@ export function ShotCharts({
           )
         )}
       </div>
-      {data.length > 0 && footer && <div className="mt-2 shrink-0">{footer}</div>}
+      {footer && <div className="mt-2 shrink-0">{footer}</div>}
     </div>
   );
 }
