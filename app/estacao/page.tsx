@@ -539,7 +539,7 @@ export default function StationPage() {
     }
     if (grinderLink === "off" || grinderLink === "lost") {
       // "lost" waiting for a tap: this tap opens Chrome's list
-      if (grinderLink === "lost") linkRef.current?.disconnect();
+      if (grinderLink === "lost") linkRef.current?.forget();
       connectGrinder();
     } else {
       localStorage.removeItem(GRINDER_WANTED_KEY);

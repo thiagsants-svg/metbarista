@@ -106,7 +106,8 @@ export class Motto80Link {
     try {
       if (!this.device) {
         // A device allowed before this channel was used must be chosen again once
-        const known = localStorage.getItem(ACCESS_KEY) ? ((await bt.getDevices?.().catch(() => [])) ?? []) : [];
+        const known = localStorage.getItem(ACCESS_KEY) && !this.choose ? ((await bt.getDevices?.().catch(() => [])) ?? []) : [];
+        this.choose = false;
         const found = known.find((d) => d.name?.startsWith(NAME_PREFIX));
         if (!found && silent) throw Object.assign(new Error("needs a tap"), { name: "NeedsTap" });
         this.device = found
@@ -131,7 +132,8 @@ export class Motto80Link {
         this.wanted = false;
         this.onState("off");
       } else if (this.device) {
-        // Known grinder not answering (asleep, out of range): keep trying
+        // Known grinder not answering (asleep, out of range): say why once, keep trying
+        this.onState("lost", `couldn't reconnect (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}). Tap the Bluetooth button to choose the grinder again`);
         this.dropped();
       } else {
         this.wanted = false;
@@ -140,6 +142,15 @@ export class Motto80Link {
       throw e;
     }
   }
+
+  /** Forget the device so the next connect shows Chrome's list (the path that always works). */
+  forget(): void {
+    this.disconnect();
+    this.device = null;
+    this.choose = true;
+  }
+
+  private choose = false;
 
   disconnect(): void {
     this.wanted = false;
