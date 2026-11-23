@@ -2,7 +2,9 @@
  * BOOKOO Motto 80 grinder over Bluetooth (Web Bluetooth, Chrome on Android).
  *
  * Read only. Protocol decoded from the official app's traffic:
- * - Service 0xFFFF: FF01 = write (requests), FF02 = notify (data).
+ * - Service 4D543830-0001-4B80-8F00-424F4F4B4F4F ("MT80…BOOKOO"): -0002 = write
+ *   (requests), -0003 = notify (data). (Service 0xFFFF / FF01 / FF02 is the
+ *   chip's Wi-Fi setup channel, ESP BluFi: never used here.)
  * - Frame: a5 01 <seq> <flag> <length u32 LE> <UTF-8 JSON>.
  * - The grinder stays silent until the app says hello
  *   ({"request":{"appHello":{"op":"handshake"}}}); then FF02 sends
@@ -34,20 +36,22 @@ interface BtCharacteristic extends EventTarget {
   startNotifications(): Promise<BtCharacteristic>;
   writeValueWithResponse(data: BufferSource): Promise<void>;
 }
-interface BtService { getCharacteristic(uuid: number): Promise<BtCharacteristic> }
-interface BtServer { connected: boolean; getPrimaryService(uuid: number): Promise<BtService>; disconnect(): void }
+interface BtService { getCharacteristic(uuid: string): Promise<BtCharacteristic> }
+interface BtServer { connected: boolean; getPrimaryService(uuid: string): Promise<BtService>; disconnect(): void }
 interface BtDevice extends EventTarget { name?: string; gatt?: { connected: boolean; connect(): Promise<BtServer> } }
 interface BtNavigator {
   bluetooth?: {
-    requestDevice(options: { filters: { namePrefix: string }[]; optionalServices: number[] }): Promise<BtDevice>;
+    requestDevice(options: { filters: { namePrefix: string }[]; optionalServices: string[] }): Promise<BtDevice>;
     /** Devices this site was already allowed to use (no chooser); not on every Chrome */
     getDevices?(): Promise<BtDevice[]>;
   };
 }
 
-const SERVICE = 0xffff;
-const WRITE_CHAR = 0xff01;
-const NOTIFY_CHAR = 0xff02;
+const SERVICE = "4d543830-0001-4b80-8f00-424f4f4b4f4f";
+const WRITE_CHAR = "4d543830-0002-4b80-8f00-424f4f4b4f4f";
+const NOTIFY_CHAR = "4d543830-0003-4b80-8f00-424f4f4b4f4f";
+/** Set once Chrome has given access to SERVICE (older permissions only covered 0xFFFF) */
+const ACCESS_KEY = "metbarista_grinder_access_v2";
 const NAME_PREFIX = "BOOKOO MT80";
 
 function bluetooth() {
@@ -101,7 +105,8 @@ export class Motto80Link {
     this.onState("connecting");
     try {
       if (!this.device) {
-        const known = (await bt.getDevices?.().catch(() => [])) ?? [];
+        // A device allowed before this channel was used must be chosen again once
+        const known = localStorage.getItem(ACCESS_KEY) ? ((await bt.getDevices?.().catch(() => [])) ?? []) : [];
         const found = known.find((d) => d.name?.startsWith(NAME_PREFIX));
         if (!found && silent) throw Object.assign(new Error("needs a tap"), { name: "NeedsTap" });
         this.device = found
@@ -113,6 +118,11 @@ export class Motto80Link {
       this.onState("on");
     } catch (e) {
       const name = e instanceof Error ? e.name : "";
+      if (name === "SecurityError" && this.device) {
+        // This device was allowed without the grinder's data channel: choose it again (one tap)
+        this.device = null;
+        localStorage.removeItem(ACCESS_KEY);
+      }
       if (name === "NeedsTap" || name === "SecurityError") {
         // Can't open Chrome's list without a tap: wait for one
         this.onState("lost");
@@ -181,6 +191,7 @@ export class Motto80Link {
     if (!this.device?.gatt) throw new Error("Grinder not reachable");
     this.server = await this.device.gatt.connect();
     const service = await this.server.getPrimaryService(SERVICE);
+    localStorage.setItem(ACCESS_KEY, "1");
     const write = await service.getCharacteristic(WRITE_CHAR);
     const notify = await service.getCharacteristic(NOTIFY_CHAR);
     const buf = { b: new Uint8Array(0) as Uint8Array };
