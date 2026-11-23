@@ -796,8 +796,15 @@ export default function StationPage() {
                       {lastCoffee.score != null && (
                         <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
                       )}
-                      {lastCoffee.face === "like" && <Smile className="h-6 w-6 self-center text-[var(--accent)]" aria-label="Liked" />}
-                      {lastCoffee.face === "dislike" && <Frown className="h-6 w-6 self-center text-[var(--stop)]" aria-label="Didn't like" />}
+                      {/* Face in the same badge as the score (same look as the rating popup's faces) */}
+                      {lastCoffee.face && (
+                        <span className="self-center rounded-md bg-[var(--primary)] p-0.5 text-[var(--on-primary)]"
+                          aria-label={lastCoffee.face === "like" ? "Liked" : "Didn't like"}>
+                          {lastCoffee.face === "like"
+                            ? <Smile className="h-6 w-6" strokeWidth={1.75} />
+                            : <Frown className="h-6 w-6" strokeWidth={1.75} />}
+                        </span>
+                      )}
                       {lastCoffee.stars != null && <span className="text-lg text-[var(--accent)]">{"\u2605".repeat(lastCoffee.stars)}</span>}
                       <span className="text-xl font-extrabold tabular-nums">{lastCoffee.weight.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">g</span></span>
                       <span className="text-xl font-extrabold tabular-nums">{fmtClock(lastCoffee.seconds)}</span>
