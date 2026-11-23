@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Bluetooth, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
+  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
   Moon, Plus, Scale, Square, Sun, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
@@ -879,6 +879,8 @@ function RecipePanel({
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
   const [grinders, setGrinders] = useState<GrinderFields[]>([]);
+  /** Full list of recent coffees (the keyboard's suggestions only show matches) */
+  const [beansOpen, setBeansOpen] = useState(false);
   const motto = isMotto80(recipe.grinder);
   return (
     <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
@@ -916,6 +918,7 @@ function RecipePanel({
       </div>
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
       <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
+        <div className="relative flex min-w-0 gap-1.5">
         <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans" onFocus={() => setBeans(recentBeans())}
           onChange={(e) => {
             const v = e.target.value;
@@ -924,8 +927,36 @@ function RecipePanel({
             const hit = beans.find((b) => b.toLowerCase() === v.trim().toLowerCase());
             if (hit) onPickCoffee(hit);
           }} aria-label="Coffee"
-          className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+          className="h-11 landscape:h-9 min-w-0 flex-1 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
+        {/* All recent coffees, most recently used first */}
+        <button type="button" disabled={!editable} aria-label="Recent coffees" title="Recent coffees"
+          onClick={() => { setBeans(recentBeans()); setBeansOpen((o) => !o); }}
+          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 shrink-0 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
+            beansOpen ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20 text-[var(--ink)]/80"}`}>
+          <ChevronDown className={`h-5 w-5 transition-transform ${beansOpen ? "rotate-180" : ""}`} />
+        </button>
+        {beansOpen && (
+          <>
+            {/* Tap outside closes */}
+            <div className="fixed inset-0 z-40" onClick={() => setBeansOpen(false)} />
+            <ul className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[50dvh] overflow-y-auto rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] py-1 shadow-lg">
+              {beans.length === 0 ? (
+                <li className="px-3 py-3 text-sm text-[var(--ink)]/70">No coffees yet: they’re added when you start a shot</li>
+              ) : beans.map((b) => (
+                <li key={b}>
+                  <button type="button"
+                    onClick={() => { setBeansOpen(false); onChange({ coffee: b }); onPickCoffee(b); }}
+                    className={`block w-full truncate px-3 py-2.5 text-left text-base active:bg-[var(--ink)]/10 ${
+                      b.toLowerCase() === (recipe.coffee ?? "").trim().toLowerCase() ? "font-bold text-[var(--accent)]" : "text-[var(--ink)]"}`}>
+                    {b}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        </div>
         <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
           list="recent-grinders" onFocus={() => setGrinders(recentGrinders())}
           onChange={(e) => {
