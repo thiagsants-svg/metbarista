@@ -43,7 +43,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  loadRecipe, MAX_FINAL_WEIGHT, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
@@ -474,7 +474,7 @@ export default function StationPage() {
       logShotNotes(recipe.coffee, grindText(recipe));
       setLastCoffee(null);
       startedAtRef.current = Date.now();
-      setTargetWeight(beverageWeight(recipe));
+      setTargetWeight(Math.min(MAX_FINAL_WEIGHT, beverageWeight(recipe)));
       updateRecipe({ baseProfileId: baseProfile.id });
       refreshNow();
     } catch (e) {

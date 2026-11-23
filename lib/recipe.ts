@@ -129,8 +129,11 @@ export const retractionMlToMm = (ml: number) => Math.round((ml * 1000 * 100) / P
  * draws (150 ml), minus what the puck keeps and the safety margin.
  */
 export function maxYieldFor(dose: number): number {
-  return Math.floor(RETRACTION_MAX_ML - 1.25 * dose - 10);
+  return Math.min(MAX_FINAL_WEIGHT, Math.floor(RETRACTION_MAX_ML - 1.25 * dose - 10));
 }
+
+/** The official profile editor caps the final weight at 100 g: the Station does too */
+export const MAX_FINAL_WEIGHT = 100;
 
 /** The recipe asks for more coffee than one piston of water can give */
 export function overCapacity(r: Pick<Recipe, "dose" | "ratio">): boolean {
@@ -143,7 +146,7 @@ export function overCapacity(r: Pick<Recipe, "dose" | "ratio">): boolean {
  * Less water for short shots = less air in the chamber (no "pop" at the end).
  */
 export function retractionFor(r: Pick<Recipe, "dose" | "ratio">): number {
-  const ml = Math.ceil(r.dose * r.ratio + 1.25 * r.dose + 10);
+  const ml = Math.ceil(Math.min(MAX_FINAL_WEIGHT, r.dose * r.ratio) + 1.25 * r.dose + 10);
   return Math.min(RETRACTION_MAX_ML, Math.max(RETRACTION_MIN_ML, ml));
 }
 
@@ -250,7 +253,7 @@ export function baseName(name: string): string {
 export function buildShotProfile(base: Profile, r: Recipe): Profile {
   const copy: Profile = structuredClone(base);
   copy.temperature = r.temperature;
-  copy.final_weight = beverageWeight(r);
+  copy.final_weight = Math.min(MAX_FINAL_WEIGHT, beverageWeight(r));
   // Plain ASCII: the dial's font may not have "·" or "°"
   copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C${nameTag(r)}`;
   const notes = shotNotesText(r);
