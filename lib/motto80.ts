@@ -38,7 +38,13 @@ interface BtCharacteristic extends EventTarget {
 }
 interface BtService { getCharacteristic(uuid: string): Promise<BtCharacteristic> }
 interface BtServer { connected: boolean; getPrimaryService(uuid: string): Promise<BtService>; disconnect(): void }
-interface BtDevice extends EventTarget { name?: string; gatt?: { connected: boolean; connect(): Promise<BtServer> } }
+interface BtDevice extends EventTarget {
+  name?: string;
+  gatt?: { connected: boolean; connect(): Promise<BtServer> };
+  /** Listen for the device's broadcasts (needed on Android before reconnecting to a remembered device) */
+  watchAdvertisements?(): Promise<void>;
+  unwatchAdvertisements?(): void;
+}
 interface BtNavigator {
   bluetooth?: {
     requestDevice(options: { filters: { namePrefix: string }[]; optionalServices: string[] }): Promise<BtDevice>;
@@ -198,9 +204,32 @@ export class Motto80Link {
 
   private lastReadingAt = 0;
 
+  /**
+   * gatt.connect(); if Android says the device is "no longer in range" (a
+   * remembered device after the page reopened), listen for its broadcast first
+   * and try again.
+   */
+  private async connectGatt(device: BtDevice): Promise<BtServer> {
+    try {
+      return await device.gatt!.connect();
+    } catch (e) {
+      if (!(e instanceof Error && e.name === "NetworkError") || !device.watchAdvertisements) throw e;
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => { device.unwatchAdvertisements?.(); reject(e); }, 15_000);
+        device.addEventListener("advertisementreceived", () => {
+          clearTimeout(timer);
+          device.unwatchAdvertisements?.();
+          resolve();
+        }, { once: true });
+        device.watchAdvertisements!().catch((err) => { clearTimeout(timer); reject(err); });
+      });
+      return await device.gatt!.connect();
+    }
+  }
+
   private async open(): Promise<void> {
     if (!this.device?.gatt) throw new Error("Grinder not reachable");
-    this.server = await this.device.gatt.connect();
+    this.server = await this.connectGatt(this.device);
     const service = await this.server.getPrimaryService(SERVICE);
     localStorage.setItem(ACCESS_KEY, "1");
     const write = await service.getCharacteristic(WRITE_CHAR);

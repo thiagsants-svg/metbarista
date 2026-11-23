@@ -948,8 +948,8 @@ function RecipePanel({
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
   const [grinders, setGrinders] = useState<GrinderFields[]>([]);
-  /** Wheels for dose, ratio and temperature (draft until OK) */
-  const [wheel, setWheel] = useState<{ dose: number; ratio: number; temperature: number } | null>(null);
+  /** Which wheel is open (dose, ratio or temperature) */
+  const [wheel, setWheel] = useState<"dose" | "ratio" | "temperature" | null>(null);
   /** Full list of recent coffees (the keyboard's suggestions only show matches) */
   const [beansOpen, setBeansOpen] = useState(false);
   const motto = isMotto80(recipe.grinder);
@@ -961,56 +961,36 @@ function RecipePanel({
         disabled={!editable}
         onSelect={(id) => onChange({ baseProfileId: id })}
       />
-      {/* Dose, ratio and temperature: tap to open the wheels */}
+      {/* Dose, ratio and temperature: each tile opens its own wheel; the value applies when the wheel stops */}
       <div className="grid grid-cols-3 gap-2">
         {([
-          ["Dose", fmtDose(recipe.dose), "g"],
-          ["Ratio", formatRatio(recipe.ratio), `= ${beverageWeight(recipe)} g`],
-          ["Temp", String(recipe.temperature), "°C"],
-        ] as const).map(([label, val, unit]) => (
-          <button key={label} type="button" disabled={!editable}
-            onClick={() => setWheel({
-              dose: nearest(DOSES, recipe.dose),
-              ratio: nearest(RATIO_PRESETS, recipe.ratio),
-              temperature: nearest(TEMPS, recipe.temperature),
-            })}
-            className="flex h-16 landscape:h-12 min-w-0 flex-col items-center justify-center rounded-md border border-[var(--ink)]/20 active:scale-[0.98] disabled:opacity-60">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)]/70">{label}</span>
-            <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
-              {val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{unit}</span>
-            </span>
-          </button>
+          { key: "dose", label: "Dose", val: fmtDose(recipe.dose), unit: "g", wheelLabel: "Dose (g)", items: DOSES, format: fmtDose },
+          { key: "ratio", label: "Ratio", val: formatRatio(recipe.ratio), unit: `= ${beverageWeight(recipe)} g`, wheelLabel: "Ratio", items: RATIO_PRESETS, format: formatRatio },
+          { key: "temperature", label: "Temp", val: String(recipe.temperature), unit: "°C", wheelLabel: "Temp (°C)", items: TEMPS, format: String },
+        ] as const).map((t) => (
+          <div key={t.key} className="relative min-w-0">
+            <button type="button" disabled={!editable} onClick={() => setWheel(wheel === t.key ? null : t.key)}
+              className={`flex h-16 landscape:h-12 w-full min-w-0 flex-col items-center justify-center rounded-md border active:scale-[0.98] disabled:opacity-60 ${
+                wheel === t.key ? "border-[var(--ink)] bg-[var(--ink)]/[0.06]" : "border-[var(--ink)]/20"}`}>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)]/70">{t.label}</span>
+              <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
+                {t.val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{t.unit}</span>
+              </span>
+            </button>
+            {wheel === t.key && (
+              <>
+                {/* Tap outside closes */}
+                <div className="fixed inset-0 z-40" onClick={() => setWheel(null)} />
+                <div className="absolute bottom-full left-0 right-0 z-50 mb-1 landscape:bottom-auto landscape:top-full landscape:mb-0 landscape:mt-1 rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] px-1 py-2 shadow-lg">
+                  <WheelPicker label={t.wheelLabel} items={t.items as readonly number[] as number[]}
+                    value={nearest(t.items as readonly number[] as number[], recipe[t.key])} format={t.format as (v: number) => string}
+                    onChange={(v) => onChange({ [t.key]: v } as Partial<Recipe>)} />
+                </div>
+              </>
+            )}
+          </div>
         ))}
       </div>
-      {wheel && (
-        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/40 landscape:items-center"
-          onClick={() => setWheel(null)}>
-          <div className="w-full max-w-lg rounded-t-xl bg-[var(--paper)] p-4 shadow-xl landscape:rounded-xl"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="flex gap-2">
-              <WheelPicker label="Dose (g)" items={DOSES} value={wheel.dose} format={fmtDose}
-                onChange={(dose) => setWheel((w) => w && { ...w, dose })} />
-              <WheelPicker label="Ratio" items={RATIO_PRESETS} value={wheel.ratio} format={formatRatio}
-                onChange={(ratio) => setWheel((w) => w && { ...w, ratio })} />
-              <WheelPicker label="Temp (°C)" items={TEMPS} value={wheel.temperature} format={String}
-                onChange={(temperature) => setWheel((w) => w && { ...w, temperature })} />
-            </div>
-            <p className="mt-2 text-center text-sm text-[var(--ink)]/75">
-              {fmtDose(wheel.dose)} g in · {beverageWeight({ ...recipe, ...wheel })} g out
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setWheel(null)}
-                className="h-12 rounded-md border border-[var(--ink)]/20 text-base font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
-                Cancel
-              </button>
-              <button type="button" onClick={() => { onChange(wheel); setWheel(null); }}
-                className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98]">
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
       <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
         <div className="relative flex min-w-0 gap-1.5">
