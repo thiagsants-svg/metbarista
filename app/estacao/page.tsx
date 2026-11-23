@@ -839,9 +839,13 @@ export default function StationPage() {
             onShotTemps={(on) => { setShotTemps(on); localStorage.setItem("metbarista_shot_temps", on ? "1" : "0"); }}
           />
 
-          {/* Start heating: slide, so a stray tap can't start the machine */}
+          {/* Start heating and Brew: slide, so a stray tap can't start the machine */}
           {mainAction === "load" && busy === null ? (
             <SlideToStart label="Slide to heat" hint={mainHint} onConfirm={startShot}
+              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:min-h-[56px]`} />
+          ) : tone === "brew" && mainAction === "continue" && busy === null ? (
+            // Brew (or Purge) too: slide, so the shot never starts by accident
+            <SlideToStart label={`Slide to ${mainLabel.toLowerCase()}`} hint={mainHint} onConfirm={() => run("continue")}
               className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:min-h-[56px]`} />
           ) : (
           <button
