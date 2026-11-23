@@ -25,6 +25,8 @@ import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint,
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { WheelPicker } from "@/components/wheel-picker";
+import { ShotRating } from "@/components/shot-rating";
+import { saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
@@ -193,6 +195,9 @@ export default function StationPage() {
   const [lastCoffee, setLastCoffee] = useState<CoffeeLastShot | { coffee: string; none: true } | null>(null);
   /** Bluetooth link to the Motto 80: the grind fields follow it while it's on */
   const [grinderLink, setGrinderLink] = useState<LinkState>("off");
+  /** Stars and notes popup after a shot */
+  const [rateOpen, setRateOpen] = useState(false);
+  const shotStartedAtRef = useRef(0);
   const linkRef = useRef<Motto80Link | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   /** Light Swiss or dark bumblebee, remembered on this device */
@@ -249,6 +254,7 @@ export default function StationPage() {
       setElapsed(pts[pts.length - 1].t / 1000);
       setDemoEnd(pts[pts.length - 1]);
       setSetTemp(94);
+      if (demoParam === "rate") setRateOpen(true);
     }
     if (!getSavedIp()) return;
     // Same order as the dial (Settings → Profile order); read only
@@ -548,6 +554,25 @@ export default function StationPage() {
     }
   }
 
+  /** Saves stars/notes under the shot just made (same store as the Shots page's Tasting Notes) */
+  async function saveRating(rating: number, note: string) {
+    setRateOpen(false);
+    if (demo) return;
+    const since = shotStartedAtRef.current - 60_000;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const shot = (await getHistory(3)).find((h) => h.time * 1000 >= since);
+        if (shot) {
+          saveShotNote(shot.time, rating, note);
+          return;
+        }
+      } catch { /* retry below */ }
+      // The machine may still be saving the shot
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+    setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
@@ -563,12 +588,15 @@ export default function StationPage() {
     wasBrewingRef.current = brewing;
     if (demo) return;
     if (started) {
+      shotStartedAtRef.current = Date.now();
       const g = linkRef.current?.connected ? linkRef.current.latest : null;
       if (g && isMotto80(recipe.grinder)) {
         recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));
       }
     }
     if (!ended) return;
+    // Rate it: once the cup is out (a short pause so the end of the chart shows first)
+    setTimeout(() => setRateOpen(true), 1500);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     setTimeout(() => {
       getHistory(3).then((h) => rememberLatestShot(h, profiles)).catch(() => { /* next lookup reads the history */ });
@@ -665,6 +693,14 @@ export default function StationPage() {
         </button>
       </header>
 
+      {rateOpen && (() => {
+        const last = data[data.length - 1];
+        const w = last?.weight ?? 0;
+        const summary = last
+          ? `${w.toFixed(1)} g · ${fmtClock(last.t / 1000)}${recipe.dose > 0 ? ` · 1:${(w / recipe.dose).toFixed(2)}` : ""}`
+          : "Shot done";
+        return <ShotRating summary={summary} coffee={recipe.coffee} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+      })()}
       {error && (
         <button onClick={() => setError(null)}
           className="shrink-0 rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-3 py-1.5 text-left text-sm text-[var(--accent)]">
