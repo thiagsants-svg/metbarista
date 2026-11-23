@@ -44,7 +44,7 @@ export const COLORS = {
   stage: "var(--accent)",
 };
 
-const AXIS_TICK = { fontSize: 13, fill: "var(--ink)", fillOpacity: 0.4 };
+const AXIS_TICK = { fontSize: 13, fill: "var(--ink)", fillOpacity: 0.7 };
 
 interface StageSpan { name: string; x1: number; x2: number }
 
@@ -99,13 +99,13 @@ export function ShotCharts({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t-2 border-[var(--ink)] pt-2">
-      <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 px-1 pb-1">
+      <div className={`${data.length ? "flex" : "hidden"} shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 px-1 pb-1`}>
         {header.map((i) => (
           <span key={i.label} className="inline-flex items-baseline gap-1.5">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: i.color }} />
             <span className="text-sm font-medium text-[var(--ink)]/60">{i.label}</span>
             <span className="font-mono text-lg font-bold tabular-nums" style={{ color: i.color }}>{i.value}</span>
-            <span className="text-xs text-[var(--ink)]/40">{i.unit}</span>
+            <span className="text-xs text-[var(--ink)]/65">{i.unit}</span>
           </span>
         ))}
         <span className="ml-auto flex items-center gap-2">
@@ -123,7 +123,7 @@ export function ShotCharts({
             return (
               <span key={s.key} className="inline-flex items-baseline gap-1 text-xs">
                 <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3 self-center rounded-full`} style={{ backgroundColor: s.color }} />
-                <span className="text-[var(--ink)]/55">{s.label}</span>
+                <span className="text-[var(--ink)]/70">{s.label}</span>
                 <span className="font-mono font-bold" style={{ color: s.color }}>
                   {typeof v === "number" ? v.toFixed(1) : "—"}
                 </span>
@@ -335,7 +335,7 @@ export const HeatingProgress = memo(function HeatingProgress({
           <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
           <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
             {current != null ? current.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[var(--ink)]/40">{target != null ? `→ ${target} °C` : "°C"}</span>
+            <span className="ml-2 text-2xl text-[var(--ink)]/65">{target != null ? `→ ${target} °C` : "°C"}</span>
           </p>
         </div>
       </div>
@@ -377,7 +377,7 @@ export const HeatingProgress = memo(function HeatingProgress({
           </ResponsiveContainer>
         )}
       </div>
-      {hint && <p className="text-center text-base text-[var(--ink)]/45">{hint}</p>}
+      {hint && <p className="text-center text-base text-[var(--ink)]/65">{hint}</p>}
     </div>
   );
 });
@@ -448,10 +448,10 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
     <div className="flex h-full w-full flex-col gap-2 p-1">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wider text-[var(--ink)]/50">Temperatures</p>
+          <p className="text-sm font-medium uppercase tracking-wider text-[var(--ink)]/70">Temperatures</p>
           <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
             {typeof last?.temp === "number" ? last.temp.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[var(--ink)]/40">°C</span>
+            <span className="ml-2 text-2xl text-[var(--ink)]/65">°C</span>
           </p>
         </div>
         <div className="flex rounded-lg bg-[var(--ink)]/[0.05] p-0.5">

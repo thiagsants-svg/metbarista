@@ -29,12 +29,12 @@ export function StageNow({
         <p className="text-sm">
           <span className="font-bold text-[var(--accent)]">{current.name}</span>
           <span className="text-[var(--ink)]/80"> · {current.control}</span>
-          {current.limits.length > 0 && <span className="text-[var(--ink)]/50"> · {current.limits.join(", ")}</span>}
+          {current.limits.length > 0 && <span className="text-[var(--ink)]/70"> · {current.limits.join(", ")}</span>}
         </p>
-        <p className="text-xs text-[var(--ink)]/55">Ends {current.exits.join(" or ")}</p>
+        <p className="text-xs text-[var(--ink)]/70">Ends {current.exits.join(" or ")}</p>
       </div>
       {next && (
-        <span className="hidden shrink-0 items-center gap-1 self-center text-xs text-[var(--ink)]/50 sm:inline-flex">
+        <span className="hidden shrink-0 items-center gap-1 self-center text-xs text-[var(--ink)]/70 sm:inline-flex">
           <ArrowRight className="h-3.5 w-3.5" /> {next.name}
         </span>
       )}
@@ -57,7 +57,7 @@ export function ProgramPanel({
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xl font-bold text-[var(--ink)]">{profile.name}</p>
-          <p className="text-sm text-[var(--ink)]/50">
+          <p className="text-sm text-[var(--ink)]/70">
             {profile.author ? `${profile.author} · ` : ""}{profile.temperature}°C · {profile.final_weight}g · {program.length} stages
           </p>
         </div>
@@ -79,7 +79,7 @@ export function ProgramPanel({
             <div className="min-w-0 leading-snug">
               <p className="text-base font-semibold text-[var(--ink)]">{s.name}</p>
               <p className="text-sm text-[var(--ink)]/80">{s.control}{s.limits.length ? ` · ${s.limits.join(", ")}` : ""}</p>
-              <p className="text-xs text-[var(--ink)]/50">Ends {s.exits.join(" or ")}</p>
+              <p className="text-xs text-[var(--ink)]/70">Ends {s.exits.join(" or ")}</p>
             </div>
           </li>
         ))}

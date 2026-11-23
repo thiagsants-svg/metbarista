@@ -474,6 +474,8 @@ export default function StationPage() {
     : status?.sensors;
   const tempTarget = status?.setpoints?.temperature ?? null;
   const online = connected && !!status;
+  /** During heating and the shot, Stop is the control that matters: give it the big slot */
+  const stopFirst = brewing || heating;
 
   // ── Main button follows the flow ──
   // idle → Start heating · heating → progress · water → Water added · ready → Brew
@@ -507,11 +509,11 @@ export default function StationPage() {
     brew: "bg-[var(--primary)] text-[var(--on-primary)] animate-pulse",
     heat: "border border-[var(--heat)]/40 bg-[var(--heat)]/10 text-[var(--heat)]",
     busy: "border border-[var(--ink)]/30 bg-[var(--ink)]/[0.06] text-[var(--accent)]",
-    off: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/50",
+    off: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70",
   }[tone];
 
   const pillColor =
-    !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/50"
+    !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70"
     : brewing || waiting ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
     : needsWater ? "bg-[var(--water)]/15 text-[var(--water)]"
     : heating || preheating ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
@@ -530,7 +532,7 @@ export default function StationPage() {
           className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <p className="min-w-0 flex-1 truncate text-lg font-semibold">{status?.loaded_profile ?? "—"}</p>
+        <p className="min-w-0 flex-1 truncate text-lg font-semibold">{(status?.loaded_profile ?? "—").replace(/ - [\d.]+g 1:[\d.]+ [\d.]+C$/, "")}</p>
         <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${pillColor}`}>
           <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting || needsWater || preheating ? "animate-pulse" : ""}`} />
           {preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
@@ -562,7 +564,9 @@ export default function StationPage() {
         {/* Readouts */}
         <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="var(--ink)" />
-          <Readout label="Weight" value={fmt(sensors?.w)} unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
+          <Readout label={sensors?.w != null && sensors.w < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
+            value={sensors?.w != null && sensors.w < -1 && !brewing ? "—" : fmt(sensors?.w)}
+            unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
           <Readout label="Flow" value={fmt(sensors?.f)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
           {tempView ? (
@@ -583,7 +587,21 @@ export default function StationPage() {
             footer={(() => {
               // Program of the running stage: the loaded profile (same id as its base) or the chosen one
               const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
-              if (!stageName) return null;
+              if (!stageName) {
+                if (brewing || data.length === 0 || tempView) return null;
+                const last = data[data.length - 1];
+                const finalW = last.weight ?? 0;
+                const peak = Math.max(0, ...data.map((d) => d.pressure ?? 0));
+                return (
+                  <div className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-t-2 border-[var(--ink)] pt-2">
+                    <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">Shot done</span>
+                    <span className="text-xl font-extrabold tabular-nums">{finalW.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">{targetWeight ? `/ ${targetWeight} g` : "g"}</span></span>
+                    <span className="text-xl font-extrabold tabular-nums">{fmtClock(last.t / 1000)}</span>
+                    <span className="text-xl font-extrabold tabular-nums">1:{recipe.dose > 0 ? (finalW / recipe.dose).toFixed(2) : "—"}</span>
+                    <span className="text-xl font-extrabold tabular-nums">{peak.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">bar peak</span></span>
+                  </div>
+                );
+              }
               const prof = profiles.find((x) => x.id === status?.id) ?? baseProfile;
               const st = currentAndNext(prof, stageName);
               return <StageNow current={st.current} next={st.next} index={st.index} total={st.total} />;
@@ -632,7 +650,7 @@ export default function StationPage() {
           <button
             onClick={() => mainAction === "load" ? startShot() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
-            className={`flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-md transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
+            className={`${stopFirst ? "order-3" : "order-2"} flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-md transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
           >
             <span className="flex items-center gap-2.5">
               {busy !== null && busy === mainAction
@@ -647,14 +665,14 @@ export default function StationPage() {
           <button
             onClick={() => run("stop")}
             disabled={!!status && idle}
-            className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-md border border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30"
+            className={`${stopFirst ? "order-2 min-h-[84px] text-3xl" : "order-3 min-h-[56px]"} flex items-center justify-center gap-2.5 rounded-md border-2 border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30`}
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}
             Stop
           </button>
 
           {/* Same controls as the machine's own web UI */}
-          <div className="grid grid-cols-4 gap-2 portrait:col-span-2 landscape:grid-cols-2">
+          <div className="order-4 grid grid-cols-4 gap-2 portrait:col-span-2 landscape:grid-cols-2">
             <SmallButton icon={Scale} label="Tare" busy={busy === "tare"}
               disabled={!online || busy !== null} onClick={() => run("tare")} />
             <SmallButton icon={Wind} label="Purge" busy={busy === "purge"}
@@ -674,10 +692,10 @@ export default function StationPage() {
 function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
     <div className="min-w-0 overflow-hidden border-t-2 border-[var(--ink)] pt-1.5">
-      <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">{label}</p>
       <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight tabular-nums leading-tight whitespace-nowrap" style={{ color }}>
         {value}
-        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[var(--ink)]/40">{unit}</span>}
+        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[var(--ink)]/65">{unit}</span>}
       </p>
     </div>
   );
@@ -710,7 +728,7 @@ function RecipePanel({
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
   return (
-    <div className="portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
+    <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
       <ProfilePicker
         profiles={profiles}
         selected={base}
@@ -776,9 +794,9 @@ function Stepper({
         <Minus className="h-5 w-5" />
       </button>
       <div className="min-w-0 flex-1 text-center leading-tight">
-        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
+        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">{label}</p>
         <p className="font-mono text-lg font-bold whitespace-nowrap">
-          {format(value)} <span className="text-xs font-medium text-[var(--ink)]/45">{unit}</span>
+          {format(value)} <span className="text-xs font-medium text-[var(--ink)]/65">{unit}</span>
         </p>
       </div>
       <button className={btn} disabled={disabled || value >= limits.max} onClick={() => set(value + limits.step)} aria-label={`Increase ${label}`}>
