@@ -15,7 +15,36 @@ export interface Recipe {
   temperature: number; // °C
   ratio: number;       // beverage = dose × ratio
   coffee?: string;     // beans in use (free text)
-  grind?: string;      // grinder setting (free text, e.g. "12" or "2.3.1")
+  grinder?: string;    // grinder model, e.g. "Motto 80"
+  grindUm?: number;    // grind setting in microns
+  feed?: number;       // feed rate (Motto 80: up to 65)
+  rpm?: number;        // burr speed (Motto 80: 300-1500)
+  /** Legacy free-text grind (older versions) */
+  grind?: string;
+}
+
+/** Defaults for the user's grinder (Timemore Motto 80 style controls). */
+export const GRINDER_DEFAULTS = { grinder: "Motto 80", grindUm: 140, feed: 65, rpm: 1000 };
+
+const RECENT_BEANS_KEY = "metbarista_recent_beans";
+
+/** Last beans used (most recent first), for quick picking. */
+export function recentBeans(): string[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_BEANS_KEY) ?? "[]") as string[]; } catch { return []; }
+}
+
+export function rememberBeans(name: string | undefined): void {
+  const n = name?.trim();
+  if (!n) return;
+  const list = [n, ...recentBeans().filter((b) => b.toLowerCase() !== n.toLowerCase())].slice(0, 10);
+  localStorage.setItem(RECENT_BEANS_KEY, JSON.stringify(list));
+}
+
+/** "Motto 80 140µm feed 65 1000rpm" */
+export function grindText(r: Pick<Recipe, "grinder" | "grindUm" | "feed" | "rpm" | "grind">): string {
+  const parts = [r.grinder?.trim(), r.grindUm ? `${r.grindUm}µm` : "", r.feed ? `feed ${r.feed}` : "", r.rpm ? `${r.rpm}rpm` : ""]
+    .filter(Boolean);
+  return parts.length ? parts.join(" ") : (r.grind?.trim() ?? "");
 }
 
 /**
@@ -23,10 +52,11 @@ export interface Recipe {
  * machine's shot history keeps them on every device. Stored in
  * display.shortDescription as "Coffee: … · Grind: …".
  */
-export function shotNotesText(r: Pick<Recipe, "coffee" | "grind">): string {
+export function shotNotesText(r: Pick<Recipe, "coffee" | "grind" | "grinder" | "grindUm" | "feed" | "rpm">): string {
   const parts = [];
   if (r.coffee?.trim()) parts.push(`Coffee: ${r.coffee.trim()}`);
-  if (r.grind?.trim()) parts.push(`Grind: ${r.grind.trim()}`);
+  const g = grindText(r);
+  if (g) parts.push(`Grind: ${g}`);
   return parts.join(" · ");
 }
 

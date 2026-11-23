@@ -39,7 +39,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder,
+  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, recentBeans, rememberBeans,
 } from "@/lib/recipe";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
@@ -443,7 +443,8 @@ export default function StationPage() {
     setBusy("load");
     setError(null);
     try {
-      await loadProfileInline(buildShotProfile(baseProfile, recipe));
+      await loadProfileInline(buildShotProfile(baseProfile, { ...GRINDER_DEFAULTS, ...recipe }));
+      rememberBeans(recipe.coffee);
       startedAtRef.current = Date.now();
       setTargetWeight(beverageWeight(recipe));
       updateRecipe({ baseProfileId: baseProfile.id });
@@ -650,7 +651,7 @@ export default function StationPage() {
           <button
             onClick={() => mainAction === "load" ? startShot() : mainAction && run(mainAction)}
             disabled={!mainAction || busy !== null}
-            className={`${stopFirst ? "order-3" : "order-2"} flex min-h-[84px] flex-col items-center justify-center gap-1 rounded-md transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
+            className={`${stopFirst ? "order-3" : "order-2"} flex min-h-[84px] landscape:min-h-[56px] flex-col items-center justify-center gap-1 rounded-md transition-all active:scale-[0.98] disabled:active:scale-100 ${toneClass}`}
           >
             <span className="flex items-center gap-2.5">
               {busy !== null && busy === mainAction
@@ -672,7 +673,7 @@ export default function StationPage() {
           </button>
 
           {/* Same controls as the machine's own web UI */}
-          <div className="order-4 grid grid-cols-4 gap-2 portrait:col-span-2 landscape:grid-cols-2">
+          <div className="order-4 grid grid-cols-4 gap-2 portrait:col-span-2">
             <SmallButton icon={Scale} label="Tare" busy={busy === "tare"}
               disabled={!online || busy !== null} onClick={() => run("tare")} />
             <SmallButton icon={Wind} label="Purge" busy={busy === "purge"}
@@ -727,6 +728,8 @@ function RecipePanel({
   autoBrew: boolean; onAutoBrew: (on: boolean) => void;
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
+  // Recent beans come from localStorage: loaded when the field gets focus
+  const [beans, setBeans] = useState<string[]>([]);
   return (
     <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
       <ProfilePicker
@@ -751,7 +754,7 @@ function RecipePanel({
           const on = Math.abs(recipe.ratio - r) < 0.001;
           return (
             <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
-              className={`h-10 rounded-md border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
+              className={`h-10 landscape:h-8 rounded-md border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
                 on
                   ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
                   : "border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/75"
@@ -761,16 +764,35 @@ function RecipePanel({
           );
         })}
       </div>
-      {/* Beans and grinder setting: sent with the shot, so they show in shot history */}
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
-        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)"
+      {/* Beans and grinder: sent with the shot, so they show in shot history */}
+      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-2">
+        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans" onFocus={() => setBeans(recentBeans())}
           onChange={(e) => onChange({ coffee: e.target.value })} aria-label="Coffee"
-          className="h-11 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-3 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
-        <input value={recipe.grind ?? ""} disabled={!editable} placeholder="Grind"
-          onChange={(e) => onChange({ grind: e.target.value })} aria-label="Grinder setting"
-          className="h-11 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-3 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+          className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+        <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
+        <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
+          onChange={(e) => onChange({ grinder: e.target.value })} aria-label="Grinder"
+          className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
       </div>
-      <div className="grid grid-cols-2 gap-x-3 landscape:grid-cols-1">
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
+          ["feed", "feed", 1, 65, GRINDER_DEFAULTS.feed],
+          ["rpm", "rpm", 300, 1500, GRINDER_DEFAULTS.rpm],
+        ] as const).map(([key, unit, min, max, def]) => (
+          <label key={key} className="flex h-11 landscape:h-9 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5">
+            <input type="number" inputMode="numeric" min={min} max={max} disabled={!editable}
+              value={recipe[key] ?? def} aria-label={unit}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                onChange({ [key]: Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined } as Partial<Recipe>);
+              }}
+              className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none disabled:opacity-60" />
+            <span className="shrink-0 text-xs text-[var(--ink)]/70">{unit}</span>
+          </label>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 landscape:text-xs">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
         <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
           <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
