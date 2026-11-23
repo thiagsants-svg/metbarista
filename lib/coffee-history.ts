@@ -62,6 +62,14 @@ function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: 
   return hit ? { coffee: hit.coffee, grind: hit.grind } : {};
 }
 
+/**
+ * Coffee and grind of a shot, for display. On the device that made the shot,
+ * the grind read from the grinder when the shot started wins.
+ */
+export function shotNotes(shot: ShotEntry): { coffee?: string; grind?: string } {
+  return notesFor(shot, readLog());
+}
+
 /** "Motto 80 140µm feed 65 1000rpm" → fields */
 export function parseGrind(text: string | undefined): Partial<Recipe> {
   if (!text) return {};

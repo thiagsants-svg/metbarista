@@ -1,5 +1,5 @@
 "use client";
-import { parseShotNotes } from "@/lib/recipe";
+import { shotNotes } from "@/lib/coffee-history";
 
 import { useEffect, useState, Suspense, useMemo, lazy } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -52,6 +52,7 @@ function ShotListItem({
   const accent = shot.profile?.display?.accentColor ?? "#e8944a";
   const [rating, setRating] = useState<number | null>(null);
   const isThrowaway = useMemo(() => analyzeShot(shot).throwaway, [shot]);
+  const coffee = useMemo(() => shotNotes(shot).coffee, [shot]);
 
   useEffect(() => {
     const saved = getShotNote(shot.time);
@@ -74,6 +75,7 @@ function ShotListItem({
         <p className={`text-sm font-medium truncate transition-colors ${selected ? "text-[#e8944a]" : "text-[#f5f0ea]"}`}>
           {shot.name}
         </p>
+        {coffee && <p className="text-xs text-[#f5f0ea]/70 truncate">{coffee}</p>}
         <p className="text-xs text-[#f5f0ea]/35 mt-0.5">
           {format(date, "MMM d · HH:mm")} · {formatDistanceToNow(date, { addSuffix: true })}
         </p>
@@ -186,7 +188,7 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
               <p className="font-medium text-[#f5f0ea] text-sm">{shot.profile.name}</p>
               <p className="text-xs text-[#f5f0ea]/40">by {shot.profile.author}</p>
               {(() => {
-                const n = parseShotNotes(shot.profile.display?.shortDescription);
+                const n = shotNotes(shot);
                 return n.coffee || n.grind ? (
                   <p className="mt-1 text-xs text-[#f5f0ea]/80">
                     {n.coffee && <>Coffee: <b>{n.coffee}</b></>}

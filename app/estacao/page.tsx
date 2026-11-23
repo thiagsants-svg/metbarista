@@ -511,6 +511,11 @@ export default function StationPage() {
     linkRef.current.connect().catch(() => { /* reported through the state callback */ });
   }
 
+  // Another grinder chosen: drop the Motto 80 link (frees it for the BOOKOO app)
+  useEffect(() => {
+    if (!isMotto80(recipe.grinder) && linkRef.current && grinderLinkRef.current !== "off") linkRef.current.disconnect();
+  }, [recipe.grinder]);
+
   function toggleGrinder() {
     if (grinderLink === "off") connectGrinder();
     else linkRef.current?.disconnect();
@@ -884,7 +889,7 @@ function RecipePanel({
         })}
       </div>
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
-      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-2">
+      <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
         <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans" onFocus={() => setBeans(recentBeans())}
           onChange={(e) => {
             const v = e.target.value;
@@ -909,7 +914,7 @@ function RecipePanel({
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
         {/* Bluetooth link to the Motto 80 (read only): on = fields follow the grinder; off frees it for the BOOKOO app */}
-        <button type="button" onClick={onToggleGrinder} disabled={!bluetoothSupported()}
+        {motto && <button type="button" onClick={onToggleGrinder} disabled={!bluetoothSupported()}
           aria-label={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
           title={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
           className={`flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
@@ -918,7 +923,7 @@ function RecipePanel({
               : "border-[var(--ink)]/20 text-[var(--ink)]/80"
           }`}>
           {grinderLink === "connecting" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
-        </button>
+        </button>}
       </div>
       {/* Motto 80: microns, feed and rpm. Other grinders: dial setting and optional rpm. */}
       <div className={`grid gap-2 ${motto ? "grid-cols-3" : "grid-cols-2"}`}>
