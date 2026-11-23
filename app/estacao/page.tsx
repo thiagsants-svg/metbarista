@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Play,
+  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Frown, Smile, Flame, Heater, Loader2, Maximize, Minimize, Play,
   Moon, Scale, Square, Sun, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
@@ -31,7 +31,7 @@ import { getShotNote, saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
-  acknowledgeNotification, executeAction, getHistory, rateShot, getNotifications, getSettings, listProfiles, loadProfileInline,
+  acknowledgeNotification, executeAction, getHistory, getShotRating, rateShot, getNotifications, getSettings, listProfiles, loadProfileInline,
   type MachineNotification,
 } from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
@@ -475,6 +475,15 @@ export default function StationPage() {
     }
   }
 
+  /** Shows a last shot in the line under the chart, then its face from the machine */
+  function showLast(last: CoffeeLastShot) {
+    setLastCoffee(last);
+    if (last.dbKey == null || demo) return;
+    getShotRating(last.dbKey)
+      .then((face) => setLastCoffee((cur) => cur && !("none" in cur) && cur.dbKey === last.dbKey ? { ...cur, face } : cur))
+      .catch(() => { /* no face shown */ });
+  }
+
   /** Coffee picked from the recent list: bring back its last shot (recipe, grind, time, score). */
   async function pickCoffee(name: string) {
     if (demo) return;
@@ -488,7 +497,7 @@ export default function StationPage() {
         const recipeOnly = { ...found.patch };
         for (const k of ["grinder", "grindUm", "grindSetting", "feed", "rpm"] as const) delete recipeOnly[k];
         updateRecipe(live ? recipeOnly : found.patch);
-        setLastCoffee(found);
+        showLast(found);
       } else {
         setLastCoffee({ coffee: name, none: true });
       }
@@ -568,6 +577,7 @@ export default function StationPage() {
           if (face) {
             try {
               await rateShot(shot.db_key, face);
+              setLastCoffee((cur) => cur && !("none" in cur) && cur.dbKey === shot.db_key ? { ...cur, face } : cur);
             } catch (e) {
               setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
             }
@@ -596,8 +606,10 @@ export default function StationPage() {
       const coffee = loadRecipe().coffee?.trim();
       const found = coffee ? findLastShotForCoffee(coffee, h, profiles) : null;
       const last = found ?? rememberLatestShot(h, profiles);
-      if (last) setLastCoffee(last);
+      if (last) showLast(last);
     }).catch(() => { /* no history: nothing to show */ });
+  // showLast only uses state setters
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo, profiles]);
 
   const wasBrewingRef = useRef(false);
@@ -623,9 +635,11 @@ export default function StationPage() {
       getHistory(3).then((h) => {
         // The shot just made becomes the "last shot" line
         const last = rememberLatestShot(h, profiles);
-        if (last) setLastCoffee(last);
+        if (last) showLast(last);
       }).catch(() => { /* next lookup reads the history */ });
     }, 8000);
+  // showLast only uses state setters
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
   const needsWater = isWaitingForWater(status);
   const waiting = isWaitingForUser(status) && !needsWater;
@@ -782,6 +796,8 @@ export default function StationPage() {
                       {lastCoffee.score != null && (
                         <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
                       )}
+                      {lastCoffee.face === "like" && <Smile className="h-6 w-6 self-center text-[var(--accent)]" aria-label="Liked" />}
+                      {lastCoffee.face === "dislike" && <Frown className="h-6 w-6 self-center text-[var(--stop)]" aria-label="Didn't like" />}
                       {lastCoffee.stars != null && <span className="text-lg text-[var(--accent)]">{"\u2605".repeat(lastCoffee.stars)}</span>}
                       <span className="text-xl font-extrabold tabular-nums">{lastCoffee.weight.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">g</span></span>
                       <span className="text-xl font-extrabold tabular-nums">{fmtClock(lastCoffee.seconds)}</span>
@@ -870,11 +886,11 @@ export default function StationPage() {
           {/* Start heating and Brew: slide, so a stray tap can't start the machine */}
           {mainAction === "load" && busy === null ? (
             <SlideToStart label="Slide to heat" hint={mainHint} onConfirm={startShot}
-              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:min-h-[56px]`} />
+              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:h-24 landscape:min-h-0 landscape:self-end`} />
           ) : tone === "brew" && mainAction === "continue" && busy === null ? (
             // Brew (or Purge) too: slide, so the shot never starts by accident
             <SlideToStart label={`Slide to ${mainLabel.toLowerCase()}`} hint={mainHint} onConfirm={() => run("continue")}
-              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:min-h-[56px]`} />
+              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:h-24 landscape:min-h-0 landscape:self-end`} />
           ) : (
           <button
             onClick={() => mainAction === "load" ? startShot() : mainAction && run(mainAction)}

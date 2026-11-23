@@ -109,6 +109,10 @@ export interface CoffeeLastShot {
   score: number | null;
   /** Your stars from Tasting Notes (saved on this device), if any */
   stars: number | null;
+  /** The shot in the machine's history (to read its face) */
+  dbKey?: number;
+  /** Face set on the shot: read from the machine after the summary is made */
+  face?: "like" | "dislike" | null;
 }
 
 const CACHE_KEY = "metbarista_coffee_last";
@@ -153,6 +157,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     weight: stats.finalWeight,
     seconds: stats.durationSec,
     stars: getShotNote(shot.time)?.rating || null,
+    dbKey: shot.db_key,
     score: analysis.throwaway || analysis.applicableCount === 0 ? null : analysis.overallScore,
   };
 }

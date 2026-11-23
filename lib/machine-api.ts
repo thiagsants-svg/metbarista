@@ -94,6 +94,12 @@ export async function rateShot(dbKey: number, rating: "like" | "dislike"): Promi
   });
 }
 
+/** The face set on a shot (official app or Station), or null */
+export async function getShotRating(dbKey: number): Promise<"like" | "dislike" | null> {
+  const r = await apiFetch<{ rating?: string | null }>(`/history/rating/${dbKey}`);
+  return r.rating === "like" || r.rating === "dislike" ? r.rating : null;
+}
+
 export async function saveProfile(profile: Profile): Promise<void> {
   await apiFetch<unknown>("/profile/save", {
     method: "POST",
