@@ -66,7 +66,8 @@ function frame(json: unknown, seq = 0): Uint8Array {
   return out;
 }
 
-export type LinkState = "off" | "connecting" | "on";
+/** "lost": wanted but not connected (grinder asleep, page reopened): retrying, or waiting for a tap */
+export type LinkState = "off" | "connecting" | "on" | "lost";
 
 /** One open link to the grinder, reconnecting by itself if it drops. */
 export class Motto80Link {
@@ -88,18 +89,21 @@ export class Motto80Link {
 
   /**
    * Connects. Needs a tap the first time (Chrome shows its device list);
-   * afterwards the same device is reused without asking.
+   * afterwards the same device is reused without asking. With `silent`, only
+   * a device Chrome already knows is used (no list): for reconnecting on its own.
    */
-  async connect(): Promise<void> {
+  async connect(silent = false): Promise<void> {
     const bt = bluetooth();
-    if (!bt) throw new Error("This browser has no Bluetooth (use Chrome on the tablet)");
+    if (!bt) throw new Error("This browser has no Bluetooth for web pages (use Chrome on the tablet)");
     if (this.connected) return;
     this.wanted = true;
     this.onState("connecting");
     try {
       if (!this.device) {
         const known = (await bt.getDevices?.().catch(() => [])) ?? [];
-        this.device = known.find((d) => d.name?.startsWith(NAME_PREFIX))
+        const found = known.find((d) => d.name?.startsWith(NAME_PREFIX));
+        if (!found && silent) throw Object.assign(new Error("needs a tap"), { name: "NeedsTap" });
+        this.device = found
           ?? await bt.requestDevice({ filters: [{ namePrefix: NAME_PREFIX }], optionalServices: [SERVICE] });
         this.device.addEventListener("gattserverdisconnected", () => this.dropped());
       }
@@ -107,16 +111,28 @@ export class Motto80Link {
       this.retries = 0;
       this.onState("on");
     } catch (e) {
-      this.wanted = false;
-      // Chooser closed (NotFoundError) or no tap to open it (SecurityError): not worth an error
-      const quiet = e instanceof Error && (e.name === "NotFoundError" || e.name === "SecurityError");
-      this.onState("off", quiet ? undefined : e instanceof Error ? e.message : String(e));
+      const name = e instanceof Error ? e.name : "";
+      if (name === "NeedsTap" || name === "SecurityError") {
+        // Can't open Chrome's list without a tap: wait for one
+        this.onState("lost");
+      } else if (name === "NotFoundError") {
+        // List closed without choosing
+        this.wanted = false;
+        this.onState("off");
+      } else if (this.device) {
+        // Known grinder not answering (asleep, out of range): keep trying
+        this.dropped();
+      } else {
+        this.wanted = false;
+        this.onState("off", e instanceof Error ? e.message : String(e));
+      }
       throw e;
     }
   }
 
   disconnect(): void {
     this.wanted = false;
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
     if (this.server?.connected) this.server.disconnect();
     this.server = null;
     this.onState("off");
@@ -160,19 +176,18 @@ export class Motto80Link {
     await write.writeValueWithResponse(frame({ request: { appHello: { op: "handshake" } } }) as BufferSource);
   }
 
-  /** Link lost (grinder asleep, out of range): retry a few times while wanted. */
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Link lost (grinder asleep, out of range): keep retrying while wanted (2, 4, 8, 16 s, then every 30 s). */
   private dropped(): void {
     this.server = null;
-    if (!this.wanted) return;
-    if (this.retries >= 5) {
-      this.wanted = false;
-      this.onState("off", "Grinder disconnected");
-      return;
-    }
-    this.onState("connecting");
-    const wait = 2000 * 2 ** this.retries++;
-    setTimeout(() => {
-      if (!this.wanted) return;
+    if (!this.wanted || this.retryTimer) return;
+    this.onState("lost");
+    const wait = Math.min(30_000, 2000 * 2 ** this.retries++);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      if (!this.wanted || this.connected) return;
+      this.onState("connecting");
       this.open().then(() => { this.retries = 0; this.onState("on"); }).catch(() => this.dropped());
     }, wait);
   }

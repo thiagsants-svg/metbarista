@@ -471,7 +471,7 @@ export default function StationPage() {
   async function pickCoffee(name: string) {
     if (demo) return;
     // Read the grinder now: connecting needs the tap that picked the coffee
-    if (isMotto80(recipe.grinder) && bluetoothSupported() && grinderLink === "off") connectGrinder();
+    if (isMotto80(recipe.grinder) && bluetoothSupported() && (grinderLink === "off" || grinderLink === "lost")) connectGrinder();
     try {
       const found = findLastShotForCoffee(name, await getHistory(60), profiles);
       if (found) {
@@ -490,8 +490,9 @@ export default function StationPage() {
   }
 
   const grinderLinkRef = useRef<LinkState>("off");
+  const GRINDER_WANTED_KEY = "metbarista_grinder_wanted";
   /** Opens the Bluetooth link to the Motto 80 (read only); the grind fields then follow the grinder. */
-  function connectGrinder() {
+  function connectGrinder(silent = false) {
     if (!linkRef.current) {
       linkRef.current = new Motto80Link(
         (r) => setRecipe((cur) => {
@@ -504,12 +505,27 @@ export default function StationPage() {
         (state, err) => {
           grinderLinkRef.current = state;
           setGrinderLink(state);
+          // Remembered, so the Station reconnects by itself when reopened
+          if (state === "on") localStorage.setItem(GRINDER_WANTED_KEY, "1");
           if (err) setError(`Grinder: ${err}`);
         },
       );
     }
-    linkRef.current.connect().catch(() => { /* reported through the state callback */ });
+    linkRef.current.connect(silent).catch(() => { /* reported through the state callback */ });
   }
+
+  // Reconnect by itself: when the Station opens and when the tablet wakes up
+  useEffect(() => {
+    const again = () => {
+      if (document.visibilityState !== "visible" || demo) return;
+      if (localStorage.getItem(GRINDER_WANTED_KEY) !== "1" || !bluetoothSupported()) return;
+      if (!isMotto80(loadRecipe().grinder) || grinderLinkRef.current === "on" || grinderLinkRef.current === "connecting") return;
+      connectGrinder(true);
+    };
+    again();
+    document.addEventListener("visibilitychange", again);
+    return () => document.removeEventListener("visibilitychange", again);
+  }, [demo]);
 
   // Another grinder chosen: drop the Motto 80 link (frees it for the BOOKOO app)
   useEffect(() => {
@@ -517,8 +533,18 @@ export default function StationPage() {
   }, [recipe.grinder]);
 
   function toggleGrinder() {
-    if (grinderLink === "off") connectGrinder();
-    else linkRef.current?.disconnect();
+    if (!bluetoothSupported()) {
+      setError("Grinder: this browser has no Bluetooth for web pages (use Chrome on the tablet)");
+      return;
+    }
+    if (grinderLink === "off" || grinderLink === "lost") {
+      // "lost" waiting for a tap: this tap opens Chrome's list
+      if (grinderLink === "lost") linkRef.current?.disconnect();
+      connectGrinder();
+    } else {
+      localStorage.removeItem(GRINDER_WANTED_KEY);
+      linkRef.current?.disconnect();
+    }
   }
 
   function toggleFullscreen() {
@@ -755,7 +781,7 @@ export default function StationPage() {
             profiles={profiles}
             base={baseProfile}
             recipe={recipe}
-            editable={idle && online && busy === null}
+            editable={(idle || preheating) && online && busy === null}
             onChange={updateRecipe}
             onPickCoffee={pickCoffee}
             onToggleGrinder={toggleGrinder}
@@ -914,13 +940,15 @@ function RecipePanel({
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
         {/* Bluetooth link to the Motto 80 (read only): on = fields follow the grinder; off frees it for the BOOKOO app */}
-        {motto && <button type="button" onClick={onToggleGrinder} disabled={!bluetoothSupported()}
-          aria-label={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
-          title={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
+        {motto && <button type="button" onClick={onToggleGrinder}
+          aria-label={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
+          title={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
           className={`flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
             grinderLink === "on"
               ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-              : "border-[var(--ink)]/20 text-[var(--ink)]/80"
+              : grinderLink === "lost"
+                ? "animate-pulse border-2 border-[var(--accent)] text-[var(--accent)]"
+                : "border-[var(--ink)]/20 text-[var(--ink)]/80"
           }`}>
           {grinderLink === "connecting" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
         </button>}
