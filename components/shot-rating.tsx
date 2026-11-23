@@ -11,11 +11,13 @@ import { Frown, Smile } from "lucide-react";
 export type Face = "like" | "dislike";
 
 export function ShotRating({
-  summary, coffee, onSave, onSkip,
+  summary, coffee, recipe, onSave, onSkip,
 }: {
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
   coffee?: string;
+  /** e.g. "20 g · 1:2.5 · 94 °C · Motto 80 140µm feed 65 1000rpm" */
+  recipe?: string;
   onSave: (face: Face | null, note: string) => void;
   onSkip: () => void;
 }) {
@@ -41,7 +43,10 @@ export function ShotRating({
         onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">How was this shot?</p>
         <p className="mt-0.5 text-lg font-bold tabular-nums text-[var(--ink)]">{summary}</p>
-        {coffee && <p className="truncate text-sm text-[var(--ink)]/75">{coffee}</p>}
+        <div className="mt-2 rounded-md border border-[var(--ink)]/15 px-3 py-2">
+          <p className="truncate text-base font-semibold text-[var(--ink)]">{coffee?.trim() || "No coffee set"}</p>
+          {recipe && <p className="text-sm tabular-nums text-[var(--ink)]/75">{recipe}</p>}
+        </div>
 
         <div className="mt-3 flex gap-3" role="radiogroup" aria-label="Rating">
           {faceBtn("like", "Liked it", Smile)}

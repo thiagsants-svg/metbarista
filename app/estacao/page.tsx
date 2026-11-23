@@ -706,7 +706,9 @@ export default function StationPage() {
         const summary = last
           ? `${w.toFixed(1)} g · ${fmtClock(last.t / 1000)}${recipe.dose > 0 ? ` · 1:${(w / recipe.dose).toFixed(2)}` : ""}`
           : "Shot done";
-        return <ShotRating summary={summary} coffee={recipe.coffee} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+        const recipeText = [`${recipe.dose} g`, formatRatio(recipe.ratio), `${recipe.temperature} °C`, grindText(recipe)]
+          .filter(Boolean).join(" · ");
+        return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
         <button onClick={() => setError(null)}
