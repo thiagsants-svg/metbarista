@@ -41,8 +41,8 @@ import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
   loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
-import { findLastShotForCoffee, logShotNotes, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
-import { bluetoothSupported, readMotto80 } from "@/lib/motto80";
+import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
+import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
 /**
@@ -190,7 +190,9 @@ export default function StationPage() {
   const [error, setError] = useState<string | null>(null);
   /** Last shot of the coffee picked in the recipe (shown under the chart while idle) */
   const [lastCoffee, setLastCoffee] = useState<CoffeeLastShot | { coffee: string; none: true } | null>(null);
-  const [grinderBusy, setGrinderBusy] = useState(false);
+  /** Bluetooth link to the Motto 80: the grind fields follow it while it's on */
+  const [grinderLink, setGrinderLink] = useState<LinkState>("off");
+  const linkRef = useRef<Motto80Link | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   /** Light Swiss or dark bumblebee, remembered on this device */
   const [theme, setTheme] = useState<ThemeName>("light");
@@ -468,10 +470,16 @@ export default function StationPage() {
   /** Coffee picked from the recent list: bring back its last shot (recipe, grind, time, score). */
   async function pickCoffee(name: string) {
     if (demo) return;
+    // Read the grinder now: connecting needs the tap that picked the coffee
+    if (isMotto80(recipe.grinder) && bluetoothSupported() && grinderLink === "off") connectGrinder();
     try {
       const found = findLastShotForCoffee(name, await getHistory(60), profiles);
       if (found) {
-        updateRecipe(found.patch);
+        // Linked to the grinder: its live settings win over the last shot's (shown in the summary)
+        const live = linkRef.current != null && grinderLinkRef.current !== "off";
+        const recipeOnly = { ...found.patch };
+        for (const k of ["grinder", "grindUm", "grindSetting", "feed", "rpm"] as const) delete recipeOnly[k];
+        updateRecipe(live ? recipeOnly : found.patch);
         setLastCoffee(found);
       } else {
         setLastCoffee({ coffee: name, none: true });
@@ -481,21 +489,31 @@ export default function StationPage() {
     }
   }
 
-  /** Reads the Motto 80's current grind over Bluetooth (read only) */
-  async function readGrinder() {
-    setGrinderBusy(true);
-    setError(null);
-    try {
-      const g = await readMotto80();
-      updateRecipe({ grinder: "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm });
-    } catch (e) {
-      // Closing Chrome's device list is not an error
-      if (!(e instanceof Error && e.name === "NotFoundError")) {
-        setError(`Grinder: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    } finally {
-      setGrinderBusy(false);
+  const grinderLinkRef = useRef<LinkState>("off");
+  /** Opens the Bluetooth link to the Motto 80 (read only); the grind fields then follow the grinder. */
+  function connectGrinder() {
+    if (!linkRef.current) {
+      linkRef.current = new Motto80Link(
+        (r) => setRecipe((cur) => {
+          // Another grinder chosen: leave its fields alone
+          if (!isMotto80(cur.grinder)) return cur;
+          const next = { ...cur, grinder: cur.grinder ?? "Motto 80", grindUm: r.bladeGap, feed: r.feedingRpm, rpm: r.grindRpm };
+          saveRecipe(next);
+          return next;
+        }),
+        (state, err) => {
+          grinderLinkRef.current = state;
+          setGrinderLink(state);
+          if (err) setError(`Grinder: ${err}`);
+        },
+      );
     }
+    linkRef.current.connect().catch(() => { /* reported through the state callback */ });
+  }
+
+  function toggleGrinder() {
+    if (grinderLink === "off") connectGrinder();
+    else linkRef.current?.disconnect();
   }
 
   function toggleFullscreen() {
@@ -505,16 +523,25 @@ export default function StationPage() {
 
   const brewing = isExtracting(status);
   const wasBrewingRef = useRef(false);
-  // Shot over: record it under its coffee, so its last shot is found even months later
+  // Shot starts: record what the grinder had at that moment.
+  // Shot over: record it under its coffee, so its last shot is found even months later.
   useEffect(() => {
+    const started = !wasBrewingRef.current && brewing;
     const ended = wasBrewingRef.current && !brewing;
     wasBrewingRef.current = brewing;
-    if (!ended || demo) return;
+    if (demo) return;
+    if (started) {
+      const g = linkRef.current?.connected ? linkRef.current.latest : null;
+      if (g && isMotto80(recipe.grinder)) {
+        recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));
+      }
+    }
+    if (!ended) return;
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     setTimeout(() => {
       getHistory(3).then((h) => rememberLatestShot(h, profiles)).catch(() => { /* next lookup reads the history */ });
     }, 8000);
-  }, [brewing, demo, profiles]);
+  }, [brewing, demo, profiles, recipe.grinder]);
   const needsWater = isWaitingForWater(status);
   const waiting = isWaitingForUser(status) && !needsWater;
   const heating = isHeating(status);
@@ -726,8 +753,8 @@ export default function StationPage() {
             editable={idle && online && busy === null}
             onChange={updateRecipe}
             onPickCoffee={pickCoffee}
-            onReadGrinder={readGrinder}
-            grinderBusy={grinderBusy}
+            onToggleGrinder={toggleGrinder}
+            grinderLink={grinderLink}
             autoBrew={autoBrew}
             onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
             shotTemps={shotTemps}
@@ -807,14 +834,14 @@ function SmallButton({
 }
 
 function RecipePanel({
-  profiles, base, recipe, editable, onChange, onPickCoffee, onReadGrinder, grinderBusy,
+  profiles, base, recipe, editable, onChange, onPickCoffee, onToggleGrinder, grinderLink,
   autoBrew, onAutoBrew, shotTemps, onShotTemps,
 }: {
   profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
   onChange: (patch: Partial<Recipe>) => void;
   onPickCoffee: (name: string) => void;
-  onReadGrinder: () => void;
-  grinderBusy: boolean;
+  onToggleGrinder: () => void;
+  grinderLink: LinkState;
   autoBrew: boolean; onAutoBrew: (on: boolean) => void;
   shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
@@ -881,11 +908,16 @@ function RecipePanel({
           }} aria-label="Grinder"
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
-        {/* Read the Motto 80's current settings over Bluetooth */}
-        <button type="button" onClick={onReadGrinder} disabled={!editable || grinderBusy || !bluetoothSupported()}
-          aria-label="Read from grinder" title="Read from grinder"
-          className="flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/80 active:scale-95 disabled:opacity-30">
-          {grinderBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
+        {/* Bluetooth link to the Motto 80 (read only): on = fields follow the grinder; off frees it for the BOOKOO app */}
+        <button type="button" onClick={onToggleGrinder} disabled={!bluetoothSupported()}
+          aria-label={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
+          title={grinderLink === "off" ? "Connect grinder" : "Disconnect grinder"}
+          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
+            grinderLink === "on"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
+              : "border-[var(--ink)]/20 text-[var(--ink)]/80"
+          }`}>
+          {grinderLink === "connecting" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
         </button>
       </div>
       {/* Motto 80: microns, feed and rpm. Other grinders: dial setting and optional rpm. */}

@@ -19,6 +19,8 @@ interface LogEntry {
   at: number; // ms, when the profile was loaded
   coffee: string;
   grind: string;
+  /** Grind read from the grinder when the shot started (wins over the one sent with the profile) */
+  atBrew?: boolean;
 }
 
 /** Remembers what was loaded, in case the machine's history drops the notes. */
@@ -32,6 +34,17 @@ export function logShotNotes(coffee: string | undefined, grind: string): void {
   } catch { /* storage full or blocked: the machine history still has it */ }
 }
 
+/** What the grinder had when the shot started: replaces the grind of the shot being made. */
+export function recordBrewGrind(grind: string): void {
+  try {
+    const list = JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]") as LogEntry[];
+    const cur = list[0];
+    if (!cur || Date.now() - cur.at > 30 * 60_000) return; // not a shot started from the Station
+    list[0] = { ...cur, grind, atBrew: true };
+    localStorage.setItem(LOG_KEY, JSON.stringify(list));
+  } catch { /* storage blocked */ }
+}
+
 function readLog(): LogEntry[] {
   try { return JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]") as LogEntry[]; } catch { return []; }
 }
@@ -39,9 +52,13 @@ function readLog(): LogEntry[] {
 /** Notes of a shot: from its profile, else from the local log (loaded up to 30 min before). */
 function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: string } {
   const fromProfile = parseShotNotes(shot.profile?.display?.shortDescription);
-  if (fromProfile.coffee) return fromProfile;
   const t = shot.time * 1000;
   const hit = log.find((e) => e.at <= t + 60_000 && t - e.at < 30 * 60_000);
+  if (fromProfile.coffee) {
+    // The grinder reading at brew time is the true record
+    const same = hit?.atBrew && hit.coffee.toLowerCase() === fromProfile.coffee.toLowerCase();
+    return same ? { ...fromProfile, grind: hit.grind } : fromProfile;
+  }
   return hit ? { coffee: hit.coffee, grind: hit.grind } : {};
 }
 
