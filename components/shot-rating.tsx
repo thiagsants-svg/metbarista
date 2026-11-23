@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * After the shot: stars and tasting notes, the same ones as the Shots page
- * (Tasting Notes), so they show there and in the coffee's last-shot summary.
+ * After the shot: the official app's faces (like / dislike), saved on the
+ * machine so every app shows them, plus optional tasting notes (Shots page).
  */
 
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { Frown, Smile } from "lucide-react";
+
+export type Face = "like" | "dislike";
 
 export function ShotRating({
   summary, coffee, onSave, onSkip,
@@ -14,11 +16,24 @@ export function ShotRating({
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
   coffee?: string;
-  onSave: (rating: number, note: string) => void;
+  onSave: (face: Face | null, note: string) => void;
   onSkip: () => void;
 }) {
-  const [rating, setRating] = useState(0);
+  const [face, setFace] = useState<Face | null>(null);
   const [note, setNote] = useState("");
+
+  const faceBtn = (f: Face, label: string, Icon: typeof Smile) => {
+    const on = face === f;
+    return (
+      <button type="button" role="radio" aria-checked={on} aria-label={label}
+        onClick={() => setFace(on ? null : f)}
+        className={`flex h-20 flex-1 flex-col items-center justify-center gap-1 rounded-md border-2 active:scale-[0.97] ${
+          on ? "border-[var(--accent)] bg-[var(--primary)] text-[var(--on-primary)]" : "border-[var(--ink)]/20 text-[var(--ink)]/70"}`}>
+        <Icon className="h-9 w-9" strokeWidth={1.75} />
+        <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/40 landscape:items-center" onClick={onSkip}>
@@ -28,16 +43,9 @@ export function ShotRating({
         <p className="mt-0.5 text-lg font-bold tabular-nums text-[var(--ink)]">{summary}</p>
         {coffee && <p className="truncate text-sm text-[var(--ink)]/75">{coffee}</p>}
 
-        <div className="mt-3 flex justify-center gap-2" role="radiogroup" aria-label="Rating">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <button key={s} type="button" role="radio" aria-checked={rating === s} aria-label={`${s} star${s > 1 ? "s" : ""}`}
-              onClick={() => setRating(rating === s ? 0 : s)}
-              className="flex h-14 w-14 items-center justify-center rounded-md active:scale-90">
-              <Star className="h-10 w-10" strokeWidth={1.5}
-                fill={rating >= s ? "var(--primary)" : "none"}
-                stroke={rating >= s ? "var(--accent)" : "color-mix(in srgb, var(--ink) 35%, transparent)"} />
-            </button>
-          ))}
+        <div className="mt-3 flex gap-3" role="radiogroup" aria-label="Rating">
+          {faceBtn("like", "Liked it", Smile)}
+          {faceBtn("dislike", "Didn’t like it", Frown)}
         </div>
 
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
@@ -49,7 +57,7 @@ export function ShotRating({
             className="h-12 rounded-md border border-[var(--ink)]/20 text-base font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
             Skip
           </button>
-          <button type="button" disabled={rating === 0 && !note.trim()} onClick={() => onSave(rating, note.trim())}
+          <button type="button" disabled={!face && !note.trim()} onClick={() => onSave(face, note.trim())}
             className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98] disabled:opacity-40">
             Save
           </button>

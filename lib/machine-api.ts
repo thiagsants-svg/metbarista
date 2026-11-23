@@ -82,6 +82,18 @@ export async function loadProfileInline(profile: Profile): Promise<void> {
   });
 }
 
+/**
+ * The official app's face on a shot ("like" / "dislike"), stored on the machine
+ * (POST /history/rating/{db_key}, as in Meticulous's own API clients).
+ */
+export async function rateShot(dbKey: number, rating: "like" | "dislike"): Promise<void> {
+  await apiFetch<unknown>(`/history/rating/${dbKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating }),
+  });
+}
+
 export async function saveProfile(profile: Profile): Promise<void> {
   await apiFetch<unknown>("/profile/save", {
     method: "POST",

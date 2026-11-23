@@ -25,12 +25,12 @@ import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint,
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { WheelPicker } from "@/components/wheel-picker";
-import { ShotRating } from "@/components/shot-rating";
-import { saveShotNote } from "@/lib/shot-notes";
+import { ShotRating, type Face } from "@/components/shot-rating";
+import { getShotNote, saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
-  acknowledgeNotification, executeAction, getHistory, getNotifications, getSettings, listProfiles, loadProfileInline,
+  acknowledgeNotification, executeAction, getHistory, rateShot, getNotifications, getSettings, listProfiles, loadProfileInline,
   type MachineNotification,
 } from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
@@ -554,8 +554,8 @@ export default function StationPage() {
     }
   }
 
-  /** Saves stars/notes under the shot just made (same store as the Shots page's Tasting Notes) */
-  async function saveRating(rating: number, note: string) {
+  /** Face → the machine (shows in the official app); notes → the Shots page's Tasting Notes */
+  async function saveRating(face: Face | null, note: string) {
     setRateOpen(false);
     if (demo) return;
     const since = shotStartedAtRef.current - 60_000;
@@ -563,7 +563,14 @@ export default function StationPage() {
       try {
         const shot = (await getHistory(3)).find((h) => h.time * 1000 >= since);
         if (shot) {
-          saveShotNote(shot.time, rating, note);
+          if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
+          if (face) {
+            try {
+              await rateShot(shot.db_key, face);
+            } catch (e) {
+              setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
           return;
         }
       } catch { /* retry below */ }
