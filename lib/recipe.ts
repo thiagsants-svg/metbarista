@@ -29,7 +29,7 @@ export const GRINDER_DEFAULTS = { grinder: "Motto 80", grindUm: 150, feed: 65, r
 
 const RECENT_BEANS_KEY = "metbarista_recent_beans";
 
-/** Last beans used (most recent first), for quick picking. */
+/** Beans used, most recent first (up to 50: frozen coffees can wait weeks between shots). */
 export function recentBeans(): string[] {
   try { return JSON.parse(localStorage.getItem(RECENT_BEANS_KEY) ?? "[]") as string[]; } catch { return []; }
 }
@@ -37,7 +37,7 @@ export function recentBeans(): string[] {
 export function rememberBeans(name: string | undefined): void {
   const n = name?.trim();
   if (!n) return;
-  const list = [n, ...recentBeans().filter((b) => b.toLowerCase() !== n.toLowerCase())].slice(0, 10);
+  const list = [n, ...recentBeans().filter((b) => b.toLowerCase() !== n.toLowerCase())].slice(0, 50);
   localStorage.setItem(RECENT_BEANS_KEY, JSON.stringify(list));
 }
 

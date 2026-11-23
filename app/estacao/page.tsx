@@ -41,7 +41,7 @@ import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
   loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
-import { findLastShotForCoffee, logShotNotes, type CoffeeLastShot } from "@/lib/coffee-history";
+import { findLastShotForCoffee, logShotNotes, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, readMotto80 } from "@/lib/motto80";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
@@ -504,6 +504,17 @@ export default function StationPage() {
   }
 
   const brewing = isExtracting(status);
+  const wasBrewingRef = useRef(false);
+  // Shot over: record it under its coffee, so its last shot is found even months later
+  useEffect(() => {
+    const ended = wasBrewingRef.current && !brewing;
+    wasBrewingRef.current = brewing;
+    if (!ended || demo) return;
+    // Not cancelled on re-render: the record must happen once the machine has saved the shot
+    setTimeout(() => {
+      getHistory(3).then((h) => rememberLatestShot(h, profiles)).catch(() => { /* next lookup reads the history */ });
+    }, 8000);
+  }, [brewing, demo, profiles]);
   const needsWater = isWaitingForWater(status);
   const waiting = isWaitingForUser(status) && !needsWater;
   const heating = isHeating(status);

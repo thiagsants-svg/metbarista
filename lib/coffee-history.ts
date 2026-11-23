@@ -77,15 +77,27 @@ export interface CoffeeLastShot {
   stars: number | null;
 }
 
-export function findLastShotForCoffee(coffee: string, history: ShotEntry[], profiles: Profile[]): CoffeeLastShot | null {
-  const want = coffee.trim().toLowerCase();
-  if (!want) return null;
-  const log = readLog();
-  const shot = [...history].sort((a, b) => b.time - a.time)
-    .find((s) => notesFor(s, log).coffee?.toLowerCase() === want);
-  if (!shot) return null;
+const CACHE_KEY = "metbarista_coffee_last";
 
-  const notes = notesFor(shot, log);
+/**
+ * Each coffee's last shot, kept on this device: a frozen coffee may wait
+ * months, far beyond the shots the history lookup reads.
+ */
+function readCache(): Record<string, CoffeeLastShot> {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? "{}") as Record<string, CoffeeLastShot>; } catch { return {}; }
+}
+
+function cache(entry: CoffeeLastShot): void {
+  const all = readCache();
+  const key = entry.coffee.toLowerCase();
+  if ((all[key]?.when ?? 0) > entry.when) return;
+  all[key] = entry;
+  // Keep the 100 most recent coffees
+  const kept = Object.entries(all).sort((a, b) => b[1].when - a[1].when).slice(0, 100);
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(kept))); } catch { /* storage full */ }
+}
+
+function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, profiles: Profile[]): CoffeeLastShot {
   const patch: Partial<Recipe> = { coffee: notes.coffee, ...parseGrind(notes.grind) };
   // Name "Base - 20g 1:2.5 94C" (see buildShotProfile)
   const m = / - ([\d.]+)g 1:([\d.]+) ([\d.]+)C$/.exec(shot.name ?? "");
@@ -97,7 +109,7 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
   const stats = computeShotStats(shot.data ?? []);
   const analysis = analyzeShot(shot);
   return {
-    coffee: notes.coffee ?? coffee,
+    coffee: notes.coffee ?? "",
     when: shot.time * 1000,
     profileName: (shot.name ?? "").replace(/ - [\d.]+g 1:[\d.]+ [\d.]+C$/, ""),
     patch,
@@ -106,4 +118,30 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
     stars: getShotNote(shot.time)?.rating || null,
     score: analysis.throwaway || analysis.applicableCount === 0 ? null : analysis.overallScore,
   };
+}
+
+/** Last shot of a coffee: from the recent history if it's there, else from this device's record. */
+export function findLastShotForCoffee(coffee: string, history: ShotEntry[], profiles: Profile[]): CoffeeLastShot | null {
+  const want = coffee.trim().toLowerCase();
+  if (!want) return null;
+  const log = readLog();
+  const shot = [...history].sort((a, b) => b.time - a.time)
+    .find((s) => notesFor(s, log).coffee?.toLowerCase() === want);
+  if (shot) {
+    const found = summarize(shot, notesFor(shot, log), profiles);
+    cache(found);
+    return found;
+  }
+  const saved = readCache()[want];
+  if (!saved) return null;
+  // Stars may have been given after the shot was recorded
+  return { ...saved, stars: getShotNote(saved.when / 1000)?.rating || saved.stars };
+}
+
+/** Records the newest shot under its coffee (called right after a shot ends). */
+export function rememberLatestShot(history: ShotEntry[], profiles: Profile[]): void {
+  const shot = [...history].sort((a, b) => b.time - a.time)[0];
+  if (!shot) return;
+  const notes = notesFor(shot, readLog());
+  if (notes.coffee) cache(summarize(shot, notes, profiles));
 }
