@@ -18,7 +18,8 @@ export interface Recipe {
   grinder?: string;    // grinder model, e.g. "Motto 80"
   grindUm?: number;    // grind setting in microns
   feed?: number;       // feed rate (Motto 80: 10-65)
-  rpm?: number;        // burr speed (Motto 80: 500-1500)
+  rpm?: number;        // burr speed (Motto 80: 500-1500; optional on other grinders)
+  grindSetting?: number; // dial setting on grinders without microns (e.g. 2.5)
   /** Legacy free-text grind (older versions) */
   grind?: string;
 }
@@ -40,11 +41,56 @@ export function rememberBeans(name: string | undefined): void {
   localStorage.setItem(RECENT_BEANS_KEY, JSON.stringify(list));
 }
 
-/** "Motto 80 140µm feed 65 1000rpm" */
-export function grindText(r: Pick<Recipe, "grinder" | "grindUm" | "feed" | "rpm" | "grind">): string {
-  const parts = [r.grinder?.trim(), r.grindUm ? `${r.grindUm}µm` : "", r.feed ? `feed ${r.feed}` : "", r.rpm ? `${r.rpm}rpm` : ""]
-    .filter(Boolean);
-  return parts.length ? parts.join(" ") : (r.grind?.trim() ?? "");
+export type GrinderFields = Pick<Recipe, "grinder" | "grindUm" | "feed" | "rpm" | "grindSetting">;
+
+/** The Motto 80 has microns, feed and rpm; most grinders only a dial setting (and maybe rpm). */
+export function isMotto80(name: string | undefined): boolean {
+  return /motto\s*80/i.test(name ?? GRINDER_DEFAULTS.grinder);
+}
+
+/** Grinder settings that apply to the chosen grinder, with the Motto 80 defaults filled in. */
+export function grinderFields(r: Partial<Recipe>): GrinderFields {
+  const grinder = (r.grinder ?? GRINDER_DEFAULTS.grinder).trim();
+  if (isMotto80(grinder)) {
+    return {
+      grinder,
+      grindUm: r.grindUm ?? GRINDER_DEFAULTS.grindUm,
+      feed: r.feed ?? GRINDER_DEFAULTS.feed,
+      rpm: r.rpm ?? GRINDER_DEFAULTS.rpm,
+    };
+  }
+  return { grinder, grindSetting: r.grindSetting, rpm: r.rpm };
+}
+
+/** "Motto 80 150µm feed 65 1000rpm" or "EK43 grind 9.5 1200rpm" */
+export function grindText(r: Partial<Recipe>): string {
+  const g = r.grinder != null || r.grindUm != null || r.grindSetting != null ? grinderFields(r) : null;
+  if (!g) return r.grind?.trim() ?? "";
+  const parts = [
+    g.grinder,
+    g.grindUm != null ? `${g.grindUm}µm` : "",
+    g.grindSetting != null ? `grind ${g.grindSetting}` : "",
+    g.feed != null ? `feed ${g.feed}` : "",
+    g.rpm != null ? `${g.rpm}rpm` : "",
+  ].filter(Boolean);
+  return parts.join(" ");
+}
+
+const RECENT_GRINDERS_KEY = "metbarista_recent_grinders";
+
+/** Grinders used (most recent first) with their last settings; the Motto 80 is always there. */
+export function recentGrinders(): GrinderFields[] {
+  let list: GrinderFields[] = [];
+  try { list = JSON.parse(localStorage.getItem(RECENT_GRINDERS_KEY) ?? "[]") as GrinderFields[]; } catch { /* empty */ }
+  if (!list.some((g) => isMotto80(g.grinder))) list.push(grinderFields({ grinder: GRINDER_DEFAULTS.grinder }));
+  return list;
+}
+
+export function rememberGrinder(r: Partial<Recipe>): void {
+  const g = grinderFields(r);
+  if (!g.grinder) return;
+  const list = [g, ...recentGrinders().filter((x) => x.grinder?.toLowerCase() !== g.grinder?.toLowerCase())].slice(0, 10);
+  localStorage.setItem(RECENT_GRINDERS_KEY, JSON.stringify(list));
 }
 
 /**
@@ -52,7 +98,7 @@ export function grindText(r: Pick<Recipe, "grinder" | "grindUm" | "feed" | "rpm"
  * machine's shot history keeps them on every device. Stored in
  * display.shortDescription as "Coffee: … · Grind: …".
  */
-export function shotNotesText(r: Pick<Recipe, "coffee" | "grind" | "grinder" | "grindUm" | "feed" | "rpm">): string {
+export function shotNotesText(r: Partial<Recipe>): string {
   const parts = [];
   if (r.coffee?.trim()) parts.push(`Coffee: ${r.coffee.trim()}`);
   const g = grindText(r);

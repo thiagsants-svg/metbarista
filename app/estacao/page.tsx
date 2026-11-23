@@ -38,8 +38,8 @@ import {
   isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater,
 } from "@/lib/brew-state";
 import {
-  type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, recentBeans, rememberBeans,
+  type GrinderFields, type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
+  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, readMotto80 } from "@/lib/motto80";
@@ -449,9 +449,10 @@ export default function StationPage() {
     setBusy("load");
     setError(null);
     try {
-      await loadProfileInline(buildShotProfile(baseProfile, { ...GRINDER_DEFAULTS, ...recipe }));
+      await loadProfileInline(buildShotProfile(baseProfile, { ...recipe, ...grinderFields(recipe) }));
       rememberBeans(recipe.coffee);
-      logShotNotes(recipe.coffee, grindText({ ...GRINDER_DEFAULTS, ...recipe }));
+      rememberGrinder(recipe);
+      logShotNotes(recipe.coffee, grindText(recipe));
       setLastCoffee(null);
       startedAtRef.current = Date.now();
       setTargetWeight(beverageWeight(recipe));
@@ -654,8 +655,8 @@ export default function StationPage() {
                       {p.dose != null && p.ratio != null && (
                         <span className="text-base font-semibold tabular-nums">{p.dose}g {formatRatio(p.ratio)} {p.temperature}°C</span>
                       )}
-                      {p.grindUm != null && (
-                        <span className="text-base font-semibold tabular-nums">{p.grindUm}µm · feed {p.feed} · {p.rpm}rpm</span>
+                      {(p.grindUm != null || p.grindSetting != null) && (
+                        <span className="text-base font-semibold tabular-nums">{grindText(p).replace(/^Motto 80 /, "")}</span>
                       )}
                     </div>
                   );
@@ -808,6 +809,8 @@ function RecipePanel({
 }) {
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
+  const [grinders, setGrinders] = useState<GrinderFields[]>([]);
+  const motto = isMotto80(recipe.grinder);
   return (
     <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
       <ProfilePicker
@@ -855,8 +858,18 @@ function RecipePanel({
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
         <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
         <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
-          onChange={(e) => onChange({ grinder: e.target.value })} aria-label="Grinder"
+          list="recent-grinders" onFocus={() => setGrinders(recentGrinders())}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Picked from the list: bring back that grinder's last settings
+            const hit = grinders.find((g) => g.grinder?.toLowerCase() === v.trim().toLowerCase());
+            const clear = { grindUm: undefined, grindSetting: undefined, feed: undefined, rpm: undefined };
+            // A new grinder of the other kind starts empty (no Motto 80 rpm on a Niche)
+            const switching = isMotto80(recipe.grinder) !== isMotto80(v);
+            onChange(hit ? { ...clear, ...hit } : switching ? { ...clear, grinder: v } : { grinder: v });
+          }} aria-label="Grinder"
           className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+        <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
         {/* Read the Motto 80's current settings over Bluetooth */}
         <button type="button" onClick={onReadGrinder} disabled={!editable || grinderBusy || !bluetoothSupported()}
           aria-label="Read from grinder" title="Read from grinder"
@@ -864,20 +877,32 @@ function RecipePanel({
           {grinderBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {([
-          ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
-          ["feed", "feed", 10, 65, GRINDER_DEFAULTS.feed],
-          ["rpm", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
-        ] as const).map(([key, unit, min, max, def]) => (
+      {/* Motto 80: microns, feed and rpm. Other grinders: dial setting and optional rpm. */}
+      <div className={`grid gap-2 ${motto ? "grid-cols-3" : "grid-cols-2"}`}>
+        {(motto
+          ? ([
+            ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
+            ["feed", "feed", 10, 65, GRINDER_DEFAULTS.feed],
+            ["rpm", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
+          ] as const)
+          : ([
+            ["grindSetting", "grind", 0, 10000, null],
+            ["rpm", "rpm (optional)", 0, 5000, null],
+          ] as const)
+        ).map(([key, unit, min, max, def]) => (
           <label key={key} className="flex h-11 landscape:h-9 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5">
-            <input type="number" inputMode="numeric" min={min} max={max} disabled={!editable}
-              value={recipe[key] ?? def} aria-label={unit}
+            <input type="number" inputMode="decimal" step="any" min={min} max={max} disabled={!editable}
+              value={recipe[key] ?? ""} placeholder={def != null ? String(def) : "—"} aria-label={unit}
               onChange={(e) => {
-                const v = Number(e.target.value);
-                onChange({ [key]: Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined } as Partial<Recipe>);
+                // Not clamped while typing (typing 150 passes through 1 and 15)
+                const v = e.target.value === "" ? undefined : Number(e.target.value);
+                onChange({ [key]: v != null && Number.isFinite(v) ? v : undefined } as Partial<Recipe>);
               }}
-              className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none disabled:opacity-60" />
+              onBlur={() => {
+                const v = recipe[key];
+                if (v != null) onChange({ [key]: Math.min(max, Math.max(min, v)) } as Partial<Recipe>);
+              }}
+              className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)]/40 disabled:opacity-60" />
             <span className="shrink-0 text-xs text-[var(--ink)]/70">{unit}</span>
           </label>
         ))}

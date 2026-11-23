@@ -49,14 +49,17 @@ function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: 
 export function parseGrind(text: string | undefined): Partial<Recipe> {
   if (!text) return {};
   const um = /(\d+)\s*µm/.exec(text)?.[1];
+  const setting = /grind ([\d.]+)/.exec(text)?.[1];
   const feed = /feed (\d+)/.exec(text)?.[1];
   const rpm = /(\d+)\s*rpm/.exec(text)?.[1];
-  const grinder = text.replace(/\s*\d+\s*µm.*$/, "").trim();
+  const grinder = text.replace(/\s*(\d+\s*µm|grind [\d.]+|\d+\s*rpm).*$/, "").trim();
   return {
     ...(grinder ? { grinder } : {}),
-    ...(um ? { grindUm: Number(um) } : {}),
-    ...(feed ? { feed: Number(feed) } : {}),
-    ...(rpm ? { rpm: Number(rpm) } : {}),
+    // Fields of the other kind of grinder are cleared
+    grindUm: um ? Number(um) : undefined,
+    grindSetting: setting ? Number(setting) : undefined,
+    feed: feed ? Number(feed) : undefined,
+    rpm: rpm ? Number(rpm) : undefined,
   };
 }
 
