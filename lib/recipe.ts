@@ -128,8 +128,8 @@ export const LIMITS = {
   ratio: { min: 1, max: 5, step: 0.1 },
 } as const;
 
-/** One-tap ratios; the stepper refines in 0.1 steps. */
-export const RATIO_PRESETS = [1, 1.5, 2, 2.5, 3, 4, 5];
+/** The ratios on the wheel (the user's shortcuts). */
+export const RATIO_PRESETS = [1, 1.5, 1.8, 2, 2.5, 3, 4, 5];
 
 const STORAGE_KEY = "metbarista_recipe";
 

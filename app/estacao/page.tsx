@@ -18,12 +18,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Minus, Play,
-  Moon, Plus, Scale, Square, Sun, Wind,
+  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Play,
+  Moon, Scale, Square, Sun, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
+import { WheelPicker } from "@/components/wheel-picker";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
@@ -38,8 +39,8 @@ import {
   isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater,
 } from "@/lib/brew-state";
 import {
-  type GrinderFields, type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
+  loadRecipe, pickBaseProfile, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
@@ -864,6 +865,18 @@ function SmallButton({
   );
 }
 
+/** Wheel values: dose 5–30 g in 0.5 steps, temperature 70–100 °C in 1 °C steps */
+const DOSES = Array.from({ length: 51 }, (_, i) => 5 + i * 0.5);
+const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
+
+function nearest(items: number[], v: number): number {
+  return items.reduce((best, x) => (Math.abs(x - v) < Math.abs(best - v) ? x : best), items[0]);
+}
+
+function fmtDose(v: number): string {
+  return v.toFixed(1).replace(/\.0$/, "");
+}
+
 function RecipePanel({
   profiles, base, recipe, editable, onChange, onPickCoffee, onToggleGrinder, grinderLink,
   autoBrew, onAutoBrew, shotTemps, onShotTemps,
@@ -879,6 +892,8 @@ function RecipePanel({
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
   const [grinders, setGrinders] = useState<GrinderFields[]>([]);
+  /** Wheels for dose, ratio and temperature (draft until OK) */
+  const [wheel, setWheel] = useState<{ dose: number; ratio: number; temperature: number } | null>(null);
   /** Full list of recent coffees (the keyboard's suggestions only show matches) */
   const [beansOpen, setBeansOpen] = useState(false);
   const motto = isMotto80(recipe.grinder);
@@ -890,32 +905,56 @@ function RecipePanel({
         disabled={!editable}
         onSelect={(id) => onChange({ baseProfileId: id })}
       />
-      <div className="grid grid-cols-3 gap-2 landscape:grid-cols-1 landscape:gap-1.5">
-        <Stepper label="Dose" unit="g" value={recipe.dose} limits={LIMITS.dose} disabled={!editable}
-          format={(v) => v.toFixed(1).replace(/\.0$/, "")}
-          onChange={(dose) => onChange({ dose })} />
-        <Stepper label="Ratio" unit={`= ${beverageWeight(recipe)}g`} value={recipe.ratio} limits={LIMITS.ratio} disabled={!editable}
-          format={(v) => formatRatio(v)}
-          onChange={(ratio) => onChange({ ratio })} />
-        <Stepper label="Temp" unit="°C" value={recipe.temperature} limits={LIMITS.temperature} disabled={!editable}
-          format={(v) => v.toFixed(1).replace(/\.0$/, "")}
-          onChange={(temperature) => onChange({ temperature })} />
+      {/* Dose, ratio and temperature: tap to open the wheels */}
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          ["Dose", fmtDose(recipe.dose), "g"],
+          ["Ratio", formatRatio(recipe.ratio), `= ${beverageWeight(recipe)} g`],
+          ["Temp", String(recipe.temperature), "°C"],
+        ] as const).map(([label, val, unit]) => (
+          <button key={label} type="button" disabled={!editable}
+            onClick={() => setWheel({
+              dose: nearest(DOSES, recipe.dose),
+              ratio: nearest(RATIO_PRESETS, recipe.ratio),
+              temperature: nearest(TEMPS, recipe.temperature),
+            })}
+            className="flex h-16 landscape:h-12 min-w-0 flex-col items-center justify-center rounded-md border border-[var(--ink)]/20 active:scale-[0.98] disabled:opacity-60">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)]/70">{label}</span>
+            <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
+              {val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{unit}</span>
+            </span>
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-7 gap-1.5 landscape:gap-1">
-        {RATIO_PRESETS.map((r) => {
-          const on = Math.abs(recipe.ratio - r) < 0.001;
-          return (
-            <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
-              className={`h-10 landscape:h-8 rounded-md border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
-                on
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-                  : "border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/75"
-              }`}>
-              {formatRatio(r)}
-            </button>
-          );
-        })}
-      </div>
+      {wheel && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/40 landscape:items-center"
+          onClick={() => setWheel(null)}>
+          <div className="w-full max-w-lg rounded-t-xl bg-[var(--paper)] p-4 shadow-xl landscape:rounded-xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-2">
+              <WheelPicker label="Dose (g)" items={DOSES} value={wheel.dose} format={fmtDose}
+                onChange={(dose) => setWheel((w) => w && { ...w, dose })} />
+              <WheelPicker label="Ratio" items={RATIO_PRESETS} value={wheel.ratio} format={formatRatio}
+                onChange={(ratio) => setWheel((w) => w && { ...w, ratio })} />
+              <WheelPicker label="Temp (°C)" items={TEMPS} value={wheel.temperature} format={String}
+                onChange={(temperature) => setWheel((w) => w && { ...w, temperature })} />
+            </div>
+            <p className="mt-2 text-center text-sm text-[var(--ink)]/75">
+              {fmtDose(wheel.dose)} g in · {beverageWeight({ ...recipe, ...wheel })} g out
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setWheel(null)}
+                className="h-12 rounded-md border border-[var(--ink)]/20 text-base font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
+                Cancel
+              </button>
+              <button type="button" onClick={() => { onChange(wheel); setWheel(null); }}
+                className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98]">
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
       <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
         <div className="relative flex min-w-0 gap-1.5">
@@ -1034,29 +1073,3 @@ function RecipePanel({
   );
 }
 
-function Stepper({
-  label, unit, value, limits, disabled, format, onChange,
-}: {
-  label: string; unit: string; value: number; disabled: boolean;
-  limits: { min: number; max: number; step: number };
-  format: (v: number) => string; onChange: (v: number) => void;
-}) {
-  const set = (v: number) => onChange(roundTo(Math.min(limits.max, Math.max(limits.min, v)), limits.step));
-  const btn = "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/80 active:scale-95 disabled:opacity-30";
-  return (
-    <div className="flex items-center gap-1.5">
-      <button className={btn} disabled={disabled || value <= limits.min} onClick={() => set(value - limits.step)} aria-label={`Decrease ${label}`}>
-        <Minus className="h-5 w-5" />
-      </button>
-      <div className="min-w-0 flex-1 text-center leading-tight">
-        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">{label}</p>
-        <p className="font-mono text-lg font-bold whitespace-nowrap">
-          {format(value)} <span className="text-xs font-medium text-[var(--ink)]/65">{unit}</span>
-        </p>
-      </div>
-      <button className={btn} disabled={disabled || value >= limits.max} onClick={() => set(value + limits.step)} aria-label={`Increase ${label}`}>
-        <Plus className="h-5 w-5" />
-      </button>
-    </div>
-  );
-}
