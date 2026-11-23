@@ -125,6 +125,19 @@ export const retractionMmToMl = (mm: number) => Math.round((PISTON_AREA_MM2 * mm
 export const retractionMlToMm = (ml: number) => Math.round((ml * 1000 * 100) / PISTON_AREA_MM2) / 100;
 
 /**
+ * Largest yield the machine can give with this dose: the most water the piston
+ * draws (150 ml), minus what the puck keeps and the safety margin.
+ */
+export function maxYieldFor(dose: number): number {
+  return Math.floor(RETRACTION_MAX_ML - 1.25 * dose - 10);
+}
+
+/** The recipe asks for more coffee than one piston of water can give */
+export function overCapacity(r: Pick<Recipe, "dose" | "ratio">): boolean {
+  return r.dose * r.ratio > maxYieldFor(r.dose);
+}
+
+/**
  * Water to draw for this recipe: the yield, plus what the puck keeps
  * (~1.25 × dose: 100 ml used to give ~75 g with 20 g), plus 10 ml of margin.
  * Less water for short shots = less air in the chamber (no "pop" at the end).
@@ -144,11 +157,11 @@ export const DEFAULT_RECIPE: Recipe = {
 export const LIMITS = {
   dose: { min: 5, max: 30, step: 0.5 },
   temperature: { min: 70, max: 100, step: 0.5 },
-  ratio: { min: 1, max: 5, step: 0.1 },
+  ratio: { min: 1, max: 10, step: 0.1 },
 } as const;
 
 /** The ratios on the wheel (the user's shortcuts). */
-export const RATIO_PRESETS = [1, 1.5, 1.8, 2, 2.5, 3, 4, 5];
+export const RATIO_PRESETS = [1, 1.5, 1.8, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10];
 
 const STORAGE_KEY = "metbarista_recipe";
 

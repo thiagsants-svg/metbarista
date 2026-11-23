@@ -43,7 +43,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  loadRecipe, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
@@ -671,7 +671,7 @@ export default function StationPage() {
   let mainAction: ActionType | "load" | null = null;
   let mainLabel = "Start heating";
   let mainHint = baseProfile
-    ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C · ${retractionFor(recipe)} ml`
+    ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C · ${retractionFor(recipe)} ml${overCapacity(recipe) ? ` · ⚠ max ~${maxYieldFor(recipe.dose)} g` : ""}`
     : "Pick a profile";
   let MainIcon: React.ElementType = Play;
   let tone: "start" | "water" | "brew" | "heat" | "busy" | "off" = "start";
@@ -1023,14 +1023,17 @@ function RecipePanel({
       <div className="grid grid-cols-3 gap-2">
         {([
           { key: "dose", label: "Dose", val: fmtDose(recipe.dose), unit: "g", wheelLabel: "Dose (g)", items: DOSES, format: fmtDose },
-          { key: "ratio", label: "Ratio", val: formatRatio(recipe.ratio), unit: `= ${beverageWeight(recipe)} g`, wheelLabel: "Ratio", items: RATIO_PRESETS, format: formatRatio },
+          { key: "ratio", label: overCapacity(recipe) ? `⚠ max ~${maxYieldFor(recipe.dose)} g` : "Ratio", val: formatRatio(recipe.ratio), unit: `= ${beverageWeight(recipe)} g`, wheelLabel: "Ratio",
+            items: RATIO_PRESETS, format: (v: number) => `${formatRatio(v)}${overCapacity({ dose: recipe.dose, ratio: v }) ? " ⚠" : ""}` },
           { key: "temperature", label: "Temp", val: String(recipe.temperature), unit: "°C", wheelLabel: "Temp (°C)", items: TEMPS, format: String },
         ] as const).map((t) => (
           <div key={t.key} className="relative min-w-0">
             <button type="button" disabled={!editable} onClick={() => setWheel(wheel === t.key ? null : t.key)}
               className={`flex h-16 landscape:h-12 w-full min-w-0 flex-col items-center justify-center rounded-md border active:scale-[0.98] disabled:opacity-60 ${
                 wheel === t.key ? "border-[var(--ink)] bg-[var(--ink)]/[0.06]" : "border-[var(--ink)]/20"}`}>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)]/70">{t.label}</span>
+              {/* Over the machine's capacity: the ratio tile says how far the shot can go */}
+              <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+                t.key === "ratio" && overCapacity(recipe) ? "text-[var(--stop)]" : "text-[var(--ink)]/70"}`}>{t.label}</span>
               <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
                 {t.val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{t.unit}</span>
               </span>
