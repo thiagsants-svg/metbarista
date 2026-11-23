@@ -11,16 +11,22 @@ const ITEM_H = 44;
 const VISIBLE = 5; // odd: one in the middle, two above and two below
 
 export function WheelPicker<T>({
-  items, value, onChange, format, label,
+  items, value, onChange, onDone, format, label,
 }: {
   items: T[];
   value: T;
   onChange: (v: T) => void;
+  /** Called when the wheel stops after the user moved it (to close it) */
+  onDone?: () => void;
   format: (v: T) => string;
   label: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The user touched the wheel: the next stop closes it (not the initial positioning) */
+  const touched = useRef(false);
+  /** Finger still on the wheel: don't settle on a pause */
+  const down = useRef(false);
   const index = Math.max(0, items.indexOf(value));
 
   // Start on the current value (no animation)
@@ -30,11 +36,18 @@ export function WheelPicker<T>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Settle once scrolling (including momentum) has stopped */
+  function later() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(settled, 180);
+  }
+
   function settled() {
     const el = ref.current;
-    if (!el) return;
+    if (!el || down.current) return;
     const i = Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / ITEM_H)));
     if (items[i] !== value) onChange(items[i]);
+    if (touched.current) onDone?.();
   }
 
   return (
@@ -45,10 +58,13 @@ export function WheelPicker<T>({
         <div className="pointer-events-none absolute inset-x-1 rounded-md bg-[var(--primary)]/25 ring-1 ring-[var(--primary)]"
           style={{ top: ITEM_H * Math.floor(VISIBLE / 2), height: ITEM_H }} />
         <div ref={ref} role="listbox" aria-label={label}
-          onScroll={() => {
-            if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(settled, 120);
-          }}
+          onPointerDown={() => { touched.current = true; down.current = true; }}
+          onTouchStart={() => { touched.current = true; down.current = true; }}
+          onPointerUp={() => { down.current = false; later(); }}
+          onTouchEnd={() => { down.current = false; later(); }}
+          onPointerCancel={() => { down.current = false; later(); }}
+          onWheel={() => { touched.current = true; }}
+          onScroll={later}
           className="relative h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{
             paddingTop: ITEM_H * Math.floor(VISIBLE / 2),

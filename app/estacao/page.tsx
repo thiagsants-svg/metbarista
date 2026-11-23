@@ -984,7 +984,8 @@ function RecipePanel({
                 <div className="absolute bottom-full left-0 right-0 z-50 mb-1 landscape:bottom-auto landscape:top-full landscape:mb-0 landscape:mt-1 rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] px-1 py-2 shadow-lg">
                   <WheelPicker label={t.wheelLabel} items={t.items as readonly number[] as number[]}
                     value={nearest(t.items as readonly number[] as number[], recipe[t.key])} format={t.format as (v: number) => string}
-                    onChange={(v) => onChange({ [t.key]: v } as Partial<Recipe>)} />
+                    onChange={(v) => onChange({ [t.key]: v } as Partial<Recipe>)}
+                    onDone={() => setWheel(null)} />
                 </div>
               </>
             )}
