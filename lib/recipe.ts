@@ -99,18 +99,19 @@ export function rememberGrinder(r: Partial<Recipe>): void {
  * display.shortDescription as "Coffee: … · Grind: …".
  */
 export function shotNotesText(r: Partial<Recipe>): string {
+  // Plain ASCII: the machine garbles accents and symbols ("·", "°", "µ") in what it stores
   const parts = [];
-  if (r.coffee?.trim()) parts.push(`Coffee: ${r.coffee.trim()}`);
+  if (r.coffee?.trim()) parts.push(`Coffee: ${asciiName(r.coffee)}`);
   const g = grindText(r);
-  if (g) parts.push(`Grind: ${g}`);
-  return parts.join(" · ");
+  if (g) parts.push(`Grind: ${asciiName(g.replace(/µm/g, "um"))}`);
+  return parts.join(" | ");
 }
 
-/** Reads coffee/grind back from a shot's profile (see shotNotesText). */
+/** Reads coffee/grind back from a shot's profile (see shotNotesText; older shots used "·"). */
 export function parseShotNotes(text: string | undefined | null): { coffee?: string; grind?: string } {
   if (!text) return {};
-  const coffee = /Coffee: ([^·]+?)(?: ·|$)/.exec(text)?.[1]?.trim();
-  const grind = /Grind: ([^·]+?)(?: ·|$)/.exec(text)?.[1]?.trim();
+  const coffee = /Coffee: ([^·|]+?)(?: [·|]|$)/.exec(text)?.[1]?.trim();
+  const grind = /Grind: ([^·|]+?)(?: [·|]|$)/.exec(text)?.[1]?.trim().replace(/(\d)um(?![a-z])/g, "$1µm");
   return { coffee, grind };
 }
 
@@ -191,13 +192,35 @@ export function pickBaseProfile(profiles: Profile[], savedId: string | null): Pr
   );
 }
 
+/** Plain ASCII for the machine's name field: "Etiópia" → "Etiopia", no µ ° · */
+export function asciiName(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** " - Etiopia Guji 150um" (or " - Guji grind 2.5" on other grinders): coffee and grind in the shot's name */
+function nameTag(r: Partial<Recipe>): string {
+  const coffee = r.coffee ? asciiName(r.coffee) : "";
+  if (!coffee) return "";
+  const g = grinderFields(r);
+  const grind = g.grindUm != null ? ` ${g.grindUm}um` : g.grindSetting != null ? ` grind ${g.grindSetting}` : "";
+  return ` - ${coffee}${grind}`;
+}
+
+/** Recipe part of a shot name: "Base - 20g 1:2.5 94C - Etiopia Guji 150um" */
+export const SHOT_NAME_RE = / - ([\d.]+)g 1:([\d.]+) ([\d.]+)C(?: - (.+?)(?: (\d+)um| grind ([\d.]+))?)?$/;
+
+/** Profile name without the recipe and coffee added by the Station */
+export function baseName(name: string): string {
+  return name.replace(SHOT_NAME_RE, "");
+}
+
 /** Copy of the base profile with this shot's temperature and yield. */
 export function buildShotProfile(base: Profile, r: Recipe): Profile {
   const copy: Profile = structuredClone(base);
   copy.temperature = r.temperature;
   copy.final_weight = beverageWeight(r);
   // Plain ASCII: the dial's font may not have "·" or "°"
-  copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C`;
+  copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C${nameTag(r)}`;
   const notes = shotNotesText(r);
   if (notes) copy.display = { ...(copy.display ?? {}), shortDescription: notes };
   // Fields that describe the saved file, not the shot

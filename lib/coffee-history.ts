@@ -10,7 +10,7 @@
 import { analyzeShot } from "./shot-analysis";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
-import { parseShotNotes, type Recipe } from "./recipe";
+import { asciiName, baseName, parseShotNotes, SHOT_NAME_RE, type Recipe } from "./recipe";
 import type { Profile, ShotEntry } from "./types";
 
 const LOG_KEY = "metbarista_shot_log";
@@ -59,7 +59,16 @@ function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: 
     const same = hit?.atBrew && hit.coffee.toLowerCase() === fromProfile.coffee.toLowerCase();
     return same ? { ...fromProfile, grind: hit.grind } : fromProfile;
   }
-  return hit ? { coffee: hit.coffee, grind: hit.grind } : {};
+  if (hit) return { coffee: hit.coffee, grind: hit.grind };
+  // Last resort: the name ("… - Etiopia Guji 150um"), plain ASCII
+  const m = SHOT_NAME_RE.exec(shot.name ?? "");
+  if (m?.[4]) return { coffee: m[4], grind: m[5] ? `${m[5]}µm` : m[6] ? `grind ${m[6]}` : undefined };
+  return {};
+}
+
+/** Same coffee? Ignores case and accents ("Etiópia" in the list, "Etiopia" in a shot name). */
+function sameCoffee(a: string | undefined, b: string): boolean {
+  return !!a && asciiName(a).toLowerCase() === asciiName(b).toLowerCase();
 }
 
 /**
@@ -114,7 +123,7 @@ function readCache(): Record<string, CoffeeLastShot> {
 
 function cache(entry: CoffeeLastShot): void {
   const all = readCache();
-  const key = entry.coffee.toLowerCase();
+  const key = asciiName(entry.coffee).toLowerCase();
   if ((all[key]?.when ?? 0) > entry.when) return;
   all[key] = entry;
   // Keep the 100 most recent coffees
@@ -125,7 +134,7 @@ function cache(entry: CoffeeLastShot): void {
 function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, profiles: Profile[]): CoffeeLastShot {
   const patch: Partial<Recipe> = { coffee: notes.coffee, ...parseGrind(notes.grind) };
   // Name "Base - 20g 1:2.5 94C" (see buildShotProfile)
-  const m = / - ([\d.]+)g 1:([\d.]+) ([\d.]+)C$/.exec(shot.name ?? "");
+  const m = SHOT_NAME_RE.exec(shot.name ?? "");
   if (m) Object.assign(patch, { dose: Number(m[1]), ratio: Number(m[2]), temperature: Number(m[3]) });
   else if (shot.profile?.temperature) patch.temperature = shot.profile.temperature;
   const baseId = shot.profile?.id;
@@ -136,7 +145,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
   return {
     coffee: notes.coffee ?? "",
     when: shot.time * 1000,
-    profileName: (shot.name ?? "").replace(/ - [\d.]+g 1:[\d.]+ [\d.]+C$/, ""),
+    profileName: baseName(shot.name ?? ""),
     patch,
     weight: stats.finalWeight,
     seconds: stats.durationSec,
@@ -151,13 +160,14 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
   if (!want) return null;
   const log = readLog();
   const shot = [...history].sort((a, b) => b.time - a.time)
-    .find((s) => notesFor(s, log).coffee?.toLowerCase() === want);
+    .find((s) => sameCoffee(notesFor(s, log).coffee, coffee));
   if (shot) {
-    const found = summarize(shot, notesFor(shot, log), profiles);
+    // Keep the coffee as written in the list (the name in a shot is plain ASCII)
+    const found = summarize(shot, { ...notesFor(shot, log), coffee: coffee.trim() }, profiles);
     cache(found);
     return found;
   }
-  const saved = readCache()[want];
+  const saved = readCache()[asciiName(want).toLowerCase()];
   if (!saved) return null;
   // Stars may have been given after the shot was recorded
   return { ...saved, stars: getShotNote(saved.when / 1000)?.rating || saved.stars };

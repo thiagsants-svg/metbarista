@@ -39,7 +39,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, LIMITS, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  loadRecipe, pickBaseProfile, roundTo, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
@@ -618,7 +618,7 @@ export default function StationPage() {
           className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <p className="min-w-0 flex-1 truncate text-lg font-semibold">{(status?.loaded_profile ?? "—").replace(/ - [\d.]+g 1:[\d.]+ [\d.]+C$/, "")}</p>
+        <p className="min-w-0 flex-1 truncate text-lg font-semibold">{baseName(status?.loaded_profile ?? "—")}</p>
         <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${pillColor}`}>
           <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting || needsWater || preheating ? "animate-pulse" : ""}`} />
           {preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
