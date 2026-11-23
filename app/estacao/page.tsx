@@ -31,7 +31,7 @@ import { getShotNote, saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import {
-  acknowledgeNotification, executeAction, getHistory, getShotRating, rateShot, getNotifications, getSettings, listProfiles, loadProfileInline,
+  acknowledgeNotification, executeAction, getHistory, getShotRating, rateShot, updateSettings, getNotifications, getSettings, listProfiles, loadProfileInline,
   type MachineNotification,
 } from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
@@ -43,7 +43,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, pickBaseProfile, saveRecipe, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  loadRecipe, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
@@ -459,6 +459,17 @@ export default function StationPage() {
     setBusy("load");
     setError(null);
     try {
+      // Piston draws just the water this recipe needs (set before the profile loads)
+      const ml = retractionFor(recipe);
+      try {
+        const current = (await getSettings()).partial_retraction;
+        if (typeof current !== "number" || retractionMmToMl(current) !== ml) {
+          await updateSettings({ partial_retraction: retractionMlToMm(ml) });
+        }
+      } catch (e) {
+        // Not worth blocking the shot: the previous retraction stays
+        setError(`Couldn't set the retraction to ${ml} ml: ${e instanceof Error ? e.message : String(e)}`);
+      }
       await loadProfileInline(buildShotProfile(baseProfile, { ...recipe, ...grinderFields(recipe) }));
       rememberBeans(recipe.coffee);
       rememberGrinder(recipe);
@@ -662,7 +673,7 @@ export default function StationPage() {
   let mainAction: ActionType | "load" | null = null;
   let mainLabel = "Start heating";
   let mainHint = baseProfile
-    ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C`
+    ? `${recipe.dose}g · ${formatRatio(recipe.ratio)} · ${beverageWeight(recipe)}g · ${recipe.temperature}°C · ${retractionFor(recipe)} ml`
     : "Pick a profile";
   let MainIcon: React.ElementType = Play;
   let tone: "start" | "water" | "brew" | "heat" | "busy" | "off" = "start";

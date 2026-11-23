@@ -64,6 +64,18 @@ export async function getSettings(): Promise<MachineSettings> {
   return apiFetch<MachineSettings>("/settings");
 }
 
+/**
+ * Changes machine settings (POST /settings: send only the keys to change).
+ * The Station only uses it for partial_retraction, which the user allowed.
+ */
+export async function updateSettings(patch: Partial<MachineSettings>): Promise<void> {
+  await apiFetch<unknown>("/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
 // ── Profiles ─────────────────────────────────────────────────
 
 export async function listProfiles(): Promise<Profile[]> {

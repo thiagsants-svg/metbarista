@@ -115,6 +115,25 @@ export function parseShotNotes(text: string | undefined | null): { coffee?: stri
   return { coffee, grind };
 }
 
+// ── Piston retraction (how much water the piston draws) ──
+// Same conversion and range as Meticulous's web UI and Dial (src/lib/retraction.ts):
+// the machine stores piston travel in mm; people think in ml of water.
+const PISTON_AREA_MM2 = Math.PI * 26.5 * 26.5;
+export const RETRACTION_MIN_ML = 80;
+export const RETRACTION_MAX_ML = 150;
+export const retractionMmToMl = (mm: number) => Math.round((PISTON_AREA_MM2 * mm) / 1000);
+export const retractionMlToMm = (ml: number) => Math.round((ml * 1000 * 100) / PISTON_AREA_MM2) / 100;
+
+/**
+ * Water to draw for this recipe: the yield, plus what the puck keeps
+ * (~1.25 × dose: 100 ml used to give ~75 g with 20 g), plus 10 ml of margin.
+ * Less water for short shots = less air in the chamber (no "pop" at the end).
+ */
+export function retractionFor(r: Pick<Recipe, "dose" | "ratio">): number {
+  const ml = Math.ceil(r.dose * r.ratio + 1.25 * r.dose + 10);
+  return Math.min(RETRACTION_MAX_ML, Math.max(RETRACTION_MIN_ML, ml));
+}
+
 export const DEFAULT_RECIPE: Recipe = {
   baseProfileId: null,
   dose: 20,
