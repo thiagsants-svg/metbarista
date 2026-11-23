@@ -30,6 +30,7 @@ export interface Motto80Reading {
 // Minimal Web Bluetooth types (not in TypeScript's DOM lib)
 interface BtCharacteristic extends EventTarget {
   value?: DataView;
+  readValue(): Promise<DataView>;
   startNotifications(): Promise<BtCharacteristic>;
   writeValueWithResponse(data: BufferSource): Promise<void>;
 }
@@ -132,11 +133,49 @@ export class Motto80Link {
 
   disconnect(): void {
     this.wanted = false;
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
     if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
     if (this.server?.connected) this.server.disconnect();
     this.server = null;
     this.onState("off");
   }
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private diag = { notes: 0, sizes: [] as number[], reads: 0, readSizes: [] as number[], readErr: "", start: "" };
+
+  /** Turns received bytes into a reading. Frames may arrive whole, in pieces, or cut short. */
+  private takeBytes(buf: { b: Uint8Array }, chunk: Uint8Array): void {
+    const joined = new Uint8Array(buf.b.length + chunk.length);
+    joined.set(buf.b); joined.set(chunk, buf.b.length);
+    buf.b = joined[0] === 0xa5 ? joined : chunk[0] === 0xa5 ? chunk : new Uint8Array(0);
+    if (buf.b.length < 8) return;
+    const len = new DataView(buf.b.buffer, buf.b.byteOffset).getUint32(4, true);
+    if (buf.b.length < 8 + len) return;
+    const text = new TextDecoder().decode(buf.b.subarray(8, 8 + len));
+    buf.b = new Uint8Array(0);
+    this.takeText(text);
+  }
+
+  private takeText(text: string): void {
+    // Field by field, so a message cut short still gives what it has
+    const num = (k: string) => { const m = new RegExp(`"${k}":(-?\\d+)`).exec(text); return m ? Number(m[1]) : undefined; };
+    const bladeGap = num("bladeGap");
+    if (bladeGap == null || !/periodInfo/.test(text)) return;
+    const r: Motto80Reading = {
+      bladeGap,
+      feedingRpm: num("feedingRpm") ?? this.latest?.feedingRpm ?? 0,
+      grindRpm: num("grindRpm") ?? this.latest?.grindRpm ?? 0,
+      devState: /"devState":"([A-Z_]+)"/.exec(text)?.[1],
+      totalGrinds: num("totalGrinds"),
+    };
+    this.lastReadingAt = Date.now();
+    const changed = !this.latest || this.latest.bladeGap !== r.bladeGap
+      || this.latest.feedingRpm !== r.feedingRpm || this.latest.grindRpm !== r.grindRpm;
+    this.latest = r;
+    if (changed) this.onReading(r);
+  }
+
+  private lastReadingAt = 0;
 
   private async open(): Promise<void> {
     if (!this.device?.gatt) throw new Error("Grinder not reachable");
@@ -144,36 +183,50 @@ export class Motto80Link {
     const service = await this.server.getPrimaryService(SERVICE);
     const write = await service.getCharacteristic(WRITE_CHAR);
     const notify = await service.getCharacteristic(NOTIFY_CHAR);
-    let buf: Uint8Array = new Uint8Array(0);
+    const buf = { b: new Uint8Array(0) as Uint8Array };
+    this.diag = { notes: 0, sizes: [], reads: 0, readSizes: [], readErr: "", start: "" };
     notify.addEventListener("characteristicvaluechanged", () => {
       const v = notify.value;
       if (!v) return;
       const chunk: Uint8Array = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
-      // A frame may arrive in pieces: join until the declared length is in
-      const joined = new Uint8Array(buf.length + chunk.length);
-      joined.set(buf); joined.set(chunk, buf.length);
-      buf = joined[0] === 0xa5 ? joined : chunk[0] === 0xa5 ? chunk : new Uint8Array(0);
-      if (buf.length < 8) return;
-      const len = new DataView(buf.buffer, buf.byteOffset).getUint32(4, true);
-      if (buf.length < 8 + len) return;
-      const text = new TextDecoder().decode(buf.subarray(8, 8 + len));
-      buf = new Uint8Array(0);
-      try {
-        const info = JSON.parse(text)?.broadcast?.periodInfo;
-        if (info && typeof info.bladeGap === "number") {
-          const r: Motto80Reading = {
-            bladeGap: info.bladeGap, feedingRpm: info.feedingRpm, grindRpm: info.grindRpm,
-            devState: info.devState, totalGrinds: info.totalGrinds,
-          };
-          const changed = !this.latest || this.latest.bladeGap !== r.bladeGap
-            || this.latest.feedingRpm !== r.feedingRpm || this.latest.grindRpm !== r.grindRpm;
-          this.latest = r;
-          if (changed) this.onReading(r);
-        }
-      } catch { /* other message types */ }
+      this.diag.notes++;
+      if (this.diag.sizes.length < 6) this.diag.sizes.push(chunk.length);
+      if (!this.diag.start) this.diag.start = Array.from(chunk.subarray(0, 10), (x) => x.toString(16).padStart(2, "0")).join(" ");
+      this.takeBytes(buf, chunk);
     });
     await notify.startNotifications();
     await write.writeValueWithResponse(frame({ request: { appHello: { op: "handshake" } } }) as BufferSource);
+
+    // Plan B: messages may come cut short (Chrome may not ask Android for large
+    // ones); a read gets the whole value. Read every second while no full message arrives.
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    let reading = false;
+    this.pollTimer = setInterval(async () => {
+      if (!this.connected) { if (this.pollTimer) clearInterval(this.pollTimer); this.pollTimer = null; return; }
+      if (reading || Date.now() - this.lastReadingAt < 2500) return;
+      reading = true;
+      try {
+        const v = await notify.readValue();
+        const bytes: Uint8Array = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+        this.diag.reads++;
+        if (this.diag.readSizes.length < 4) this.diag.readSizes.push(bytes.length);
+        const text = new TextDecoder().decode(bytes[0] === 0xa5 ? bytes.subarray(8) : bytes);
+        this.takeText(text);
+      } catch (e) {
+        this.diag.readErr = e instanceof Error ? e.message : String(e);
+      } finally {
+        reading = false;
+      }
+    }, 1000);
+
+    // Still nothing after 6 s: say what arrived, to find out why
+    const openedAt = Date.now();
+    setTimeout(() => {
+      if (!this.connected || this.lastReadingAt >= openedAt) return;
+      const d = this.diag;
+      this.onState("on", `connected, but no readings yet. Messages: ${d.notes} (sizes ${d.sizes.join(",") || "-"}; starts ${d.start || "-"}). `
+        + `Reads: ${d.reads} (sizes ${d.readSizes.join(",") || "-"})${d.readErr ? `; read error: ${d.readErr}` : ""}`);
+    }, 6000);
   }
 
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
