@@ -204,7 +204,6 @@ export default function StationPage() {
   /** Light Swiss or dark bumblebee, remembered on this device */
   const [theme, setTheme] = useState<ThemeName>("light");
   /** Plot every temperature sensor on the shot chart (remembered on this device). */
-  const [shotTemps, setShotTemps] = useState(false);
   /** Machine messages waiting for an answer (e.g. motor strain), oldest first. */
   const [notices, setNotices] = useState<MachineNotification[]>([]);
   const [noticeBusy, setNoticeBusy] = useState(false);
@@ -223,7 +222,6 @@ export default function StationPage() {
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
-    setShotTemps(localStorage.getItem("metbarista_shot_temps") === "1");
     if (localStorage.getItem("metbarista_theme") === "dark") setTheme("dark");
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
@@ -784,7 +782,8 @@ export default function StationPage() {
           <ShotCharts
             data={demoHeat ? [] : data}
             targetWeight={targetWeight}
-            showTemps={shotTemps}
+            // No temperatures on the shot chart: the sensors read the emptying chamber, not the water at the puck
+            showTemps={false}
             footer={(() => {
               // Program of the running stage: the loaded profile (same id as its base) or the chosen one
               const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
@@ -897,8 +896,6 @@ export default function StationPage() {
             grinderLink={grinderLink}
             autoBrew={autoBrew}
             onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
-            shotTemps={shotTemps}
-            onShotTemps={(on) => { setShotTemps(on); localStorage.setItem("metbarista_shot_temps", on ? "1" : "0"); }}
           />
 
           {/* Start heating and Brew: slide, so a stray tap can't start the machine */}
@@ -997,7 +994,7 @@ function fmtDose(v: number): string {
 
 function RecipePanel({
   profiles, base, recipe, editable, onChange, onPickCoffee, onToggleGrinder, grinderLink,
-  autoBrew, onAutoBrew, shotTemps, onShotTemps,
+  autoBrew, onAutoBrew,
 }: {
   profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
   onChange: (patch: Partial<Recipe>) => void;
@@ -1005,7 +1002,6 @@ function RecipePanel({
   onToggleGrinder: () => void;
   grinderLink: LinkState;
   autoBrew: boolean; onAutoBrew: (on: boolean) => void;
-  shotTemps: boolean; onShotTemps: (on: boolean) => void;
 }) {
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
@@ -1154,18 +1150,12 @@ function RecipePanel({
           </label>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-x-3 landscape:text-xs">
+      <div className="landscape:text-xs">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
         <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
           <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
             className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
           <span className="truncate">Auto brew at target temperature</span>
-        </label>
-        {/* Remembered on this device */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
-          <input type="checkbox" checked={shotTemps} onChange={(e) => onShotTemps(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
-          <span className="truncate">Temperatures on the shot chart</span>
         </label>
       </div>
     </div>
