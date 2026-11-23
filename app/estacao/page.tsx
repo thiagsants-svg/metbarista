@@ -919,7 +919,9 @@ function RecipePanel({
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
       <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
         <div className="relative flex min-w-0 gap-1.5">
-        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans" onFocus={() => setBeans(recentBeans())}
+        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans"
+          // Whole name selected: typing replaces it at once (no backspacing)
+          onFocus={(e) => { setBeans(recentBeans()); e.currentTarget.select(); }}
           onChange={(e) => {
             const v = e.target.value;
             onChange({ coffee: v });
