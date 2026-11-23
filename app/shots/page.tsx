@@ -1,4 +1,5 @@
 "use client";
+import { parseShotNotes } from "@/lib/recipe";
 
 import { useEffect, useState, Suspense, useMemo, lazy } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -184,6 +185,16 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
             <div>
               <p className="font-medium text-[#f5f0ea] text-sm">{shot.profile.name}</p>
               <p className="text-xs text-[#f5f0ea]/40">by {shot.profile.author}</p>
+              {(() => {
+                const n = parseShotNotes(shot.profile.display?.shortDescription);
+                return n.coffee || n.grind ? (
+                  <p className="mt-1 text-xs text-[#f5f0ea]/80">
+                    {n.coffee && <>Coffee: <b>{n.coffee}</b></>}
+                    {n.coffee && n.grind && " · "}
+                    {n.grind && <>Grind: <b>{n.grind}</b></>}
+                  </p>
+                ) : null;
+              })()}
             </div>
             <div className="flex gap-2 text-xs text-[#f5f0ea]/40 font-mono shrink-0">
               <span>{shot.profile.temperature}°C</span>

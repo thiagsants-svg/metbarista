@@ -14,6 +14,28 @@ export interface Recipe {
   dose: number;        // g of ground coffee
   temperature: number; // °C
   ratio: number;       // beverage = dose × ratio
+  coffee?: string;     // beans in use (free text)
+  grind?: string;      // grinder setting (free text, e.g. "12" or "2.3.1")
+}
+
+/**
+ * Coffee and grind travel with the shot inside the loaded profile, so the
+ * machine's shot history keeps them on every device. Stored in
+ * display.shortDescription as "Coffee: … · Grind: …".
+ */
+export function shotNotesText(r: Pick<Recipe, "coffee" | "grind">): string {
+  const parts = [];
+  if (r.coffee?.trim()) parts.push(`Coffee: ${r.coffee.trim()}`);
+  if (r.grind?.trim()) parts.push(`Grind: ${r.grind.trim()}`);
+  return parts.join(" · ");
+}
+
+/** Reads coffee/grind back from a shot's profile (see shotNotesText). */
+export function parseShotNotes(text: string | undefined | null): { coffee?: string; grind?: string } {
+  if (!text) return {};
+  const coffee = /Coffee: ([^·]+?)(?: ·|$)/.exec(text)?.[1]?.trim();
+  const grind = /Grind: ([^·]+?)(?: ·|$)/.exec(text)?.[1]?.trim();
+  return { coffee, grind };
 }
 
 export const DEFAULT_RECIPE: Recipe = {
@@ -100,6 +122,8 @@ export function buildShotProfile(base: Profile, r: Recipe): Profile {
   copy.final_weight = beverageWeight(r);
   // Plain ASCII: the dial's font may not have "·" or "°"
   copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C`;
+  const notes = shotNotesText(r);
+  if (notes) copy.display = { ...(copy.display ?? {}), shortDescription: notes };
   // Fields that describe the saved file, not the shot
   delete copy.isLast;
   delete copy.last_changed;

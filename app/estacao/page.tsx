@@ -761,6 +761,15 @@ function RecipePanel({
           );
         })}
       </div>
+      {/* Beans and grinder setting: sent with the shot, so they show in shot history */}
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
+        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)"
+          onChange={(e) => onChange({ coffee: e.target.value })} aria-label="Coffee"
+          className="h-11 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-3 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+        <input value={recipe.grind ?? ""} disabled={!editable} placeholder="Grind"
+          onChange={(e) => onChange({ grind: e.target.value })} aria-label="Grinder setting"
+          className="h-11 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-3 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+      </div>
       <div className="grid grid-cols-2 gap-x-3 landscape:grid-cols-1">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
         <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
