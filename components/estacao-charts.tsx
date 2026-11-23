@@ -104,7 +104,7 @@ export function ShotCharts({
           <span key={i.label} className="inline-flex items-baseline gap-1.5">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: i.color }} />
             <span className="text-sm font-medium text-[var(--ink)]/60">{i.label}</span>
-            <span className="font-mono text-lg font-bold" style={{ color: i.color }}>{i.value}</span>
+            <span className="font-mono text-lg font-bold tabular-nums" style={{ color: i.color }}>{i.value}</span>
             <span className="text-xs text-[var(--ink)]/40">{i.unit}</span>
           </span>
         ))}

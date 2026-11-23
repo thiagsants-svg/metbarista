@@ -50,8 +50,8 @@ export function Gauge({
   return (
     <div className="flex h-full items-center justify-between gap-1 border-t-2 border-[var(--ink)] pt-1">
       <div className="flex min-w-0 flex-col">
-        <p className="text-[11px] uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
-        <p className="whitespace-nowrap text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight leading-tight" style={{ color }}>
+        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
+        <p className="whitespace-nowrap text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight tabular-nums leading-tight" style={{ color }}>
           {raw == null ? "—" : raw.toFixed(digits)}
           <span className="ml-1 text-sm font-medium text-[var(--ink)]/40">
             {unit}

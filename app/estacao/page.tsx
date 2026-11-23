@@ -51,10 +51,10 @@ import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/ty
 const THEMES = {
   light: {
     // Bumblebee on paper: solid yellow fills with black text; darker amber for text and lines
-    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#b07d00",
+    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#8a6200",
     "--primary": "#ffc400", "--on-primary": "#111111", "--stop": "#d62828",
-    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#b07d00",
-    "--h0": "#b07d00", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
+    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#8a6200",
+    "--h0": "#8a6200", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
     "--h5": "#1d4ed8", "--h6": "#7aa2f7",
   },
   dark: {
@@ -519,7 +519,7 @@ export default function StationPage() {
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[100] flex flex-col gap-2 overflow-hidden bg-[var(--paper)] p-2.5 text-[var(--ink)] select-none sm:gap-2.5 sm:p-3"
+      className="fixed inset-x-0 top-0 z-[100] flex flex-col [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-[var(--ink)] motion-reduce:[&_*]:animate-none gap-2 overflow-hidden bg-[var(--paper)] p-2.5 text-[var(--ink)] select-none sm:gap-2.5 sm:p-3"
       style={{ height: "100dvh", ...(THEMES[theme] as unknown as React.CSSProperties) }}
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
@@ -674,8 +674,8 @@ export default function StationPage() {
 function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
     <div className="min-w-0 overflow-hidden border-t-2 border-[var(--ink)] pt-1.5">
-      <p className="text-[11px] uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
-      <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight leading-tight whitespace-nowrap" style={{ color }}>
+      <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
+      <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight tabular-nums leading-tight whitespace-nowrap" style={{ color }}>
         {value}
         {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[var(--ink)]/40">{unit}</span>}
       </p>
@@ -733,7 +733,7 @@ function RecipePanel({
           const on = Math.abs(recipe.ratio - r) < 0.001;
           return (
             <button key={r} disabled={!editable} onClick={() => onChange({ ratio: r })}
-              className={`h-9 rounded-lg border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
+              className={`h-10 rounded-md border text-sm font-bold transition-all active:scale-95 disabled:opacity-40 landscape:text-xs ${
                 on
                   ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
                   : "border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/75"
@@ -769,14 +769,14 @@ function Stepper({
   format: (v: number) => string; onChange: (v: number) => void;
 }) {
   const set = (v: number) => onChange(roundTo(Math.min(limits.max, Math.max(limits.min, v)), limits.step));
-  const btn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/80 active:scale-95 disabled:opacity-30";
+  const btn = "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 bg-[var(--paper)] text-[var(--ink)]/80 active:scale-95 disabled:opacity-30";
   return (
     <div className="flex items-center gap-1.5">
       <button className={btn} disabled={disabled || value <= limits.min} onClick={() => set(value - limits.step)} aria-label={`Decrease ${label}`}>
         <Minus className="h-5 w-5" />
       </button>
       <div className="min-w-0 flex-1 text-center leading-tight">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
+        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">{label}</p>
         <p className="font-mono text-lg font-bold whitespace-nowrap">
           {format(value)} <span className="text-xs font-medium text-[var(--ink)]/45">{unit}</span>
         </p>
