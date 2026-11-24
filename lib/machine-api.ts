@@ -100,7 +100,7 @@ export async function loadProfileInline(profile: Profile): Promise<void> {
  * db_key: the machine answers 404 for a number (checked on the machine and in
  * Meticulous's backend, crates/backend/src/api/history.rs).
  */
-export async function rateShot(shotId: string, rating: "like" | "dislike"): Promise<void> {
+export async function rateShot(shotId: string, rating: "like" | "dislike" | null): Promise<void> {
   await apiFetch<unknown>(`/history/rating/${encodeURIComponent(shotId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

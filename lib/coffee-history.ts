@@ -231,6 +231,11 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
   };
 }
 
+/** Summary of any shot (coffee and grind from its notes or this device's record) */
+export function shotSummary(shot: ShotEntry, profiles: Profile[] = []): CoffeeLastShot {
+  return summarize(shot, notesFor(shot, readLog()), profiles);
+}
+
 /** Last shot of a coffee: from the recent history if it's there, else from this device's record. */
 export function findLastShotForCoffee(coffee: string, history: ShotEntry[], profiles: Profile[]): CoffeeLastShot | null {
   const want = coffee.trim().toLowerCase();

@@ -1,450 +1,193 @@
 "use client";
-import { shotNotes } from "@/lib/coffee-history";
 
-import { useEffect, useState, Suspense, useMemo, lazy } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { format, formatDistanceToNow } from "date-fns";
-import {
-  Loader2, ArrowLeft, ArrowRight, Clock, Weight, Gauge, Droplets, Thermometer,
-  Layers, NotebookPen, Star, X, Lightbulb, TrendingUp, TrendingDown,
-} from "lucide-react";
-import { getHistory, computeShotStats } from "@/lib/machine-api";
+/**
+ * Shots, for how this bar works: each shot with its coffee, grind, TDS / EY,
+ * face, taste and the plan decided after it. Pick a coffee to see its story
+ * (count, likes, the plan waiting, the brew chart of all its readings).
+ * Same look as the Station, light or dark.
+ */
+
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, Moon, Sun } from "lucide-react";
+import { getHistory, getShotRating } from "@/lib/machine-api";
+import { useRequireConnection } from "@/lib/connection-store";
+import { shotSummary } from "@/lib/coffee-history";
+import { analyzeShot } from "@/lib/shot-analysis";
 import { getShotNote } from "@/lib/shot-notes";
-import { ShotScoreBadge } from "@/components/shot-report-card";
-import { analyzeShot, computeProfileDrift } from "@/lib/shot-analysis";
-import type { ProfileDrift } from "@/lib/shot-analysis";
+import { parseShotNote } from "@/lib/shot-record";
+import { asciiName } from "@/lib/recipe";
+import { useStationTheme } from "@/lib/station/use-theme";
+import { ShotRow, type ShotRowData } from "@/components/shots/shot-row";
+import { CoffeeOverview } from "@/components/shots/coffee-overview";
+import { ShotDetail } from "@/components/shots/shot-detail";
 import type { ShotEntry } from "@/lib/types";
 
-// Lazy-load heavy components (Recharts) — only when detail is open
-const ShotChart = lazy(() =>
-  import("@/components/charts/shot-chart").then((m) => ({ default: m.ShotChart }))
-);
-const ShotReportCard = lazy(() =>
-  import("@/components/shot-report-card").then((m) => ({ default: m.ShotReportCard }))
-);
-const ShotNoteEditor = lazy(() =>
-  import("@/components/shot-note-editor").then((m) => ({ default: m.ShotNoteEditor }))
-);
+type Face = "like" | "dislike";
+const PAGE = 30;
+const sameCoffee = (a: string, b: string) => asciiName(a).toLowerCase() === asciiName(b).toLowerCase();
 
-function stageBadgeStyle(type: string): string {
-  switch (type) {
-    case "pressure": return "bg-blue-500/15 text-blue-400";
-    case "flow":     return "bg-cyan-500/15 text-cyan-400";
-    case "power":    return "bg-violet-400/15 text-violet-400";
-    default:         return "bg-white/10 text-[#fafafa]/50";
-  }
+function buildRows(shots: ShotEntry[]): ShotRowData[] {
+  const rows = shots.map((shot) => {
+    const sum = shotSummary(shot);
+    return {
+      id: shot.id, sum, notes: parseShotNote(getShotNote(shot.time)?.note),
+      grindDelta: null as number | null, flush: analyzeShot(shot).throwaway,
+    };
+  });
+  // Grind change against the same coffee's previous (older) shot
+  rows.forEach((r, i) => {
+    const g = r.sum.patch.grindUm ?? r.sum.patch.grindSetting;
+    if (g == null || !r.sum.coffee || r.flush) return;
+    const prev = rows.slice(i + 1).find((o) => !o.flush && o.sum.coffee && sameCoffee(o.sum.coffee, r.sum.coffee));
+    const pg = prev ? prev.sum.patch.grindUm ?? prev.sum.patch.grindSetting : undefined;
+    if (pg != null) r.grindDelta = Math.round((g - pg) * 10) / 10;
+  });
+  return rows;
 }
 
-// ── Shot list item ───────────────────────────────────────────
+function ShotsContent() {
+  useRequireConnection();
+  const router = useRouter();
+  const params = useSearchParams();
+  const selectedId = params.get("shot") ?? params.get("id");
+  const coffee = params.get("coffee");
+  const { theme, style, toggle } = useStationTheme();
 
-function ShotListItem({
-  shot,
-  selected,
-  onSelect,
-}: {
-  shot: ShotEntry;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const stats = computeShotStats(shot.data);
-  const date = new Date(shot.time * 1000);
-  const accent = shot.profile?.display?.accentColor ?? "#ffc400";
-  const [rating, setRating] = useState<number | null>(null);
-  const isThrowaway = useMemo(() => analyzeShot(shot).throwaway, [shot]);
-  const coffee = useMemo(() => shotNotes(shot).coffee, [shot]);
+  const [limit, setLimit] = useState(PAGE);
+  const [shots, setShots] = useState<ShotEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [faces, setFaces] = useState<Record<string, Face | null>>({});
+  /** Bumped when notes are saved here, to re-read them */
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const saved = getShotNote(shot.time);
-    if (saved?.rating) setRating(saved.rating);
-  }, [shot.time]);
+    let alive = true;
+    getHistory(limit)
+      .then((h) => { if (alive) { setShots(h); setError(null); } })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { alive = false; };
+  }, [limit]);
 
-  return (
-    <button
-      onClick={onSelect}
-      className={`w-full text-left flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-        isThrowaway ? "opacity-40" : ""
-      } ${
-        selected
-          ? "border-[#ffc400]/30 bg-[#1c1c1c]"
-          : "border-white/[0.05] bg-[#141414] hover:border-white/[0.10] hover:bg-[#1c1c1c]"
-      }`}
-    >
-      <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate transition-colors ${selected ? "text-[#ffc400]" : "text-[#fafafa]"}`}>
-          {shot.name}
-        </p>
-        {coffee && <p className="text-xs text-[#fafafa]/70 truncate">{coffee}</p>}
-        <p className="text-xs text-[#fafafa]/35 mt-0.5">
-          {format(date, "MMM d · HH:mm")} · {formatDistanceToNow(date, { addSuffix: true })}
-        </p>
-      </div>
-      {rating && rating > 0 && (
-        <div className="hidden sm:flex items-center gap-0.5 shrink-0">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <Star key={s} className="h-2.5 w-2.5" fill={rating >= s ? "#ffc400" : "none"} stroke={rating >= s ? "#ffc400" : "rgba(250,250,250,0.15)"} />
-          ))}
-        </div>
-      )}
-      <ShotScoreBadge shot={shot} size="xs" />
-      <div className="hidden sm:flex items-center gap-3 text-xs font-mono text-[#fafafa]/30 shrink-0">
-        <span>{stats.durationSec}s</span>
-        <span>{stats.finalWeight.toFixed(1)}g</span>
-      </div>
-    </button>
-  );
-}
+  // version re-reads this device's notes after an edit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (shots ? buildRows(shots) : []), [shots, version]);
 
-// ── Shot detail panel ────────────────────────────────────────
+  /** Coffees, most recently brewed first */
+  const coffees = useMemo(() => {
+    const out: { name: string; count: number }[] = [];
+    for (const r of rows) {
+      if (!r.sum.coffee || r.flush) continue;
+      const hit = out.find((c) => sameCoffee(c.name, r.sum.coffee));
+      if (hit) hit.count++;
+      else out.push({ name: r.sum.coffee, count: 1 });
+    }
+    return out;
+  }, [rows]);
 
-function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: ShotEntry[]; onClose: () => void }) {
-  const stats = computeShotStats(shot.data);
-  const date = new Date(shot.time * 1000);
-  const accent = shot.profile?.display?.accentColor ?? "#ffc400";
-  const [showTemp, setShowTemp] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
+  const shown = useMemo(
+    () => (coffee ? rows.filter((r) => r.sum.coffee && sameCoffee(r.sum.coffee, coffee)) : rows),
+    [rows, coffee]);
 
-  // Profile Drift — plan vs execution comparison
-  const drift = useMemo(() => {
-    if (!shot.profile) return null;
-    const profileShots = allShots.filter((s) => {
-      if (!s.profile || s.profile.id !== shot.profile!.id) return false;
-      const a = analyzeShot(s);
-      return !a.throwaway;
-    });
-    if (profileShots.length === 0) return null;
-    return computeProfileDrift(shot.profile, profileShots);
-  }, [shot.profile, allShots]);
+  // Faces live on the machine: read them for the shots on screen
+  useEffect(() => {
+    const missing = shown.map((r) => r.id).filter((id) => !(id in faces));
+    if (missing.length === 0) return;
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < missing.length && alive; i += 6) {
+        const batch = missing.slice(i, i + 6);
+        const got = await Promise.all(batch.map((id) => getShotRating(id).catch(() => null)));
+        if (alive) setFaces((cur) => ({ ...cur, ...Object.fromEntries(batch.map((id, k) => [id, got[k]])) }));
+      }
+    })();
+    return () => { alive = false; };
+  }, [shown, faces]);
 
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="h-2 w-2 rounded-full mt-2.5 shrink-0" style={{ backgroundColor: accent }} />
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-[#fafafa] truncate">{shot.name}</h2>
-            <p className="text-sm font-mono text-[#fafafa]/40 mt-0.5">
-              {format(date, "MMMM d, yyyy · HH:mm")} · #{shot.db_key}
-            </p>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-[#fafafa]/30 hover:text-[#fafafa]/60 hover:bg-white/[0.05] transition-all md:hidden">
-          <X className="h-4 w-4" />
+  const selected = selectedId ? rows.find((r) => r.id === selectedId) ?? null : null;
+  const selectedShot = selected ? shots?.find((s) => s.id === selected.id) ?? null : null;
+
+  function go(next: { coffee?: string | null; shot?: string | null }) {
+    const c = next.coffee !== undefined ? next.coffee : coffee;
+    const s = next.shot !== undefined ? next.shot : selectedId;
+    const q = new URLSearchParams();
+    if (c) q.set("coffee", c);
+    if (s) q.set("shot", s);
+    const qs = q.toString();
+    router.push(qs ? `/shots?${qs}` : "/shots", { scroll: false });
+  }
+
+  const chip = (on: boolean) => `h-10 shrink-0 rounded-full border px-4 text-sm font-semibold active:scale-[0.97] ${
+    on ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/25 text-[var(--ink)]/80"}`;
+
+  const list = (
+    <div className="space-y-3">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Coffee">
+        <button type="button" role="tab" aria-selected={!coffee} onClick={() => go({ coffee: null, shot: null })} className={chip(!coffee)}>
+          All coffees
         </button>
-      </div>
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { Icon: Clock,    color: "#ffc400", value: `${stats.durationSec}s`,              label: "Duration"     },
-          { Icon: Weight,   color: "#fb923c", value: `${stats.finalWeight.toFixed(1)}g`,   label: "Weight"       },
-          { Icon: Gauge,    color: "#60a5fa", value: `${stats.maxPressure.toFixed(1)} bar`, label: "Pressure"     },
-          { Icon: Droplets, color: "#22d3ee", value: `${stats.maxFlow.toFixed(1)} ml/s`,   label: "Flow"         },
-        ].map(({ Icon, color, value, label }) => (
-          <div key={label} className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-3 text-center">
-            <Icon className="h-3.5 w-3.5 mx-auto mb-1.5" style={{ color }} />
-            <p className="text-lg font-bold font-mono text-[#fafafa]">{value}</p>
-            <p className="text-[10px] text-[#fafafa]/30 uppercase tracking-wider">{label}</p>
-          </div>
+        {coffees.map((c) => (
+          <button key={c.name} type="button" role="tab" aria-selected={!!coffee && sameCoffee(coffee, c.name)}
+            onClick={() => go({ coffee: c.name, shot: null })} className={chip(!!coffee && sameCoffee(coffee, c.name))}>
+            {c.name} <span className="ml-1 font-normal opacity-70">{c.count}</span>
+          </button>
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-[#fafafa]">Extraction Curve</p>
-          <button
-            onClick={() => setShowTemp((v) => !v)}
-            className={`rounded-lg border px-2 py-0.5 text-xs font-medium transition-all flex items-center gap-1 ${
-              showTemp
-                ? "border-red-500/30 bg-red-500/10 text-red-400"
-                : "border-white/[0.08] text-[#fafafa]/40 hover:text-[#fafafa]"
-            }`}
-          >
-            <Thermometer className="h-3 w-3" /> Temp
-          </button>
-        </div>
-        <Suspense fallback={<div className="h-[280px] flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#ffc400]" /></div>}>
-          <ShotChart frames={shot.data} height={280} showTemp={showTemp} />
-        </Suspense>
-      </div>
+      {coffee && <CoffeeOverview coffee={coffees.find((c) => sameCoffee(c.name, coffee))?.name ?? coffee} rows={shown} faces={faces} />}
 
-      {/* Analysis */}
-      <Suspense fallback={<div className="h-32 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#ffc400]" /></div>}>
-        <ShotReportCard shot={shot} />
-      </Suspense>
-
-      {/* Profile used */}
-      {shot.profile && (
-        <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Layers className="h-3.5 w-3.5 text-[#fafafa]/30" />
-            <p className="text-sm font-semibold text-[#fafafa]">Profile Used</p>
-          </div>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-medium text-[#fafafa] text-sm">{shot.profile.name}</p>
-              <p className="text-xs text-[#fafafa]/40">by {shot.profile.author}</p>
-              {(() => {
-                const n = shotNotes(shot);
-                return n.coffee || n.grind ? (
-                  <p className="mt-1 text-xs text-[#fafafa]/80">
-                    {n.coffee && <>Coffee: <b>{n.coffee}</b></>}
-                    {n.coffee && n.grind && " · "}
-                    {n.grind && <>Grind: <b>{n.grind}</b></>}
-                  </p>
-                ) : null;
-              })()}
-            </div>
-            <div className="flex gap-2 text-xs text-[#fafafa]/40 font-mono shrink-0">
-              <span>{shot.profile.temperature}°C</span>
-              <span className="text-[#fafafa]/20">·</span>
-              <span>{shot.profile.final_weight}g</span>
-            </div>
-          </div>
-          {shot.profile.stages.map((stage, i) => (
-            <div key={stage.key} className="flex items-center gap-2 py-1 border-b border-white/[0.04] last:border-0">
-              <span className="text-xs font-mono text-[#fafafa]/20 w-4 shrink-0">{i + 1}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize shrink-0 ${stageBadgeStyle(stage.type)}`}>
-                {stage.type}
-              </span>
-              <span className="text-xs text-[#fafafa]/60 flex-1 truncate">{stage.name}</span>
-            </div>
+      {shown.length === 0 ? (
+        <p className="py-6 text-base text-[var(--ink)]/70">No shots{coffee ? ` with ${coffee}` : ""} in the last {limit}.</p>
+      ) : (
+        <ol className="divide-y divide-[var(--ink)]/15 rounded-md border border-[var(--ink)]/15">
+          {shown.map((r) => (
+            <li key={r.id}>
+              <ShotRow row={r} face={faces[r.id]} showCoffee={!coffee} selected={r.id === selectedId}
+                onSelect={() => go({ shot: r.id === selectedId ? null : r.id })} />
+            </li>
           ))}
-          <Link
-            href={`/profiles?id=${shot.profile.id}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.10] px-2.5 py-1 text-xs font-medium text-[#fafafa]/60 hover:text-[#fafafa] hover:border-white/[0.20] transition-all"
-          >
-            View Full Profile →
-          </Link>
-        </div>
+        </ol>
       )}
 
-      {/* Profile Drift — plan vs execution */}
-      {drift && drift.metrics.length > 0 && (
-        <div className={`rounded-xl border p-4 space-y-3 ${
-          drift.hasDrift
-            ? "border-[#ffc400]/20 bg-[#ffc400]/[0.04]"
-            : "border-white/[0.06] bg-[#0a0a0a]"
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="h-3.5 w-3.5 text-[#ffc400]" />
-              <p className="text-sm font-semibold text-[#ffc400]">Profile Drift</p>
-            </div>
-            <span className="text-[10px] text-[#fafafa]/20 font-mono">{drift.shotCount} shot{drift.shotCount !== 1 ? "s" : ""}</span>
-          </div>
-          <p className="text-xs text-[#fafafa]/35">Plan vs what you actually brew</p>
-
-          <div className="space-y-2">
-            {drift.metrics.map((m) => {
-              const absDrift = Math.abs(m.driftPct);
-              const color = absDrift < 5 ? "#22c55e" : absDrift < 15 ? "#f59e0b" : "#ef4444";
-              const driftLabel = m.driftPct > 0 ? `+${m.driftPct.toFixed(0)}%` : `${m.driftPct.toFixed(0)}%`;
-
-              return (
-                <div key={m.field} className="flex items-center gap-3 py-1.5">
-                  <span className="text-xs text-[#fafafa]/40 w-20 shrink-0">{m.label}</span>
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="font-mono text-sm text-[#fafafa]/50">{m.planned}{m.unit}</span>
-                    <ArrowRight className="h-3 w-3 text-[#fafafa]/15" />
-                    <span className="font-mono text-sm font-bold text-[#fafafa]">{m.actual}{m.unit}</span>
-                  </div>
-                  <span
-                    className="font-mono text-xs font-bold px-1.5 py-0.5 rounded"
-                    style={{ color, backgroundColor: `${color}15` }}
-                  >
-                    {driftLabel}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Suggestions for significant drift */}
-          {drift.metrics.filter((m) => m.suggestion).map((m) => (
-            <div key={`sug-${m.field}`} className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 space-y-2">
-              <p className="text-xs text-[#fafafa]/50">{m.suggestion!.reason}</p>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm text-[#fafafa]/40 line-through">{m.planned}{m.unit}</span>
-                <ArrowRight className="h-3 w-3 text-[#ffc400]" />
-                <span className="font-mono text-sm font-bold text-[#ffc400]">{m.suggestion!.value}{m.unit}</span>
-                {m.suggestion!.confidence === "high" && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 font-medium">
-                    High confidence
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Notes */}
-      <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <NotebookPen className="h-3.5 w-3.5 text-[#fafafa]/30" />
-          <p className="text-sm font-semibold text-[#fafafa]">Tasting Notes</p>
-        </div>
-        <Suspense fallback={null}>
-          <ShotNoteEditor timestamp={shot.time} />
-        </Suspense>
-      </div>
-
-      {/* Raw JSON */}
-      <button
-        onClick={() => setShowRaw((v) => !v)}
-        className="text-xs text-[#fafafa]/30 hover:text-[#fafafa]/60 transition-colors"
-      >
-        {showRaw ? "▾" : "▸"} Raw data ({shot.data.length} frames)
-      </button>
-      {showRaw && (
-        <pre className="bg-[#0a0a0a] border border-white/[0.06] rounded-xl p-3 text-xs font-mono text-[#fafafa]/50 overflow-auto max-h-48">
-          {JSON.stringify(shot.data.slice(0, 3), null, 2)}
-          {"\n... and "}{shot.data.length - 3}{" more"}
-        </pre>
+      {shots && shots.length >= limit && (
+        <button type="button" onClick={() => setLimit((l) => l + PAGE)}
+          className="h-11 w-full rounded-md border border-[var(--ink)]/25 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
+          Show older shots
+        </button>
       )}
     </div>
   );
-}
 
-// ── Main shots page ──────────────────────────────────────────
-
-function ShotsPageContent() {
-  const params = useSearchParams();
-  const router = useRouter();
-  const selectedId = params.get("shot") ?? params.get("id"); // support old ?id= links
-  const [shots, setShots] = useState<ShotEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getHistory()
-      .then(setShots)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const selectedShot = useMemo(
-    () => (selectedId ? shots.find((s) => s.id === selectedId) : null),
-    [selectedId, shots]
-  );
-
-  // Group shots by date
-  const grouped = useMemo(() => {
-    const groups: { date: string; shots: ShotEntry[] }[] = [];
-    let currentDate = "";
-    for (const shot of shots) {
-      const d = format(new Date(shot.time * 1000), "MMMM d, yyyy");
-      if (d !== currentDate) {
-        currentDate = d;
-        groups.push({ date: d, shots: [] });
-      }
-      groups[groups.length - 1].shots.push(shot);
-    }
-    return groups;
-  }, [shots]);
-
-  const handleSelect = (id: string) => {
-    if (selectedId === id) {
-      router.push("/shots", { scroll: false });
-    } else {
-      router.push(`/shots?shot=${id}`, { scroll: false });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20 min-h-screen bg-[#0a0a0a]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] gap-4 px-6">
-        <Gauge className="h-8 w-8 text-[#fafafa]/20" />
-        <p className="text-sm text-[#fafafa]/40">{error}</p>
-        <button
-          onClick={() => { setLoading(true); setError(null); getHistory().then(setShots).catch((e) => setError(e instanceof Error ? e.message : "Failed")).finally(() => setLoading(false)); }}
-          className="rounded-xl border border-white/[0.10] px-4 py-2 text-sm font-medium text-[#fafafa]/60 hover:text-[#fafafa] transition-all"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (shots.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] gap-4 px-6">
-        <Clock className="h-8 w-8 text-[#fafafa]/20" />
-        <p className="text-sm text-[#fafafa]/40">No shots yet. Pull your first espresso!</p>
-        <Link href="/estacao" className="rounded-xl bg-[#ffc400] px-4 py-2 text-sm font-semibold text-[#0a0a0a]">
-          Go to Dashboard
-        </Link>
-      </div>
-    );
-  }
-
-  // Mobile: show detail full-screen if selected
-  if (selectedShot) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a]">
-        {/* Mobile: full screen detail */}
-        <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
-          <button
-            onClick={() => router.push("/shots", { scroll: false })}
-            className="inline-flex items-center gap-1.5 text-sm text-[#fafafa]/40 hover:text-[#fafafa] transition-colors mb-4"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> All Shots
-          </button>
-          <ShotDetail shot={selectedShot} allShots={shots} onClose={() => router.push("/shots", { scroll: false })} />
-        </div>
-
-        {/* Desktop: split pane */}
-        <div className="hidden md:flex max-w-7xl mx-auto min-h-screen">
-          {/* Left: shot list */}
-          <div className="w-[340px] shrink-0 border-r border-white/[0.06] overflow-y-auto h-screen sticky top-0 px-4 py-6">
-            <h1 className="text-lg font-bold text-[#fafafa] mb-4">Shots</h1>
-            <div className="space-y-1.5">
-              {shots.map((s) => (
-                <ShotListItem key={s.id} shot={s} selected={s.id === selectedId} onSelect={() => handleSelect(s.id)} />
-              ))}
-            </div>
-          </div>
-          {/* Right: detail */}
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <ShotDetail shot={selectedShot} allShots={shots} onClose={() => router.push("/shots", { scroll: false })} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // No shot selected: show list
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-bold text-[#fafafa]">Shots</h1>
-          <span className="text-xs text-[#fafafa]/30 font-mono">{shots.length} total</span>
+    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5">
+        <div className="mb-3 flex items-center gap-3">
+          <h1 className="flex-1 text-2xl font-bold">Shots</h1>
+          {shots && <span className="text-sm tabular-nums text-[var(--ink)]/60">last {shots.length}</span>}
+          <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
+            className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
         </div>
-        <div className="space-y-6">
-          {grouped.map(({ date, shots: dayShots }) => (
-            <div key={date}>
-              <p className="text-xs text-[#fafafa]/25 uppercase tracking-wider mb-2">{date}</p>
-              <div className="space-y-1.5">
-                {dayShots.map((s) => (
-                  <ShotListItem key={s.id} shot={s} selected={false} onSelect={() => handleSelect(s.id)} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+
+        {error ? (
+          <div className="py-16 text-center">
+            <p className="text-base text-[var(--ink)]/75">Couldn&apos;t read the machine&apos;s history: {error}</p>
+            <button onClick={() => { setError(null); setShots(null); setLimit((l) => l); getHistory(limit).then(setShots).catch((e) => setError(String(e))); }}
+              className="mt-4 h-11 rounded-md border border-[var(--ink)]/25 px-5 text-sm font-semibold">Try again</button>
+          </div>
+        ) : !shots ? (
+          <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[var(--accent)]" /></div>
+        ) : selected && selectedShot ? (
+          // A shot open: side by side on wide screens, the shot alone on a tablet in portrait
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-6">
+            <div className="hidden lg:block">{list}</div>
+            <ShotDetail shot={selectedShot} row={selected} face={faces[selected.id]}
+              onFace={(f) => setFaces((cur) => ({ ...cur, [selected.id]: f }))}
+              onSaved={() => setVersion((v) => v + 1)}
+              onBack={() => go({ shot: null })} />
+          </div>
+        ) : list}
       </div>
     </div>
   );
@@ -452,12 +195,8 @@ function ShotsPageContent() {
 
 export default function ShotsPage() {
   return (
-    <Suspense fallback={
-      <div className="flex justify-center py-20 min-h-screen bg-[#0a0a0a]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
-      </div>
-    }>
-      <ShotsPageContent />
+    <Suspense fallback={<div className="flex min-h-screen justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" /></div>}>
+      <ShotsContent />
     </Suspense>
   );
 }

@@ -12,10 +12,11 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { ShotPoint } from "@/components/estacao-charts";
 import type { Face, PlanChoice } from "@/components/shot-rating";
 import { getHistory, getShotRating, rateShot } from "@/lib/machine-api";
-import { getShotNote, saveShotNote } from "@/lib/shot-notes";
+import { getShotNote, saveShotNote, saveShotPlan } from "@/lib/shot-notes";
+import { composeShotNote } from "@/lib/shot-record";
 import { findNewShot, linkShot, recentShotsForCoffee, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
-import { loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
-import { extractionYield, grindText, isMotto80, loadRecipe, tdsText, type Recipe } from "@/lib/recipe";
+import { loadPlan, savePlan, type NextPlan } from "@/lib/next-plan";
+import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "@/lib/recipe";
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 
@@ -69,11 +70,12 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     }
     // The taste also goes in the shot's notes (Shots page)
     const shotWeight = data[data.length - 1]?.weight ?? 0;
-    const note = [
-      plan ? TASTE_LABEL[plan.taste] : "",
-      tds != null ? tdsText(tds, extractionYield(tds, shotWeight, recipe.dose)) : "",
-      rawNote,
-    ].filter(Boolean).join(" · ");
+    const note = composeShotNote({
+      taste: plan?.taste,
+      tds: tds ?? undefined,
+      ey: tds != null ? extractionYield(tds, shotWeight, recipe.dose) ?? undefined : undefined,
+      text: rawNote,
+    });
     // The shot is found by its number once the machine saves it (see waitForShot)
     const shot = await (shotFoundRef.current ??= waitForShot());
     if (!shot) {
@@ -81,6 +83,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       return;
     }
     if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
+    // The plan also stays with the shot (the Shots page shows what was decided after it)
+    if (plan) saveShotPlan(shot.time, plan);
     if (face) {
       try {
         await rateShot(shot.id, face);
