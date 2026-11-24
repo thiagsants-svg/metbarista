@@ -90,7 +90,8 @@ export function useConnection() {
 export function useRequireConnection() {
   const router = useRouter();
   useEffect(() => {
-    if (!getSavedIp()) {
+    // ?demo pages are offline previews: they need no machine
+    if (!getSavedIp() && !new URLSearchParams(window.location.search).has("demo")) {
       router.replace("/");
     }
   }, [router]);

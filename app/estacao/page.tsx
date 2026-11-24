@@ -29,6 +29,7 @@ import { RecentShots } from "@/components/recent-shots";
 import { RecipePanel } from "@/components/station/recipe-panel";
 import { Readout, SmallButton } from "@/components/station/readout";
 import { StationHeader } from "@/components/station/station-header";
+import { EspressoGlass } from "@/components/station/espresso-glass";
 import { demoShot } from "@/lib/demo-shot";
 import { refreshNow } from "@/lib/machine-socket";
 import { executeAction, getHistory, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
@@ -60,6 +61,8 @@ export default function StationPage() {
   const [demo, setDemo] = useState(false);
   const [demoEnd, setDemoEnd] = useState<ShotPoint | null>(null);
   const [demoHeat, setDemoHeat] = useState(false);
+  /** /estacao/?demo=pour: the simulated shot still to be played, point by point */
+  const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
   /** Auto brew: off by default and on every page load, on purpose. */
   const [autoBrew, setAutoBrew] = useState(false);
   const autoBrewRef = useRef(false);
@@ -82,7 +85,11 @@ export default function StationPage() {
   const { difluid, deviceTds, difluidTap } = useDifluid(setError);
   const brewing = isExtracting(status);
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
-    useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, setError });
+    useShotRecord({
+      demo, profiles, recipe, brewing, data, linkRef, setError,
+      // Piston back after the shot: the Purge button is showing, or the machine went idle
+      settled: !brewing && (isIdle(status) || (isWaitingForUser(status) && /purge/i.test(status?.name ?? ""))),
+    });
 
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
@@ -105,11 +112,16 @@ export default function StationPage() {
     } else if (demoParam !== null) {
       const pts = demoShot();
       setDemo(true);
-      setData(pts);
       setTargetWeight(40);
-      setElapsed(pts[pts.length - 1].t / 1000);
-      setDemoEnd(pts[pts.length - 1]);
       setSetTemp(94);
+      if (demoParam === "pour") {
+        // /estacao/?demo=pour plays the shot in real time, to watch the glass fill
+        setDemoPour(pts);
+      } else {
+        setData(pts);
+        setElapsed(pts[pts.length - 1].t / 1000);
+        setDemoEnd(pts[pts.length - 1]);
+      }
       if (demoParam === "rate") setRateOpen(true);
     }
     if (!getSavedIp()) return;
@@ -120,6 +132,22 @@ export default function StationPage() {
   // Runs once: the hooks' setters it calls don't change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!demoPour) return;
+    // &at=25 skips the first seconds of the simulated shot
+    const at = Number(new URLSearchParams(window.location.search).get("at")) || 0;
+    let i = Math.max(0, Math.min(demoPour.length - 1, Math.round(at * 5)));
+    const id = setInterval(() => {
+      i += 1;
+      const point = demoPour[i - 1];
+      setData(demoPour.slice(0, i));
+      setElapsed(point.t / 1000);
+      setDemoEnd(point);
+      if (i >= demoPour.length) { clearInterval(id); setDemoPour(null); }
+    }, 200); // the demo shot has a point every 200 ms
+    return () => clearInterval(id);
+  }, [demoPour, setData, setElapsed]);
 
   const baseProfile = pickBaseProfile(profiles, recipe.baseProfileId);
 
@@ -261,6 +289,12 @@ export default function StationPage() {
     off: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70",
   }[tone];
 
+  /** The cup filling with the scale's weight, up to the target line */
+  const glass = (
+    <EspressoGlass weight={data[data.length - 1]?.weight} scale={sensors?.w} target={targetWeight}
+      flow={data[data.length - 1]?.grav} brewing={brewing || demoPour !== null} />
+  );
+
   const pillColor =
     !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70"
     : brewing || waiting ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
@@ -330,6 +364,7 @@ export default function StationPage() {
             targetWeight={targetWeight}
             // No temperatures on the shot chart: the sensors read the emptying chamber, not the water at the puck
             showTemps={false}
+            glass={glass}
             footer={(() => {
               // Program of the running stage: the loaded profile (same id as its base) or the chosen one
               const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;

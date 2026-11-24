@@ -77,10 +77,12 @@ function Gradient({ id, color, opacity = 0.14 }: { id: string; color: string; op
 }
 
 export function ShotCharts({
-  data, live, targetWeight, placeholder, currentStage, showTemps = false, footer,
+  data, live, targetWeight, placeholder, currentStage, showTemps = false, footer, glass,
 }: {
   /** Shown under the chart while there is shot data (e.g. the running stage) */
   footer?: React.ReactNode;
+  /** Drawn inside the plot while there is shot data, behind the curves (the filling glass) */
+  glass?: React.ReactNode;
   data: ShotPoint[];
   live: Partial<ShotPoint>;
   targetWeight: number | null;
@@ -139,19 +141,33 @@ export function ShotCharts({
             {placeholder}
           </div>
         ) : (
-          showTemps ? (
-            // Two charts, same time axis: the shot on top, temperatures below
-            <div className="absolute inset-0 flex flex-col gap-2">
-              <div className="relative min-h-0 flex-[3]">
+          <div className="absolute inset-0">
+            {glass && (
+              // The plot itself, inside the axes (left 28, right 36 + 4, top 22, time axis 30)
+              <div className="pointer-events-none absolute bottom-[30px] left-[28px] right-[40px] top-[22px]">
+                {/* Stands on the time axis. Golden section both ways: as tall as 0.618 of the
+                    plot, centered on the line that splits the right 0.618 of its width
+                    (0.382 + 0.618 x 0.618 = 0.764), so it sits off the edge, not on it. */}
+                <div className="absolute bottom-0 left-[76.4%] aspect-[160/354] h-[61.8%] max-w-[34%] -translate-x-1/2">{glass}</div>
+              </div>
+            )}
+            {/* Over the glass, the curves get a thin outline in the background color, to stay readable */}
+            <div className={`absolute inset-0 ${glass ? "[&_.recharts-curve]:[filter:drop-shadow(0_0_1px_var(--paper))_drop-shadow(0_0_1px_var(--paper))]" : ""}`}>
+              {showTemps ? (
+                // Two charts, same time axis: the shot on top, temperatures below
+                <div className="absolute inset-0 flex flex-col gap-2">
+                  <div className="relative min-h-0 flex-[3]">
+                    <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
+                  </div>
+                  <div className="relative min-h-0 flex-[2] border-t border-[var(--ink)]/20 pt-1">
+                    <TempPlot data={data} currentStage={currentStage} />
+                  </div>
+                </div>
+              ) : (
                 <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
-              </div>
-              <div className="relative min-h-0 flex-[2] border-t border-[var(--ink)]/20 pt-1">
-                <TempPlot data={data} currentStage={currentStage} />
-              </div>
+              )}
             </div>
-          ) : (
-            <ShotPlot data={data} targetWeight={targetWeight} currentStage={currentStage} />
-          )
+          </div>
         )}
       </div>
       {footer && <div className="mt-2 shrink-0">{footer}</div>}

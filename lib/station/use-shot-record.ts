@@ -19,12 +19,17 @@ import { extractionYield, grindText, isMotto80, loadRecipe, tdsText, type Recipe
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 
-export function useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, setError }: {
+/** If the machine never shows Purge or goes idle after a shot, ask for the rating anyway */
+const RATE_FALLBACK_MS = 45_000;
+
+export function useShotRecord({ demo, profiles, recipe, brewing, settled, data, linkRef, setError }: {
   demo: boolean;
   profiles: Profile[];
   recipe: Recipe;
   /** The machine is extracting */
   brewing: boolean;
+  /** The machine is done moving after a shot: the Purge button is showing, or it is idle */
+  settled: boolean;
   /** The shot's chart points (its final weight goes in the TDS note) */
   data: ShotPoint[];
   /** Motto 80 link: its reading at shot start is the shot's grind */
@@ -123,6 +128,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, 
   }, [demo, profiles]);
 
   const wasBrewingRef = useRef(false);
+  /** A shot ended and its rating popup hasn't opened yet */
+  const rateDueRef = useRef(false);
   // Shot starts: record what the grinder had at that moment.
   // Shot over: record it under its coffee, so its last shot is found even months later.
   useEffect(() => {
@@ -131,6 +138,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, 
     wasBrewingRef.current = brewing;
     if (demo) return;
     if (started) {
+      rateDueRef.current = false;
       shotStartedAtRef.current = Date.now();
       shotFoundRef.current = null;
       keyBeforeShotRef.current = null;
@@ -141,13 +149,28 @@ export function useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, 
       }
     }
     if (!ended) return;
-    // Rate it: once the cup is out (a short pause so the end of the chart shows first)
-    setTimeout(() => setRateOpen(true), 1500);
+    // Rate it later, when the piston is back (see the next effect): until then the
+    // chart and the glass stay in view while the crema settles
+    rateDueRef.current = true;
+    setTimeout(() => {
+      if (!rateDueRef.current) return;
+      rateDueRef.current = false;
+      setRateOpen(true);
+    }, RATE_FALLBACK_MS);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     shotFoundRef.current = waitForShot();
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
+
+  // Rating popup: when the Purge button shows (or the machine is idle) after a shot.
+  // Declared after the effect above, so a shot that ends straight into Purge is caught too.
+  useEffect(() => {
+    if (!settled || !rateDueRef.current) return;
+    rateDueRef.current = false;
+    // A short pause, so the Purge button is seen first
+    setTimeout(() => setRateOpen(true), 800);
+  }, [settled]);
 
   return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating };
 }
