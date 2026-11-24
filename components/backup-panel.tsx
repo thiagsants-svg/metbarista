@@ -8,6 +8,7 @@
 
 import { useRef, useState, useSyncExternalStore } from "react";
 import { DatabaseBackup, Download, Loader2, Upload, X } from "lucide-react";
+import { allPhotos, replaceAllPhotos } from "@/lib/coffee-photos";
 import {
   BACKUP_AT_KEY, backupFileName, backupSummary, makeBackup, readBackup, restoreBackup, type Backup,
 } from "@/lib/backup";
@@ -51,7 +52,9 @@ function BackupPanel({ lastAt, onSaved, onClose }: {
     setBusy(true); setError(null); setMessage(null);
     try {
       const now = new Date();
-      const file = new File([JSON.stringify(makeBackup(localStorage, now), null, 1)], backupFileName(now), { type: "application/json" });
+      // Bag photos too (they live outside localStorage)
+      const backup = { ...makeBackup(localStorage, now), photos: await allPhotos().catch(() => []) };
+      const file = new File([JSON.stringify(backup, null, 1)], backupFileName(now), { type: "application/json" });
       let done = false;
       if (navigator.canShare?.({ files: [file] })) {
         try {
@@ -90,7 +93,9 @@ function BackupPanel({ lastAt, onSaved, onClose }: {
   function restore() {
     if (!pending) return;
     restoreBackup(localStorage, pending);
-    location.reload();
+    // Older backups have no photos: keep this device's
+    const photos = pending.photos;
+    (photos ? replaceAllPhotos(photos).catch(() => {}) : Promise.resolve()).then(() => location.reload());
   }
 
   const btn = "flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold active:scale-[0.98] disabled:opacity-50";

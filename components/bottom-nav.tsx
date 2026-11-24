@@ -1,16 +1,16 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, Layers, Target, Tablet, Users } from "lucide-react";
+import { Coffee, History, Layers, Target, Tablet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 5 tabs for mobile — most-used actions next to the machine
 const TABS = [
   { href: "/estacao",   label: "Station", icon: Tablet },
   { href: "/shots",     label: "Shots",     icon: History },
+  { href: "/coffees",   label: "Coffees",   icon: Coffee },
   { href: "/profiles",  label: "Profiles",  icon: Layers },
   { href: "/barista",   label: "Stats",     icon: Target },
-  { href: "/community", label: "Community", icon: Users },
 ];
 
 export function BottomNav() {

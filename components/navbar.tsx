@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, Layers, Users, Target, Tablet } from "lucide-react";
+import { Coffee, History, Layers, Users, Target, Tablet } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 import { APP_NAME, REPO_URL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { ConnectionDot } from "./connection-dot";
 const NAV_LINKS = [
   { href: "/estacao",    label: "Station", icon: Tablet },
   { href: "/shots",      label: "Shots",     icon: History },
+  { href: "/coffees",    label: "Coffees",   icon: Coffee },
   { href: "/profiles",   label: "Profiles",  icon: Layers },
   { href: "/barista",    label: "Stats",  icon: Target },
   { href: "/community",  label: "Community", icon: Users },

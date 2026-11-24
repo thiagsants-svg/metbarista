@@ -6,11 +6,15 @@
  *
  * Bluetooth permission flags are left out: they belong to this browser and
  * would only confuse a new one (it asks to pair again anyway).
+ *
+ * Version 2 adds the coffees' bag photos (kept in IndexedDB, not localStorage).
  */
+
+import type { CoffeePhoto } from "./coffee-photos";
 
 const PREFIX = "metbarista_";
 const APP = "metbarista-station";
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 /** When the last backup was saved here (not part of the backup itself) */
 export const BACKUP_AT_KEY = "metbarista_backup_at";
 
@@ -19,6 +23,8 @@ export interface Backup {
   version: number;
   savedAt: string;
   data: Record<string, string>;
+  /** Bag photos (version 2); absent in older backups */
+  photos?: CoffeePhoto[];
 }
 
 type Store = Pick<Storage, "length" | "key" | "getItem" | "setItem" | "removeItem">;
@@ -56,7 +62,11 @@ export function readBackup(text: string): Backup {
   }
   const data: Record<string, string> = {};
   for (const [k, v] of Object.entries(b.data)) if (backedUp(k) && typeof v === "string") data[k] = v;
-  return { app: APP, version: b.version, savedAt: String(b.savedAt ?? ""), data };
+  const photos = Array.isArray(b.photos)
+    ? b.photos.filter((p): p is CoffeePhoto => !!p && typeof p.id === "string" && typeof p.coffee === "string"
+      && typeof p.dataUrl === "string" && p.dataUrl.startsWith("data:image/") && typeof p.at === "number")
+    : undefined;
+  return { app: APP, version: b.version, savedAt: String(b.savedAt ?? ""), data, ...(photos ? { photos } : {}) };
 }
 
 /** Replaces this tablet's Station data with the backup's (Bluetooth permissions stay) */
@@ -77,13 +87,15 @@ const count = (json: string | undefined): number => {
 export function backupSummary(b: Backup): string {
   const d = b.data;
   const parts = [
-    [count(d.metbarista_recent_beans), "coffee", "coffees"],
+    [Math.max(count(d.metbarista_recent_beans), count(d.metbarista_coffees)), "coffee", "coffees"],
     [count(d.metbarista_recent_grinders), "grinder", "grinders"],
     [count(d.metbarista_shot_log), "shot record", "shot records"],
     [count(d.metbarista_shot_notes), "shot note", "shot notes"],
     [count(d.metbarista_next_plans), "next-shot plan", "next-shot plans"],
   ] as const;
   const text = parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+  const photos = b.photos?.length ?? 0;
+  if (photos) text.push(`${photos} photo${photos === 1 ? "" : "s"}`);
   return text.length ? text.join(" · ") : "settings only";
 }
 

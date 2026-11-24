@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { History, Layers, Loader2, Menu, Target, Users, X } from "lucide-react";
+import { Coffee, History, Layers, Loader2, Menu, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { clearIp, getSavedIp } from "@/lib/connection-store";
@@ -18,6 +18,7 @@ import type { MachineInfo } from "@/lib/types";
 
 const PAGES = [
   { href: "/shots", label: "Shots", icon: History },
+  { href: "/coffees", label: "Coffees", icon: Coffee },
   { href: "/profiles", label: "Profiles", icon: Layers },
   { href: "/barista", label: "Stats", icon: Target },
   { href: "/community", label: "Community", icon: Users },

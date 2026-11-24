@@ -11,9 +11,10 @@ import { ProfilePicker } from "@/components/profile-picker";
 import { WheelPicker } from "@/components/wheel-picker";
 import {
   type GrinderFields, type Recipe, RATIO_PRESETS, beverageWeight, formatRatio, maxYieldFor, overCapacity,
-  GRINDER_DEFAULTS, isMotto80, recentBeans, recentGrinders,
+  GRINDER_DEFAULTS, isMotto80, recentGrinders,
 } from "@/lib/recipe";
 import type { LinkState } from "@/lib/motto80";
+import { activeBeans } from "@/lib/coffees";
 import type { Profile } from "@/lib/types";
 
 /** Wheel values: dose 5–30 g in 0.5 steps, temperature 70–100 °C in 1 °C steps */
@@ -94,7 +95,7 @@ export function RecipePanel({
         <div className="relative flex min-w-0 gap-1.5">
         <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans"
           // Whole name selected: typing replaces it at once (no backspacing)
-          onFocus={(e) => { setBeans(recentBeans()); e.currentTarget.select(); }}
+          onFocus={(e) => { setBeans(activeBeans()); e.currentTarget.select(); }}
           onChange={(e) => {
             const v = e.target.value;
             onChange({ coffee: v });
@@ -106,7 +107,7 @@ export function RecipePanel({
         <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
         {/* All recent coffees, most recently used first */}
         <button type="button" disabled={!editable} aria-label="Recent coffees" title="Recent coffees"
-          onClick={() => { setBeans(recentBeans()); setBeansOpen((o) => !o); }}
+          onClick={() => { setBeans(activeBeans()); setBeansOpen((o) => !o); }}
           className={`flex h-11 w-11 landscape:h-9 landscape:w-9 shrink-0 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
             beansOpen ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20 text-[var(--ink)]/80"}`}>
           <ChevronDown className={`h-5 w-5 transition-transform ${beansOpen ? "rotate-180" : ""}`} />
@@ -117,7 +118,7 @@ export function RecipePanel({
             <div className="fixed inset-0 z-40" onClick={() => setBeansOpen(false)} />
             <ul className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[50dvh] overflow-y-auto rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] py-1 shadow-lg">
               {beans.length === 0 ? (
-                <li className="px-3 py-3 text-sm text-[var(--ink)]/70">No coffees yet: they’re added when you start a shot</li>
+                <li className="px-3 py-3 text-sm text-[var(--ink)]/70">No coffees yet: add them on the Coffees page, or type one and brew</li>
               ) : beans.map((b) => (
                 <li key={b}>
                   <button type="button"

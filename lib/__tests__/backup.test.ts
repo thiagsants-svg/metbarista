@@ -61,3 +61,20 @@ describe("backup", () => {
     expect(backupFileName(new Date(2026, 10, 4))).toBe("station-backup-2026-11-04.json");
   });
 });
+
+describe("backup with bag photos (version 2)", () => {
+  const photo = { id: "p1", coffee: "kenya aa", dataUrl: "data:image/jpeg;base64,AAAA", at: 1 };
+
+  it("keeps valid photos and drops anything else", () => {
+    const b = readBackup(JSON.stringify({
+      app: "metbarista-station", version: 2, data: {},
+      photos: [photo, { id: "x", coffee: "y", dataUrl: "javascript:alert(1)", at: 2 }, null],
+    }));
+    expect(b.photos).toEqual([photo]);
+    expect(backupSummary(b)).toBe("1 photo");
+  });
+
+  it("an older backup has no photos (this device keeps its own)", () => {
+    expect(readBackup(JSON.stringify({ app: "metbarista-station", version: 1, data: {} })).photos).toBeUndefined();
+  });
+});
