@@ -11,6 +11,11 @@
  *
  * The Station listens (a test started on the R2 itself fills the TDS field)
  * and can ask for a single test. It never changes the R2's settings.
+ *
+ * DiFluid's own demo unlocks the cleartext channel after each power-on through
+ * DiFluid's server (a developer key), so the R2 may stay silent on it. To see
+ * what it really sends, the Station listens on every channel of the service
+ * and reports each message (`onLog`).
  */
 
 const SERVICE = 0x00ff;
@@ -41,18 +46,44 @@ export function parseDifluidTds(bytes: Uint8Array): number | null {
   const data = bytes.subarray(5, 5 + len);
   const resultPackage = cmd === 0 ? 2 : 3;
   if (data[0] !== resultPackage || data.length < 3) return null;
-  const tds = ((data[1] << 8) | data[2]) / 100;
+  // Signed (a test on water or air can read below zero)
+  const tds = (((data[1] << 8) | data[2]) << 16 >> 16) / 100;
   return tds > 0 ? tds : null;
 }
 
+/**
+ * Whole frames out of what has arrived so far: a notification may carry part
+ * of a frame or several frames. Bytes before a DF DF header are dropped.
+ */
+export function splitFrames(buffer: Uint8Array): { frames: Uint8Array[]; rest: Uint8Array } {
+  const frames: Uint8Array[] = [];
+  let i = 0;
+  while (i < buffer.length) {
+    if (buffer[i] !== 0xdf || (i + 1 < buffer.length && buffer[i + 1] !== 0xdf)) { i++; continue; }
+    if (i + 5 > buffer.length) break; // header and length not here yet
+    const end = i + 6 + buffer[i + 4];
+    if (end > buffer.length) break; // rest of the frame still coming
+    frames.push(buffer.slice(i, end));
+    i = end;
+  }
+  return { frames, rest: buffer.slice(i) };
+}
+
+export const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+
 // Minimal Web Bluetooth types (not in TypeScript's DOM lib)
 interface BtCharacteristic extends EventTarget {
+  uuid: string;
+  properties?: { notify?: boolean; indicate?: boolean };
   value?: DataView;
   startNotifications(): Promise<BtCharacteristic>;
   writeValueWithResponse?(data: BufferSource): Promise<void>;
   writeValue(data: BufferSource): Promise<void>;
 }
-interface BtService { getCharacteristic(uuid: number): Promise<BtCharacteristic> }
+interface BtService {
+  getCharacteristic(uuid: number): Promise<BtCharacteristic>;
+  getCharacteristics?(): Promise<BtCharacteristic[]>;
+}
 interface BtServer { connected: boolean; getPrimaryService(uuid: number): Promise<BtService>; disconnect(): void }
 interface BtDevice extends EventTarget { name?: string; gatt?: { connect(): Promise<BtServer> } }
 interface BtNavigator {
@@ -73,6 +104,8 @@ export class DifluidLink {
   constructor(
     private onTds: (tds: number) => void,
     private onState: (s: DifluidState, error?: string) => void,
+    /** Every message the R2 sends, and what the Station sends it (for diagnosis) */
+    private onLog: (line: string) => void = () => {},
   ) {}
 
   get connected(): boolean {
@@ -96,13 +129,31 @@ export class DifluidLink {
       const service = await this.server.getPrimaryService(SERVICE);
       this.char = await service.getCharacteristic(CHAR);
       localStorage.setItem(ACCESS_KEY, "1");
-      this.char.addEventListener("characteristicvaluechanged", () => {
-        const v = this.char?.value;
-        if (!v) return;
-        const tds = parseDifluidTds(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
-        if (tds != null) this.onTds(tds);
-      });
-      await this.char.startNotifications();
+      // Listen on every channel: results may come on another one than the commands
+      const all = (await service.getCharacteristics?.().catch(() => null)) ?? [this.char];
+      const chars = all.some((c) => c.uuid === this.char!.uuid) ? all : [this.char, ...all];
+      const names: string[] = [];
+      for (const c of chars) {
+        const short = c.uuid.slice(4, 8).toUpperCase();
+        if (c !== this.char && c.properties && !c.properties.notify && !c.properties.indicate) continue;
+        let pending: Uint8Array = new Uint8Array(0);
+        c.addEventListener("characteristicvaluechanged", () => {
+          const v = c.value;
+          if (!v) return;
+          const bytes = new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength));
+          this.onLog(`${short} ← ${hex(bytes)}`);
+          const joined = new Uint8Array(pending.length + bytes.length);
+          joined.set(pending); joined.set(bytes, pending.length);
+          const { frames, rest } = splitFrames(joined);
+          pending = rest.length > 64 ? new Uint8Array(0) : rest;
+          for (const fr of frames) {
+            const tds = parseDifluidTds(fr);
+            if (tds != null) this.onTds(tds);
+          }
+        });
+        try { await c.startNotifications(); names.push(short); } catch { /* not a notify channel */ }
+      }
+      this.onLog(`connected · listening on ${names.join(", ") || "nothing"}`);
       this.onState("on");
     } catch (e) {
       const name = e instanceof Error ? e.name : "";
@@ -117,6 +168,7 @@ export class DifluidLink {
     if (!this.char) return;
     const write = this.char.writeValueWithResponse?.bind(this.char) ?? this.char.writeValue.bind(this.char);
     await write(SINGLE_TEST as BufferSource);
+    this.onLog(`AA01 → ${hex(SINGLE_TEST)} (measure)`);
   }
 
   disconnect(): void {

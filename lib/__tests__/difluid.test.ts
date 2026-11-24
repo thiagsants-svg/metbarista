@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { difluidFrame, parseDifluidTds, SINGLE_TEST } from "../difluid";
+import { difluidFrame, hex, parseDifluidTds, SINGLE_TEST, splitFrames } from "../difluid";
 
 const bytes = (hex: string) => new Uint8Array(hex.trim().split(/\s+/).map((h) => parseInt(h, 16)));
 
@@ -31,5 +31,36 @@ describe("DiFluid R2 frames", () => {
     bad[bad.length - 1] ^= 0xff; // wrong checksum
     expect(parseDifluidTds(bad)).toBeNull();
     expect(parseDifluidTds(bytes("49 04 01 01 09"))).toBeNull();
+  });
+});
+
+describe("frames split or joined across notifications", () => {
+  // From DiFluid's protocol document: status, temperature, result (0.79 %)
+  const status = bytes("DF DF 03 00 03 00 00 00 C4");
+  const temp = bytes("DF DF 03 00 06 01 03 17 03 14 01 FA");
+  const result = bytes("DF DF 03 00 07 02 00 4F 00 02 09 3D 61");
+
+  it("reads the official example result", () => {
+    expect(parseDifluidTds(result)).toBe(0.79);
+  });
+
+  it("finds several frames in one notification", () => {
+    const joined = new Uint8Array([...status, ...temp, ...result]);
+    const { frames, rest } = splitFrames(joined);
+    expect(frames.map(hex)).toEqual([hex(status), hex(temp), hex(result)]);
+    expect(rest.length).toBe(0);
+  });
+
+  it("keeps half a frame until the rest arrives", () => {
+    const a = splitFrames(result.slice(0, 8));
+    expect(a.frames).toEqual([]);
+    const b = splitFrames(new Uint8Array([...a.rest, ...result.slice(8)]));
+    expect(b.frames.map(parseDifluidTds)).toEqual([0.79]);
+  });
+
+  it("drops noise before a header and ignores negative readings", () => {
+    const { frames } = splitFrames(new Uint8Array([0x01, 0x02, ...result]));
+    expect(frames.length).toBe(1);
+    expect(parseDifluidTds(bytes("DF DF 03 01 07 03 FF F9 FF FF E4 44 EA"))).toBeNull(); // -0.07
   });
 });

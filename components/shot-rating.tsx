@@ -25,7 +25,7 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, onDifluid, pastBrews, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidLog, onDifluid, pastBrews, onSave, onSkip,
 }: {
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
@@ -39,6 +39,8 @@ export function ShotRating({
   /** Latest reading from the DiFluid R2 (Bluetooth), with when it arrived */
   deviceTds?: { value: number; at: number } | null;
   difluid?: DifluidState;
+  /** Messages to and from the R2, to see whether it answers */
+  difluidLog?: string[];
   /** Connects to the R2, or asks it to measure when connected */
   onDifluid?: () => void;
   /** Earlier shots of this coffee with a TDS reading, for the brew chart */
@@ -190,6 +192,13 @@ export function ShotRating({
               : "Optional: refractometer reading (DiFluid…)"}
           </p>
         </div>
+        {difluid === "on" && (
+          <div className="mt-2 rounded-md bg-[var(--ink)]/[0.05] px-2 py-1.5 font-mono text-[11px] leading-snug text-[var(--ink)]/70">
+            <p className="font-sans text-xs font-semibold text-[var(--ink)]/75">DiFluid messages</p>
+            {(difluidLog ?? []).length === 0 ? <p>nothing yet</p>
+              : difluidLog!.map((l, i) => <p key={i} className="break-all">{l}</p>)}
+          </div>
+        )}
         {tds != null && ey != null && (
           <div className="mt-2 rounded-md border border-[var(--ink)]/15 p-3">
             <BrewChart shot={{ tds, ey }} past={pastBrews} target={target} />

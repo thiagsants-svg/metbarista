@@ -9,13 +9,20 @@ export function useDifluid(setError: (msg: string | null) => void) {
   const difluidRef = useRef<DifluidLink | null>(null);
   const [difluid, setDifluid] = useState<DifluidState>("off");
   const [deviceTds, setDeviceTds] = useState<{ value: number; at: number } | null>(null);
+  /** What the R2 sent (and what was sent to it), newest last: shows whether it answers at all */
+  const [difluidLog, setDifluidLog] = useState<string[]>([]);
+  const log = (line: string) => {
+    const t = new Date().toLocaleTimeString("en-US", { hour12: false });
+    setDifluidLog((cur) => [...cur.slice(-7), `${t} ${line}`]);
+  };
 
   /** First tap connects to the R2 (Chrome's list the first time); then it asks for a reading */
   function difluidTap() {
     if (!difluidRef.current) {
       difluidRef.current = new DifluidLink(
-        (value) => setDeviceTds({ value, at: Date.now() }),
+        (value) => { setDeviceTds({ value, at: Date.now() }); log(`TDS ${value.toFixed(2)}%`); },
         (state, err) => { setDifluid(state); if (err) setError(`DiFluid: ${err}`); },
+        log,
       );
     }
     const link = difluidRef.current;
@@ -23,5 +30,5 @@ export function useDifluid(setError: (msg: string | null) => void) {
     else link.connect();
   }
 
-  return { difluid, deviceTds, difluidTap };
+  return { difluid, deviceTds, difluidLog, difluidTap };
 }

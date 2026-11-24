@@ -82,7 +82,7 @@ export default function StationPage() {
   } = useMachineLive({ onNotice: onSocketNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef });
   const { grinderLink, linkRef, connectGrinder, toggleGrinder, live: grinderLive } =
     useGrinder({ grinder: recipe.grinder, setRecipe, setError, demo });
-  const { difluid, deviceTds, difluidTap } = useDifluid(setError);
+  const { difluid, deviceTds, difluidLog, difluidTap } = useDifluid(setError);
   const brewing = isExtracting(status);
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
     useShotRecord({
@@ -328,7 +328,7 @@ export default function StationPage() {
           .filter(Boolean).join(" · ");
         return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
           shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w}
-          deviceTds={deviceTds} difluid={difluid} onDifluid={difluidTap}
+          deviceTds={deviceTds} difluid={difluid} difluidLog={difluidLog} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
