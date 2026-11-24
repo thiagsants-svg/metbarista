@@ -19,17 +19,14 @@ import { extractionYield, grindText, isMotto80, loadRecipe, tdsText, type Recipe
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 
-/** If the machine never shows Purge or goes idle after a shot, ask for the rating anyway */
-const RATE_FALLBACK_MS = 45_000;
-
-export function useShotRecord({ demo, profiles, recipe, brewing, settled, data, linkRef, setError }: {
+export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, data, linkRef, setError }: {
   demo: boolean;
   profiles: Profile[];
   recipe: Recipe;
   /** The machine is extracting */
   brewing: boolean;
-  /** The machine is done moving after a shot: the Purge button is showing, or it is idle */
-  settled: boolean;
+  /** The machine is waiting for a tap to purge (the Purge button is showing) */
+  purgeAsked: boolean;
   /** The shot's chart points (its final weight goes in the TDS note) */
   data: ShotPoint[];
   /** Motto 80 link: its reading at shot start is the shot's grind */
@@ -149,28 +146,25 @@ export function useShotRecord({ demo, profiles, recipe, brewing, settled, data, 
       }
     }
     if (!ended) return;
-    // Rate it later, when the piston is back (see the next effect): until then the
+    // Rate it once Purge is pressed (see the next effect): until then the
     // chart and the glass stay in view while the crema settles
     rateDueRef.current = true;
-    setTimeout(() => {
-      if (!rateDueRef.current) return;
-      rateDueRef.current = false;
-      setRateOpen(true);
-    }, RATE_FALLBACK_MS);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     shotFoundRef.current = waitForShot();
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
 
-  // Rating popup: when the Purge button shows (or the machine is idle) after a shot.
-  // Declared after the effect above, so a shot that ends straight into Purge is caught too.
+  // Rating popup: only once Purge is pressed after a shot (on the Station or on the
+  // machine), i.e. when the machine stops waiting for the purge tap
+  const wasPurgeAskedRef = useRef(false);
   useEffect(() => {
-    if (!settled || !rateDueRef.current) return;
+    const pressed = wasPurgeAskedRef.current && !purgeAsked;
+    wasPurgeAskedRef.current = purgeAsked;
+    if (!pressed || !rateDueRef.current) return;
     rateDueRef.current = false;
-    // A short pause, so the Purge button is seen first
-    setTimeout(() => setRateOpen(true), 800);
-  }, [settled]);
+    setRateOpen(true);
+  }, [purgeAsked]);
 
   return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating };
 }

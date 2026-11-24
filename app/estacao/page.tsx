@@ -87,8 +87,8 @@ export default function StationPage() {
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
     useShotRecord({
       demo, profiles, recipe, brewing, data, linkRef, setError,
-      // Piston back after the shot: the Purge button is showing, or the machine went idle
-      settled: !brewing && (isIdle(status) || (isWaitingForUser(status) && /purge/i.test(status?.name ?? ""))),
+      // The machine is waiting for the purge tap after the shot
+      purgeAsked: !brewing && isWaitingForUser(status) && /purge/i.test(status?.name ?? ""),
     });
 
   useEffect(() => {
