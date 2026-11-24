@@ -16,221 +16,73 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Play,
-  Moon, Scale, Square, Sun, Wind,
+  ArrowUpToLine, Droplets, Flame, Heater, Loader2, Play, Scale, Square, Wind,
 } from "lucide-react";
-import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
-import { ProfilePicker } from "@/components/profile-picker";
+import { ShotCharts, HeatingProgress, COLORS, type ShotPoint } from "@/components/estacao-charts";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
-import { WheelPicker } from "@/components/wheel-picker";
-import { ShotRating, type Face, type PlanChoice } from "@/components/shot-rating";
+import { ShotRating } from "@/components/shot-rating";
 import { SlideToStart } from "@/components/slide-to-start";
-import { getShotNote, saveShotNote } from "@/lib/shot-notes";
-import { demoShot } from "@/lib/demo-shot";
-import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
-import {
-  acknowledgeNotification, executeAction, getHistory, getShotRating, rateShot, updateSettings, getNotifications, getSettings, listProfiles, loadProfileInline,
-  type MachineNotification,
-} from "@/lib/machine-api";
 import { MachineNotice } from "@/components/machine-notice";
 import { StageNow } from "@/components/profile-program-view";
+import { RecentShots } from "@/components/recent-shots";
+import { RecipePanel } from "@/components/station/recipe-panel";
+import { Readout, SmallButton } from "@/components/station/readout";
+import { StationHeader } from "@/components/station/station-header";
+import { demoShot } from "@/lib/demo-shot";
+import { refreshNow } from "@/lib/machine-socket";
+import { executeAction, getHistory, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
+import { isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
 import {
-  isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater,
-} from "@/lib/brew-state";
-import {
-  type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, MAX_FINAL_WEIGHT, extractionYield, tdsText, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  type Recipe, DEFAULT_RECIPE, beverageWeight, buildShotProfile, formatRatio, loadRecipe, MAX_FINAL_WEIGHT,
+  maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl,
+  sortByMachineOrder, baseName, grindText, grinderFields, isMotto80, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
-import { findLastShotForCoffee, findNewShot, linkShot, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
-import { RecentShots } from "@/components/recent-shots";
-import { BackupButton } from "@/components/backup-panel";
-import { applyPlan, clearPlan, loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
-import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
-import { DifluidLink, type DifluidState } from "@/lib/difluid";
-import type { ActionType, LiveStatus, LiveTemperatures, Profile, ShotEntry } from "@/lib/types";
-
-/**
- * Color themes, applied as CSS variables on the Station root: light (the
- * official app's paper with yellow and black) and dark bumblebee (black and
- * yellow). Every Station color reads these variables.
- */
-const THEMES = {
-  light: {
-    // Bumblebee on paper: solid yellow fills with black text; darker amber for text and lines
-    "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#8a6200",
-    "--primary": "#ffc400", "--on-primary": "#111111", "--stop": "#d62828",
-    "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#8a6200",
-    "--h0": "#8a6200", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
-    "--h5": "#1d4ed8", "--h6": "#7aa2f7",
-  },
-  dark: {
-    "--paper": "#0a0a0a", "--ink": "#fafafa", "--accent": "#ffc400",
-    "--primary": "#ffc400", "--on-primary": "#0a0a0a", "--stop": "#ef4444",
-    "--heat": "#ff8a00", "--water": "#38bdf8", "--weight": "#38bdf8", "--grav": "#ff8a00", "--temp": "#f43f5e",
-    "--h0": "#ff8a00", "--h1": "#ffe066", "--h2": "#ffc400", "--h3": "#f43f5e", "--h4": "#c084fc",
-    "--h5": "#38bdf8", "--h6": "#2dd4bf",
-  },
-} as const;
-type ThemeName = keyof typeof THEMES;
-
-/** Group/external temperatures from the machine's "sensors" event (names vary by firmware). */
-function groupTempsFor(g: Partial<LiveTemperatures>) {
-  const r = g as Record<string, unknown>;
-  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-  return {
-    barUp: num(r.t_bar_up), barMidUp: num(r.t_bar_mid_up ?? r.t_bar_mu),
-    barMidDown: num(r.t_bar_mid_down ?? r.t_bar_md), barDown: num(r.t_bar_down),
-    ext1: num(r.t_external_1 ?? r.t_ext_1), ext2: num(r.t_external_2 ?? r.t_ext_2),
-  };
-}
-
-/** Gravimetric flow (g/s) from the last ~1 s of scale readings (fallback only). */
-function gravFlow(samples: { t: number; w: number }[]): number | null {
-  if (samples.length < 2) return null;
-  const last = samples[samples.length - 1];
-  const first = samples.find((x) => last.t - x.t <= 1200) ?? samples[0];
-  const dt = (last.t - first.t) / 1000;
-  if (dt < 0.3) return null;
-  return Math.max(0, (last.w - first.w) / dt);
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  idle: "Idle",
-  heating: "Heating",
-  "click to start": "Ready to brew",
-  "pour water and click to continue": "Add water",
-  "click to purge": "Ready to purge",
-  purge: "Purging",
-  home: "Raising",
-  retracting: "Retracting",
-  "closing valve": "Closing valve",
-  "starting...": "Starting",
-};
-
-function statusLabel(s: LiveStatus | null, connected: boolean): string {
-  if (!connected) return "Connecting…";
-  if (!s) return "Waiting for machine…";
-  if (isExtracting(s)) return s.name ? `Brewing · ${s.name}` : "Brewing";
-  return STATUS_LABELS[(s.name ?? "").toLowerCase()] ?? s.name ?? "—";
-}
-
-function fmtClock(sec: number): string {
-  const s = Math.max(0, Math.round(sec));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-function fmt(v: number | null | undefined, digits = 1): string {
-  return v == null || Number.isNaN(v) ? "—" : v.toFixed(digits);
-}
-
-// ── Keep the tablet screen on, and the page from scrolling ─────────────────────
-
-function useStationScreen() {
-  useEffect(() => {
-    const html = document.documentElement;
-    const prev = [html.style.overflow, document.body.style.overflow];
-    html.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-
-    type Sentinel = { release: () => Promise<void> };
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<Sentinel> } };
-    let lock: Sentinel | null = null;
-    let cancelled = false;
-    const acquire = async () => {
-      if (!nav.wakeLock) return;
-      try {
-        const l = await nav.wakeLock.request("screen");
-        if (cancelled) l.release().catch(() => {});
-        else lock = l;
-      } catch { /* not allowed (e.g. page hidden) — retried on visibility */ }
-    };
-    const onVisible = () => { if (document.visibilityState === "visible") acquire(); };
-    acquire();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisible);
-      lock?.release().catch(() => {});
-      [html.style.overflow, document.body.style.overflow] = prev;
-    };
-  }, []);
-}
+import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee } from "@/lib/coffee-history";
+import { applyPlan, clearPlan, loadPlan } from "@/lib/next-plan";
+import { bluetoothSupported } from "@/lib/motto80";
+import { THEMES, fmt, fmtClock, statusLabel, type ThemeName } from "@/lib/station/format";
+import { useStationScreen } from "@/lib/station/use-station-screen";
+import { useMachineNotices } from "@/lib/station/use-machine-notices";
+import { useMachineLive } from "@/lib/station/use-machine-live";
+import { useGrinder } from "@/lib/station/use-grinder";
+import { useDifluid } from "@/lib/station/use-difluid";
+import { useShotRecord } from "@/lib/station/use-shot-record";
+import type { ActionType, Profile } from "@/lib/types";
 
 export default function StationPage() {
   useRequireConnection();
   useStationScreen();
 
-  const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState<LiveStatus | null>(null);
-  const [preheatLeft, setPreheatLeft] = useState(0);
-  const [data, setData] = useState<ShotPoint[]>([]);
-  /** Shot points collect here and reach the chart at most ~4×/s (see flush effect). */
-  const dataRef = useRef<ShotPoint[]>([]);
-  const dataDirtyRef = useRef(false);
-  const [grav, setGrav] = useState<number | null>(null);
   const [targetWeight, setTargetWeight] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [demoEnd, setDemoEnd] = useState<ShotPoint | null>(null);
   const [demoHeat, setDemoHeat] = useState(false);
-  const [heatSamples, setHeatSamples] = useState<HeatPoint[]>([]);
-  const heatStartRef = useRef<number | null>(null);
-  /** From the first "heating" until extraction starts (or the machine goes idle). */
-  const preShotRef = useRef(false);
-  const [preShot, setPreShot] = useState(false);
   /** Auto brew: off by default and on every page load, on purpose. */
   const [autoBrew, setAutoBrew] = useState(false);
   const autoBrewRef = useRef(false);
-  const autoFiredRef = useRef(false);
-  /** Latest group temperatures from the machine's "sensors" event. */
-  const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
-  /** Last temperature target the machine reported (shown as "set" during the shot). */
-  const [setTemp, setSetTemp] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState<ActionType | "load" | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
-  /** Last shot of the coffee picked in the recipe (shown under the chart while idle) */
-  /** Last shots of the coffee in the recipe, for the idle screen (null while loading) */
-  const [recentShots, setRecentShots] = useState<CoffeeLastShot[] | null>(null);
-  /** What was decided after the coffee's last shot, shown over its shots */
-  const [nextPlan, setNextPlan] = useState<NextPlan | null>(null);
-  /** Bluetooth link to the Motto 80: the grind fields follow it while it's on */
-  const [grinderLink, setGrinderLink] = useState<LinkState>("off");
-  /** Stars and notes popup after a shot */
-  const [rateOpen, setRateOpen] = useState(false);
-  const shotStartedAtRef = useRef(0);
-  /** The machine's newest shot number before this shot, to tell the new one apart */
-  const keyBeforeShotRef = useRef<number | null>(null);
-  /** The shot that just ended, once the machine has saved it */
-  const shotFoundRef = useRef<Promise<ShotEntry | null> | null>(null);
-  /** DiFluid R2 refractometer (Bluetooth): its readings fill the TDS field */
-  const difluidRef = useRef<DifluidLink | null>(null);
-  const [difluid, setDifluid] = useState<DifluidState>("off");
-  const [deviceTds, setDeviceTds] = useState<{ value: number; at: number } | null>(null);
-  const linkRef = useRef<Motto80Link | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
   /** Light Swiss or dark bumblebee, remembered on this device */
   const [theme, setTheme] = useState<ThemeName>("light");
-  /** Plot every temperature sensor on the shot chart (remembered on this device). */
-  /** Machine messages waiting for an answer (e.g. motor strain), oldest first. */
-  const [notices, setNotices] = useState<MachineNotification[]>([]);
-  const [noticeBusy, setNoticeBusy] = useState(false);
-  const demoNoticeRef = useRef(false);
-  const answeredRef = useRef(new Set<string>());
-
-  const weightSamplesRef = useRef<{ t: number; w: number }[]>([]);
-  const shotStartRef = useRef<number | null>(null);
-  /** Latest status, for decisions made outside render (manual Brew vs auto brew) */
-  const statusRef = useRef<LiveStatus | null>(null);
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   const startedAtRef = useRef(0);
-  /** Whether this shot's x axis follows the machine's clock (decided at shot start). */
-  const machineClockRef = useRef(false);
+
+  const { notices, noticeBusy, respondToNotice, onSocketNotice, showDemoNotice } = useMachineNotices(setError);
+  const {
+    connected, status, statusRef, preheatLeft, data, setData, grav, heatSamples, setHeatSamples,
+    preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef,
+  } = useMachineLive({ onNotice: onSocketNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef });
+  const { grinderLink, linkRef, connectGrinder, toggleGrinder, live: grinderLive } =
+    useGrinder({ grinder: recipe.grinder, setRecipe, setError, demo });
+  const { difluid, deviceTds, difluidTap } = useDifluid(setError);
+  const brewing = isExtracting(status);
+  const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
+    useShotRecord({ demo, profiles, recipe, brewing, data, linkRef, setError });
 
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
@@ -238,15 +90,7 @@ export default function StationPage() {
     if (localStorage.getItem("metbarista_theme") === "dark") setTheme("dark");
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
-    if (demoParam === "notice") {
-      // /estacao/?demo=notice previews a machine message (answering it here sends nothing)
-      demoNoticeRef.current = true;
-      setNotices([{
-        id: "demo",
-        message: "Brewing has been disabled because of a recent high strain on the motor, let it rest for 5 more minutes",
-        responses: ["Ok"],
-      }]);
-    }
+    if (demoParam === "notice") showDemoNotice();
     if (demoParam === "heat") {
       // /estacao/?demo=heat previews the heating view
       setDemoHeat(true);
@@ -273,6 +117,8 @@ export default function StationPage() {
     Promise.all([listProfiles(), getSettings().catch(() => null)])
       .then(([list, settings]) => setProfiles(sortByMachineOrder(list, settings?.profile_order)))
       .catch((e) => setError(`Couldn't read profiles: ${e instanceof Error ? e.message : e}`));
+  // Runs once: the hooks' setters it calls don't change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const baseProfile = pickBaseProfile(profiles, recipe.baseProfileId);
@@ -284,160 +130,6 @@ export default function StationPage() {
       return next;
     });
   }
-
-  useEffect(() => {
-    // ?demo pages are offline previews: no live data mixed into the fake shot
-    if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
-    connectSocket({
-      connect: () => setConnected(true),
-      error: () => setConnected(false),
-      heater: (sec) => setPreheatLeft(sec),
-      disconnect: () => { setConnected(false); setPreheatLeft(0); },
-      notification: (n) => answeredRef.current.has(n.id) ? undefined : setNotices((prev) => prev.some((x) => x.id === n.id)
-        ? prev.map((x) => (x.id === n.id ? { ...x, ...n } : x))
-        : [...prev, n]),
-      temperatures: (g) => { groupTempsRef.current = g; },
-      status: (s) => {
-        setStatus(s);
-        statusRef.current = s;
-        setConnected(true);
-        if (s.setpoints?.temperature != null) setSetTemp(s.setpoints.temperature);
-        const now = Date.now();
-        const w = s.sensors?.w;
-        if (w != null) {
-          weightSamplesRef.current = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
-        }
-        // Pre-shot session: heating → (water) → ready, until extraction starts
-        if (isIdle(s) || isExtracting(s)) {
-          preShotRef.current = false;
-          if (isIdle(s)) heatStartRef.current = null;
-        } else if (!preShotRef.current && (isHeating(s) || isWaitingForWater(s)
-            || (s.name ?? "").toLowerCase() === "click to start")) {
-          preShotRef.current = true;
-          autoFiredRef.current = false;
-          dataRef.current = [];
-          dataDirtyRef.current = true;
-          setElapsed(0);
-          // Shot started from the dial, not from here: the old target line doesn't apply
-          if (now - startedAtRef.current > 60_000) setTargetWeight(null);
-        }
-        setPreShot(preShotRef.current);
-
-        // Auto brew: tap Brew once when the machine is ready, if the user asked for it
-        if (autoBrewRef.current && preShotRef.current && !autoFiredRef.current
-            && (s.name ?? "").toLowerCase() === "click to start") {
-          autoFiredRef.current = true;
-          setBusy("continue");
-          executeAction("continue")
-            .then(refreshNow)
-            .catch((e) => setError(`Auto brew: ${e instanceof Error ? e.message : e}`))
-            .finally(() => setBusy(null));
-        }
-
-        // Every thermometer, one point per second
-        if (s.sensors?.t != null) {
-          const temp = s.sensors.t;
-          const reading = { temp, ...groupTempsFor(groupTempsRef.current) };
-          // Curve for the whole pre-shot session (heating view)
-          if (preShotRef.current) {
-            if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
-            const t = (now - heatStartRef.current) / 1000;
-            setHeatSamples((prev) =>
-              prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), { t, ...reading }]);
-          }
-        }
-
-        // Machine's own gravimetric flow; estimate it only if absent
-        const g = isExtracting(s) ? (s.sensors?.g ?? gravFlow(weightSamplesRef.current)) : null;
-        setGrav(g);
-
-        if (isExtracting(s)) {
-          setPreheatLeft(0);
-          if (shotStartRef.current == null) {
-            // New shot: start a fresh chart
-            shotStartRef.current = now;
-            // Trust the machine's shot clock only if it restarted with this shot
-            machineClockRef.current = typeof s.time === "number" && s.time >= 0 && s.time < 3000;
-            dataRef.current = [];
-            dataDirtyRef.current = true;
-          }
-          const t = machineClockRef.current && typeof s.time === "number" ? s.time : now - shotStartRef.current;
-          setElapsed(t / 1000);
-          dataRef.current = [
-            ...dataRef.current.slice(-3000),
-            {
-              t,
-              pressure: s.sensors?.p ?? null,
-              flow: s.sensors?.f ?? null,
-              grav: g,
-              weight: w != null && w > 0 ? w : null,
-              temp: s.sensors?.t ?? null,
-              ...groupTempsFor(groupTempsRef.current),
-              stage: s.name ?? null,
-              pTarget: s.setpoints?.pressure ?? null,
-              fTarget: s.setpoints?.flow ?? null,
-            },
-          ];
-          dataDirtyRef.current = true;
-        } else if (shotStartRef.current != null) {
-          // Shot ended: keep the chart and final time on screen until the next one
-          shotStartRef.current = null;
-        }
-      },
-    }).catch((e) => { setConnected(false); setError(String(e)); });
-    return () => { disconnectSocket(); };
-  }, []);
-
-  // Machine messages: load what is pending, then re-check every 5 s so a
-  // message answered on the dial also closes here (read only)
-  useEffect(() => {
-    if (!getSavedIp()) return;
-    let alive = true;
-    if (new URLSearchParams(window.location.search).has("demo")) return;
-    const check = () => {
-      if (demoNoticeRef.current) return;
-      getNotifications()
-        .then((list) => {
-          if (alive) setNotices((Array.isArray(list) ? list : []).filter((n) => !answeredRef.current.has(n.id)));
-        })
-        .catch(() => { /* machine unreachable: keep what we have */ });
-    };
-    check();
-    const id = setInterval(check, 5000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
-
-  async function respondToNotice(n: MachineNotification, response: string) {
-    if (n.id === "demo") { setNotices((prev) => prev.filter((x) => x.id !== n.id)); return; }
-    setNoticeBusy(true);
-    try {
-      answeredRef.current.add(n.id);
-      await acknowledgeNotification(n.id, response);
-    } catch (e) {
-      answeredRef.current.delete(n.id);
-      setError(`Couldn't answer the machine message: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      // Answered: drop it here (a failed answer stays, and the 5 s check brings it back)
-      if (answeredRef.current.has(n.id)) setNotices((prev) => prev.filter((x) => x.id !== n.id));
-      setNoticeBusy(false);
-    }
-  }
-
-  // Push collected shot points to the chart a few times per second
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!dataDirtyRef.current) return;
-      dataDirtyRef.current = false;
-      setData(dataRef.current);
-    }, 250);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const onChange = () => setFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
 
   async function run(action: ActionType) {
     if (action === "continue" && (statusRef.current?.name ?? "").toLowerCase() === "click to start") {
@@ -493,18 +185,6 @@ export default function StationPage() {
     }
   }
 
-  /** Shows the last shots on the idle screen, then their faces from the machine */
-  function showRecent(list: CoffeeLastShot[]) {
-    setRecentShots(list);
-    if (demo) return;
-    for (const shot of list) {
-      if (shot.dbKey == null) continue;
-      getShotRating(shot.dbKey)
-        .then((face) => setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.dbKey ? { ...x, face } : x) ?? cur))
-        .catch(() => { /* no face shown */ });
-    }
-  }
-
   /** Coffee picked from the recent list: bring back its last shot (recipe, grind, time, score). */
   async function pickCoffee(name: string) {
     if (demo) return;
@@ -520,7 +200,7 @@ export default function StationPage() {
         // Last shot's recipe with what was decided after tasting it
         const next = plan ? applyPlan(found.patch, plan) : found.patch;
         // Linked to the grinder: its live settings win (the planned grind is a reminder)
-        const live = linkRef.current != null && grinderLinkRef.current !== "off";
+        const live = grinderLive();
         const recipeOnly = { ...next };
         for (const k of ["grinder", "grindUm", "grindSetting", "feed", "rpm"] as const) delete recipeOnly[k];
         updateRecipe(live ? recipeOnly : next);
@@ -530,176 +210,6 @@ export default function StationPage() {
     }
   }
 
-  const grinderLinkRef = useRef<LinkState>("off");
-  const GRINDER_WANTED_KEY = "metbarista_grinder_wanted";
-  /** Opens the Bluetooth link to the Motto 80 (read only); the grind fields then follow the grinder. */
-  function connectGrinder(silent = false) {
-    if (!linkRef.current) {
-      linkRef.current = new Motto80Link(
-        (r) => setRecipe((cur) => {
-          // Another grinder chosen: leave its fields alone
-          if (!isMotto80(cur.grinder)) return cur;
-          const next = { ...cur, grinder: cur.grinder ?? "Motto 80", grindUm: r.bladeGap, feed: r.feedingRpm, rpm: r.grindRpm };
-          saveRecipe(next);
-          return next;
-        }),
-        (state, err) => {
-          grinderLinkRef.current = state;
-          setGrinderLink(state);
-          // Remembered, so the Station reconnects by itself when reopened
-          if (state === "on") localStorage.setItem(GRINDER_WANTED_KEY, "1");
-          if (err) setError(`Grinder: ${err}`);
-        },
-      );
-    }
-    linkRef.current.connect(silent).catch(() => { /* reported through the state callback */ });
-  }
-
-  // Reconnect by itself: when the Station opens and when the tablet wakes up
-  useEffect(() => {
-    const again = () => {
-      if (document.visibilityState !== "visible" || demo) return;
-      if (localStorage.getItem(GRINDER_WANTED_KEY) !== "1" || !bluetoothSupported()) return;
-      if (!isMotto80(loadRecipe().grinder) || grinderLinkRef.current === "on" || grinderLinkRef.current === "connecting") return;
-      connectGrinder(true);
-    };
-    again();
-    document.addEventListener("visibilitychange", again);
-    return () => document.removeEventListener("visibilitychange", again);
-  }, [demo]);
-
-  // Another grinder chosen: drop the Motto 80 link (frees it for the BOOKOO app)
-  useEffect(() => {
-    if (!isMotto80(recipe.grinder) && linkRef.current && grinderLinkRef.current !== "off") linkRef.current.disconnect();
-  }, [recipe.grinder]);
-
-  function toggleGrinder() {
-    if (!bluetoothSupported()) {
-      setError("Grinder: this browser has no Bluetooth for web pages (use Chrome on the tablet)");
-      return;
-    }
-    if (grinderLink === "off" || grinderLink === "lost") {
-      // "lost" waiting for a tap: this tap opens Chrome's list
-      if (grinderLink === "lost") linkRef.current?.forget();
-      connectGrinder();
-    } else {
-      localStorage.removeItem(GRINDER_WANTED_KEY);
-      linkRef.current?.disconnect();
-    }
-  }
-
-  /** Face → the machine (shows in the official app); notes → the Shots page's Tasting Notes */
-  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null, tds: number | null) {
-    setRateOpen(false);
-    if (demo) return;
-    // What to change next time, kept for this coffee
-    if (plan && recipe.coffee?.trim()) {
-      const saved: NextPlan = { ...plan, coffee: recipe.coffee.trim(), at: Date.now() };
-      savePlan(saved);
-      setNextPlan(saved);
-    }
-    // The taste also goes in the shot's notes (Shots page)
-    const shotWeight = data[data.length - 1]?.weight ?? 0;
-    const note = [
-      plan ? TASTE_LABEL[plan.taste] : "",
-      tds != null ? tdsText(tds, extractionYield(tds, shotWeight, recipe.dose)) : "",
-      rawNote,
-    ].filter(Boolean).join(" · ");
-    // The shot is found by its number once the machine saves it (see waitForShot)
-    const shot = await (shotFoundRef.current ??= waitForShot());
-    if (!shot) {
-      setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
-      return;
-    }
-    if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
-    if (face) {
-      try {
-        await rateShot(shot.db_key, face);
-        setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.db_key ? { ...x, face } : x) ?? cur);
-      } catch (e) {
-        setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-  }
-
-  /**
-   * Waits (up to ~30 s) for the machine to save the shot that just ended, then
-   * ties it by number to its coffee and grind and refreshes the idle list.
-   */
-  async function waitForShot(): Promise<ShotEntry | null> {
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await new Promise((r) => setTimeout(r, 3000));
-      try {
-        const shot = findNewShot(await getHistory(5), shotStartedAtRef.current, keyBeforeShotRef.current);
-        if (!shot) continue;
-        linkShot(shot);
-        const h = await getHistory(60).catch(() => [shot]);
-        rememberLatestShot(h, profiles, shot);
-        showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
-        return shot;
-      } catch { /* machine busy: try again */ }
-    }
-    return null;
-  }
-
-  /** First tap connects to the R2 (Chrome's list the first time); then it asks for a reading */
-  function difluidTap() {
-    if (!difluidRef.current) {
-      difluidRef.current = new DifluidLink(
-        (value) => setDeviceTds({ value, at: Date.now() }),
-        (state, err) => { setDifluid(state); if (err) setError(`DiFluid: ${err}`); },
-      );
-    }
-    const link = difluidRef.current;
-    if (link.connected) link.measure().catch((e) => setError(`DiFluid: ${e instanceof Error ? e.message : String(e)}`));
-    else link.connect();
-  }
-
-  function toggleFullscreen() {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else document.documentElement.requestFullscreen().catch(() => {});
-  }
-
-  const brewing = isExtracting(status);
-  // When the Station opens: last shots of the coffee in the recipe, or the machine's latest shots
-  const lastLoadedRef = useRef(false);
-  useEffect(() => {
-    if (demo || lastLoadedRef.current || profiles.length === 0) return;
-    lastLoadedRef.current = true;
-    getHistory(60).then((h) => {
-      showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
-      setNextPlan(loadPlan(loadRecipe().coffee));
-    }).catch(() => setRecentShots([]));
-  // showRecent only uses state setters
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demo, profiles]);
-
-  const wasBrewingRef = useRef(false);
-  // Shot starts: record what the grinder had at that moment.
-  // Shot over: record it under its coffee, so its last shot is found even months later.
-  useEffect(() => {
-    const started = !wasBrewingRef.current && brewing;
-    const ended = wasBrewingRef.current && !brewing;
-    wasBrewingRef.current = brewing;
-    if (demo) return;
-    if (started) {
-      shotStartedAtRef.current = Date.now();
-      shotFoundRef.current = null;
-      keyBeforeShotRef.current = null;
-      getHistory(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
-      const g = linkRef.current?.connected ? linkRef.current.latest : null;
-      if (g && isMotto80(recipe.grinder)) {
-        recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));
-      }
-    }
-    if (!ended) return;
-    // Rate it: once the cup is out (a short pause so the end of the chart shows first)
-    setTimeout(() => setRateOpen(true), 1500);
-    // Not cancelled on re-render: the record must happen once the machine has saved the shot
-    shotFoundRef.current = waitForShot();
-  // showRecent only uses state setters
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brewing, demo, profiles, recipe.grinder]);
   const needsWater = isWaitingForWater(status);
   const waiting = isWaitingForUser(status) && !needsWater;
   const heating = isHeating(status);
@@ -765,32 +275,14 @@ export default function StationPage() {
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
 
-      {/* ── Top bar ── */}
-      <header className="flex shrink-0 items-center gap-2.5">
-        <Link href="/dashboard" aria-label="Back"
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <p className="min-w-0 flex-1 truncate text-lg font-semibold">{baseName(status?.loaded_profile ?? "—")}</p>
-        <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${pillColor}`}>
-          <span className={`h-2 w-2 rounded-full bg-current ${brewing || heating || waiting || needsWater || preheating ? "animate-pulse" : ""}`} />
-          {preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
-        </span>
-        <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
-          onClick={() => setTheme((t) => {
-            const next = t === "dark" ? "light" : "dark";
-            localStorage.setItem("metbarista_theme", next);
-            return next;
-          })}
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </button>
-        <BackupButton />
-        <button onClick={toggleFullscreen} aria-label="Full screen"
-          className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
-          {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-        </button>
-      </header>
+      <StationHeader title={baseName(status?.loaded_profile ?? "—")}
+        statusText={preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
+        pillClass={pillColor} pulsing={brewing || heating || waiting || needsWater || preheating}
+        theme={theme} onToggleTheme={() => setTheme((t) => {
+          const next = t === "dark" ? "light" : "dark";
+          localStorage.setItem("metbarista_theme", next);
+          return next;
+        })} />
 
       {rateOpen && (() => {
         const last = data[data.length - 1];
@@ -951,219 +443,3 @@ export default function StationPage() {
     </div>
   );
 }
-
-function Readout({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
-  return (
-    <div className="min-w-0 overflow-hidden border-t-2 border-[var(--ink)] pt-1.5">
-      <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">{label}</p>
-      <p className="text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight tabular-nums leading-tight whitespace-nowrap" style={{ color }}>
-        {value}
-        {unit && value !== "—" && <span className="ml-1 text-xs font-medium text-[var(--ink)]/65">{unit}</span>}
-      </p>
-    </div>
-  );
-}
-
-function SmallButton({
-  icon: Icon, label, onClick, disabled, busy, active,
-}: {
-  icon: React.ElementType; label: string; onClick: () => void; disabled: boolean; busy: boolean; active?: boolean;
-}) {
-  return (
-    <button onClick={onClick} disabled={disabled} title={active ? "Preheating. Tap to stop." : undefined}
-      className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-sm font-semibold transition-all active:scale-95 disabled:opacity-30 ${
-        active
-          ? "border-[var(--ink)]/30 bg-[var(--ink)]/[0.06] text-[var(--accent)]"
-          : "border-[var(--ink)]/20 bg-transparent text-[var(--ink)]/80"
-      }`}>
-      {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Icon className={`h-5 w-5 ${active ? "animate-pulse" : ""}`} />}
-      {label}
-    </button>
-  );
-}
-
-/** Wheel values: dose 5–30 g in 0.5 steps, temperature 70–100 °C in 1 °C steps */
-const DOSES = Array.from({ length: 51 }, (_, i) => 5 + i * 0.5);
-const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
-
-function nearest(items: number[], v: number): number {
-  return items.reduce((best, x) => (Math.abs(x - v) < Math.abs(best - v) ? x : best), items[0]);
-}
-
-function fmtDose(v: number): string {
-  return v.toFixed(1).replace(/\.0$/, "");
-}
-
-function RecipePanel({
-  profiles, base, recipe, editable, onChange, onPickCoffee, onToggleGrinder, grinderLink,
-  autoBrew, onAutoBrew,
-}: {
-  profiles: Profile[]; base: Profile | null; recipe: Recipe; editable: boolean;
-  onChange: (patch: Partial<Recipe>) => void;
-  onPickCoffee: (name: string) => void;
-  onToggleGrinder: () => void;
-  grinderLink: LinkState;
-  autoBrew: boolean; onAutoBrew: (on: boolean) => void;
-}) {
-  // Recent beans come from localStorage: loaded when the field gets focus
-  const [beans, setBeans] = useState<string[]>([]);
-  const [grinders, setGrinders] = useState<GrinderFields[]>([]);
-  /** Which wheel is open (dose, ratio or temperature) */
-  const [wheel, setWheel] = useState<"dose" | "ratio" | "temperature" | null>(null);
-  /** Full list of recent coffees (the keyboard's suggestions only show matches) */
-  const [beansOpen, setBeansOpen] = useState(false);
-  const motto = isMotto80(recipe.grinder);
-  return (
-    <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
-      <ProfilePicker
-        profiles={profiles}
-        selected={base}
-        disabled={!editable}
-        onSelect={(id) => onChange({ baseProfileId: id })}
-      />
-      {/* Dose, ratio and temperature: each tile opens its own wheel; the value applies when the wheel stops */}
-      <div className="grid grid-cols-3 gap-2">
-        {([
-          { key: "dose", label: "Dose", val: fmtDose(recipe.dose), unit: "g", wheelLabel: "Dose (g)", items: DOSES, format: fmtDose },
-          { key: "ratio", label: overCapacity(recipe) ? `⚠ max ~${maxYieldFor(recipe.dose)} g` : "Ratio", val: formatRatio(recipe.ratio), unit: `= ${beverageWeight(recipe)} g`, wheelLabel: "Ratio",
-            items: RATIO_PRESETS, format: (v: number) => `${formatRatio(v)}${overCapacity({ dose: recipe.dose, ratio: v }) ? " ⚠" : ""}` },
-          { key: "temperature", label: "Temp", val: String(recipe.temperature), unit: "°C", wheelLabel: "Temp (°C)", items: TEMPS, format: String },
-        ] as const).map((t) => (
-          <div key={t.key} className="relative min-w-0">
-            <button type="button" disabled={!editable} onClick={() => setWheel(wheel === t.key ? null : t.key)}
-              className={`flex h-16 landscape:h-12 w-full min-w-0 flex-col items-center justify-center rounded-md border active:scale-[0.98] disabled:opacity-60 ${
-                wheel === t.key ? "border-[var(--ink)] bg-[var(--ink)]/[0.06]" : "border-[var(--ink)]/20"}`}>
-              {/* Over the machine's capacity: the ratio tile says how far the shot can go */}
-              <span className={`text-[11px] font-semibold uppercase tracking-wider ${
-                t.key === "ratio" && overCapacity(recipe) ? "text-[var(--stop)]" : "text-[var(--ink)]/70"}`}>{t.label}</span>
-              <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
-                {t.val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{t.unit}</span>
-              </span>
-            </button>
-            {wheel === t.key && (
-              <>
-                {/* Tap outside closes */}
-                <div className="fixed inset-0 z-40" onClick={() => setWheel(null)} />
-                <div className="absolute bottom-full left-0 right-0 z-50 mb-1 landscape:bottom-auto landscape:top-full landscape:mb-0 landscape:mt-1 rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] px-1 py-2 shadow-lg">
-                  <WheelPicker label={t.wheelLabel} items={t.items as readonly number[] as number[]}
-                    value={nearest(t.items as readonly number[] as number[], recipe[t.key])} format={t.format as (v: number) => string}
-                    onChange={(v) => onChange({ [t.key]: v } as Partial<Recipe>)}
-                    onDone={() => setWheel(null)} />
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-      {/* Beans and grinder: sent with the shot, so they show in shot history */}
-      <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
-        <div className="relative flex min-w-0 gap-1.5">
-        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans"
-          // Whole name selected: typing replaces it at once (no backspacing)
-          onFocus={(e) => { setBeans(recentBeans()); e.currentTarget.select(); }}
-          onChange={(e) => {
-            const v = e.target.value;
-            onChange({ coffee: v });
-            // Picked from the list (or typed in full): bring back that coffee's last shot
-            const hit = beans.find((b) => b.toLowerCase() === v.trim().toLowerCase());
-            if (hit) onPickCoffee(hit);
-          }} aria-label="Coffee"
-          className="h-11 landscape:h-9 min-w-0 flex-1 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
-        <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
-        {/* All recent coffees, most recently used first */}
-        <button type="button" disabled={!editable} aria-label="Recent coffees" title="Recent coffees"
-          onClick={() => { setBeans(recentBeans()); setBeansOpen((o) => !o); }}
-          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 shrink-0 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
-            beansOpen ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20 text-[var(--ink)]/80"}`}>
-          <ChevronDown className={`h-5 w-5 transition-transform ${beansOpen ? "rotate-180" : ""}`} />
-        </button>
-        {beansOpen && (
-          <>
-            {/* Tap outside closes */}
-            <div className="fixed inset-0 z-40" onClick={() => setBeansOpen(false)} />
-            <ul className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[50dvh] overflow-y-auto rounded-md border border-[var(--ink)]/30 bg-[var(--paper)] py-1 shadow-lg">
-              {beans.length === 0 ? (
-                <li className="px-3 py-3 text-sm text-[var(--ink)]/70">No coffees yet: they’re added when you start a shot</li>
-              ) : beans.map((b) => (
-                <li key={b}>
-                  <button type="button"
-                    onClick={() => { setBeansOpen(false); onChange({ coffee: b }); onPickCoffee(b); }}
-                    className={`block w-full truncate px-3 py-2.5 text-left text-base active:bg-[var(--ink)]/10 ${
-                      b.toLowerCase() === (recipe.coffee ?? "").trim().toLowerCase() ? "font-bold text-[var(--accent)]" : "text-[var(--ink)]"}`}>
-                    {b}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        </div>
-        <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
-          list="recent-grinders" onFocus={() => setGrinders(recentGrinders())}
-          onChange={(e) => {
-            const v = e.target.value;
-            // Picked from the list: bring back that grinder's last settings
-            const hit = grinders.find((g) => g.grinder?.toLowerCase() === v.trim().toLowerCase());
-            const clear = { grindUm: undefined, grindSetting: undefined, feed: undefined, rpm: undefined };
-            // A new grinder of the other kind starts empty (no Motto 80 rpm on a Niche)
-            const switching = isMotto80(recipe.grinder) !== isMotto80(v);
-            onChange(hit ? { ...clear, ...hit } : switching ? { ...clear, grinder: v } : { grinder: v });
-          }} aria-label="Grinder"
-          className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
-        <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
-        {/* Bluetooth link to the Motto 80 (read only): on = fields follow the grinder; off frees it for the BOOKOO app */}
-        {motto && <button type="button" onClick={onToggleGrinder}
-          aria-label={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
-          title={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
-          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
-            grinderLink === "on"
-              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-              : grinderLink === "lost"
-                ? "animate-pulse border-2 border-[var(--accent)] text-[var(--accent)]"
-                : "border-[var(--ink)]/20 text-[var(--ink)]/80"
-          }`}>
-          {grinderLink === "connecting" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bluetooth className="h-5 w-5" />}
-        </button>}
-      </div>
-      {/* Motto 80: microns, feed and rpm. Other grinders: dial setting and optional rpm. */}
-      <div className={`grid gap-2 ${motto ? "grid-cols-3" : "grid-cols-2"}`}>
-        {(motto
-          ? ([
-            ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
-            ["feed", "feed", 10, 65, GRINDER_DEFAULTS.feed],
-            ["rpm", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
-          ] as const)
-          : ([
-            ["grindSetting", "grind", 0, 10000, null],
-            ["rpm", "rpm (optional)", 0, 5000, null],
-          ] as const)
-        ).map(([key, unit, min, max, def]) => (
-          <label key={key} className="flex h-11 landscape:h-9 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5">
-            <input type="number" inputMode="decimal" step="any" min={min} max={max} disabled={!editable}
-              value={recipe[key] ?? ""} placeholder={def != null ? String(def) : "—"} aria-label={unit}
-              onChange={(e) => {
-                // Not clamped while typing (typing 150 passes through 1 and 15)
-                const v = e.target.value === "" ? undefined : Number(e.target.value);
-                onChange({ [key]: v != null && Number.isFinite(v) ? v : undefined } as Partial<Recipe>);
-              }}
-              onBlur={() => {
-                const v = recipe[key];
-                if (v != null) onChange({ [key]: Math.min(max, Math.max(min, v)) } as Partial<Recipe>);
-              }}
-              className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)]/40 disabled:opacity-60" />
-            <span className="shrink-0 text-xs text-[var(--ink)]/70">{unit}</span>
-          </label>
-        ))}
-      </div>
-      <div className="landscape:text-xs">
-        {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
-          <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
-          <span className="truncate">Auto brew at target temperature</span>
-        </label>
-      </div>
-    </div>
-  );
-}
-
