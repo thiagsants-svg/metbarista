@@ -26,18 +26,18 @@ function StepBar({ current }: { current: Step }) {
       {STEPS.map((s, i) => (
         <div key={s} className="flex items-center gap-2">
           <div className={`flex items-center gap-1.5 text-xs font-medium ${
-            i === idx ? "text-[#ffc400]" : i < idx ? "text-[#fafafa]/40" : "text-[#fafafa]/20"
+            i === idx ? "text-[var(--accent)]" : i < idx ? "text-[var(--ink)]/70" : "text-[var(--ink)]/60"
           }`}>
             <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
-              i === idx ? "border-[#ffc400]/40 bg-[#ffc400]/10 text-[#ffc400]"
-              : i < idx  ? "border-[#4ade80]/40 bg-[#4ade80]/10 text-[#4ade80]"
-              : "border-white/[0.10] text-[#fafafa]/20"
+              i === idx ? "border-[var(--accent)]/50 bg-[var(--primary)]/15 text-[var(--accent)]"
+              : i < idx  ? "border-[var(--accent)]/50 bg-[var(--primary)]/15 text-[var(--ink)]"
+              : "border-[var(--ink)]/15 text-[var(--ink)]/60"
             }`}>
               {i < idx ? "✓" : i + 1}
             </span>
             <span className="hidden sm:inline">{s}</span>
           </div>
-          {i < STEPS.length - 1 && <div className="w-6 h-px bg-white/[0.08]" />}
+          {i < STEPS.length - 1 && <div className="w-6 h-px bg-[var(--ink)]/[0.05]" />}
         </div>
       ))}
     </div>
@@ -77,21 +77,21 @@ function TemplateStep({
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-semibold text-[#fafafa]">What kind of shot?</h2>
-        <p className="text-sm text-[#fafafa]/40 mt-1">Pick a starting point — you can tune every detail in the next step.</p>
+        <h2 className="text-lg font-semibold text-[var(--ink)]">What kind of shot?</h2>
+        <p className="text-sm text-[var(--ink)]/70 mt-1">Pick a starting point — you can tune every detail in the next step.</p>
       </div>
 
       {/* Template cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {TEMPLATES.map((t) => (
           <button key={t.key} onClick={() => onChoose(t)}
-            className="group rounded-2xl border border-white/[0.06] bg-[#141414] p-5 text-left hover:border-white/[0.14] hover:bg-[#1c1c1c] transition-all">
+            className="group rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] p-5 text-left hover:border-[var(--ink)]/30 hover:bg-[var(--ink)]/[0.07] transition-all">
             <div className="flex items-start justify-between gap-2 mb-3">
               <div>
-                <p className="font-semibold text-[#fafafa] group-hover:text-[#ffd23f] transition-colors">{t.label}</p>
-                <p className="text-xs text-[#fafafa]/35 mt-0.5 leading-relaxed">{t.description}</p>
+                <p className="font-semibold text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors">{t.label}</p>
+                <p className="text-xs text-[var(--ink)]/60 mt-0.5 leading-relaxed">{t.description}</p>
               </div>
-              <div className="h-4 w-4 rounded-full shrink-0 mt-0.5 border-2 border-white/[0.10] group-hover:border-[#ffc400]/60 transition-colors" />
+              <div className="h-4 w-4 rounded-full shrink-0 mt-0.5 border-2 border-[var(--ink)]/15 group-hover:border-[var(--accent)]/50 transition-colors" />
             </div>
             <Sparkline template={t} />
           </button>
@@ -99,31 +99,31 @@ function TemplateStep({
       </div>
 
       {/* Basic info */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5 space-y-4">
-        <p className="text-sm font-semibold text-[#fafafa]/60">Basics</p>
+      <div className="rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] p-5 space-y-4">
+        <p className="text-sm font-semibold text-[var(--ink)]/85">Basics</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[#fafafa]/40">Profile name</label>
+            <label className="text-xs text-[var(--ink)]/70">Profile name</label>
             <input value={basics.name} onChange={(e) => setBasics({ ...basics, name: e.target.value })}
-              className="w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#ffc400]/30" />
+              className="w-full rounded-xl border border-[var(--ink)]/15 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]/50" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[#fafafa]/40">Your name (optional)</label>
+            <label className="text-xs text-[var(--ink)]/70">Your name (optional)</label>
             <input value={basics.author} onChange={(e) => setBasics({ ...basics, author: e.target.value })}
               placeholder="Anonymous"
-              className="w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#ffc400]/30 placeholder:text-[#fafafa]/20" />
+              className="w-full rounded-xl border border-[var(--ink)]/15 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]/50 placeholder:text-[var(--ink)]/60" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[#fafafa]/40">Temperature — {basics.temperature}°C</label>
+            <label className="text-xs text-[var(--ink)]/70">Temperature — {basics.temperature}°C</label>
             <input type="range" min={80} max={100} step={1} value={basics.temperature}
               onChange={(e) => setBasics({ ...basics, temperature: Number(e.target.value) })}
-              className="w-full h-1 accent-[#ffc400]" />
+              className="w-full h-1 accent-[var(--ink)]" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[#fafafa]/40">Target weight — {basics.targetWeight}g</label>
+            <label className="text-xs text-[var(--ink)]/70">Target weight — {basics.targetWeight}g</label>
             <input type="range" min={20} max={60} step={1} value={basics.targetWeight}
               onChange={(e) => setBasics({ ...basics, targetWeight: Number(e.target.value) })}
-              className="w-full h-1 accent-[#ffc400]" />
+              className="w-full h-1 accent-[var(--ink)]" />
           </div>
         </div>
       </div>
@@ -147,18 +147,18 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="bg-[var(--paper)]">
       <div className="max-w-5xl mx-auto px-6 py-10">
 
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-[#ffc400]/10 flex items-center justify-center">
-              <Coffee className="h-4 w-4 text-[#ffc400]" />
+            <div className="h-9 w-9 rounded-xl bg-[var(--primary)]/15 flex items-center justify-center">
+              <Coffee className="h-4 w-4 text-[var(--accent)]" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#fafafa]">Create Profile</h1>
-              <p className="text-xs text-[#fafafa]/35">Build a custom extraction recipe</p>
+              <h1 className="text-xl font-bold text-[var(--ink)]">Create Profile</h1>
+              <p className="text-xs text-[var(--ink)]/60">Build a custom extraction recipe</p>
             </div>
           </div>
           <StepBar current={step} />

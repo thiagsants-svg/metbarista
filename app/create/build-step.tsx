@@ -46,10 +46,10 @@ export function BuildStep({ basics, setBasics, stages, setStages, onBack, onNext
   return (
     <div className="space-y-6">
       {/* Live chart */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5">
+      <div className="rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-[#fafafa]">Preview</p>
-          <span className="text-xs font-mono text-[#fafafa]/30">~{totalSec}s total</span>
+          <p className="text-sm font-semibold text-[var(--ink)]">Preview</p>
+          <span className="text-xs font-mono text-[var(--ink)]/60">~{totalSec}s total</span>
         </div>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -58,7 +58,7 @@ export function BuildStep({ basics, setBasics, stages, setStages, onBack, onNext
               tick={{ fontSize: 11, fill: "rgba(250,250,250,0.25)" }} tickLine={false} axisLine={false} />
             <YAxis domain={[0, 12]} width={28}
               tick={{ fontSize: 11, fill: "rgba(250,250,250,0.25)" }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ backgroundColor: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", fontSize: 12 }}
+            <Tooltip contentStyle={{ backgroundColor: "var(--paper)", border: "1px solid color-mix(in srgb, var(--ink) 15%, transparent)", borderRadius: "8px", fontSize: 12 }}
               labelFormatter={(v) => `${(Number(v) / 1000).toFixed(1)}s`}
               formatter={(v) => (typeof v === "number" ? v.toFixed(2) : v)} />
             <Line type="monotone" dataKey="pressure" name="Pressure (bar)" stroke="#60a5fa" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -71,7 +71,7 @@ export function BuildStep({ basics, setBasics, stages, setStages, onBack, onNext
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Stage list */}
         <div className="lg:col-span-2 space-y-3">
-          <p className="text-sm font-semibold text-[#fafafa]/60">Stages</p>
+          <p className="text-sm font-semibold text-[var(--ink)]/85">Stages</p>
           {stages.map((s, i) => (
             <StageCard key={s.id} stage={s} index={i} total={stages.length}
               onChange={(u) => updateStage(i, u)}
@@ -79,38 +79,38 @@ export function BuildStep({ basics, setBasics, stages, setStages, onBack, onNext
               onMove={(d) => moveStage(i, d)} />
           ))}
           <button onClick={addStage}
-            className="w-full rounded-xl border border-dashed border-white/[0.08] py-3 text-sm text-[#fafafa]/30 hover:border-[#ffc400]/30 hover:text-[#ffc400]/60 hover:bg-[#ffc400]/[0.03] transition-all flex items-center justify-center gap-2">
+            className="w-full rounded-xl border border-dashed border-[var(--ink)]/15 py-3 text-sm text-[var(--ink)]/60 hover:border-[var(--accent)]/50 hover:text-[var(--accent)] hover:bg-[var(--primary)]/15 transition-all flex items-center justify-center gap-2">
             <Plus className="h-4 w-4" /> Add stage
           </button>
         </div>
 
         {/* Basics sidebar */}
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-[#fafafa]/60">Settings</p>
-          <div className="rounded-xl border border-white/[0.06] bg-[#141414] p-4 space-y-4">
+          <p className="text-sm font-semibold text-[var(--ink)]/85">Settings</p>
+          <div className="rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] p-4 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs text-[#fafafa]/40">Profile name</label>
+              <label className="text-xs text-[var(--ink)]/70">Profile name</label>
               <input value={basics.name} onChange={(e) => setBasics({ ...basics, name: e.target.value })}
-                className="w-full rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#ffc400]/30" />
+                className="w-full rounded-lg border border-[var(--ink)]/15 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]/50" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-[#fafafa]/40">Temperature — {basics.temperature}°C</label>
+              <label className="text-xs text-[var(--ink)]/70">Temperature — {basics.temperature}°C</label>
               <input type="range" min={80} max={100} step={1} value={basics.temperature}
                 onChange={(e) => setBasics({ ...basics, temperature: Number(e.target.value) })}
-                className="w-full h-1 accent-[#ffc400]" />
+                className="w-full h-1 accent-[var(--ink)]" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-[#fafafa]/40">Target weight — {basics.targetWeight}g</label>
+              <label className="text-xs text-[var(--ink)]/70">Target weight — {basics.targetWeight}g</label>
               <input type="range" min={20} max={60} step={1} value={basics.targetWeight}
                 onChange={(e) => setBasics({ ...basics, targetWeight: Number(e.target.value) })}
-                className="w-full h-1 accent-[#ffc400]" />
+                className="w-full h-1 accent-[var(--ink)]" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-[#fafafa]/40">Description (optional)</label>
+              <label className="text-xs text-[var(--ink)]/70">Description (optional)</label>
               <textarea value={basics.shortDescription}
                 onChange={(e) => setBasics({ ...basics, shortDescription: e.target.value })}
                 rows={3} placeholder="What makes this profile special?"
-                className="w-full rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 py-2 text-sm text-[#fafafa]/70 focus:outline-none focus:border-[#ffc400]/30 placeholder:text-[#fafafa]/15 resize-none" />
+                className="w-full rounded-lg border border-[var(--ink)]/15 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)]/85 focus:outline-none focus:border-[var(--accent)]/50 placeholder:text-[var(--ink)]/60 resize-none" />
             </div>
           </div>
         </div>
@@ -119,11 +119,11 @@ export function BuildStep({ basics, setBasics, stages, setStages, onBack, onNext
       {/* Nav */}
       <div className="flex items-center justify-between pt-2">
         <button onClick={onBack}
-          className="rounded-xl border border-white/[0.08] px-5 py-2.5 text-sm font-medium text-[#fafafa]/50 hover:text-[#fafafa]/80 hover:bg-white/[0.04] transition-all">
+          className="rounded-xl border border-[var(--ink)]/15 px-5 py-2.5 text-sm font-medium text-[var(--ink)]/70 hover:text-[var(--ink)] hover:bg-[var(--ink)]/[0.06] transition-all">
           ← Back
         </button>
         <button onClick={onNext} disabled={stages.length === 0}
-          className="rounded-xl bg-[#ffc400] px-6 py-2.5 text-sm font-semibold text-[#0a0a0a] hover:bg-[#ffd23f] transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+          className="rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--on-primary)] hover:bg-[var(--primary)]/85 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
           Review & Save →
         </button>
       </div>
