@@ -18,10 +18,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Frown, Smile, Flame, Heater, Loader2, Maximize, Minimize, Play,
+  ArrowLeft, ArrowUpToLine, Bluetooth, ChevronDown, Droplets, Flame, Heater, Loader2, Maximize, Minimize, Play,
   Moon, Scale, Square, Sun, Wind,
 } from "lucide-react";
-import { ShotCharts, HeatingProgress, GroupTemperatures, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
+import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } from "@/components/estacao-charts";
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { WheelPicker } from "@/components/wheel-picker";
@@ -45,7 +45,8 @@ import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
   loadRecipe, MAX_FINAL_WEIGHT, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
-import { findLastShotForCoffee, logShotNotes, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
+import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
+import { RecentShots } from "@/components/recent-shots";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
@@ -181,8 +182,6 @@ export default function StationPage() {
   const [autoBrew, setAutoBrew] = useState(false);
   const autoBrewRef = useRef(false);
   const autoFiredRef = useRef(false);
-  /** Rolling 15-minute log of every thermometer, shown while the machine is idle. */
-  const [liveTemps, setLiveTemps] = useState<HeatPoint[]>([]);
   /** Latest group temperatures from the machine's "sensors" event. */
   const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
   /** Last temperature target the machine reported (shown as "set" during the shot). */
@@ -193,7 +192,8 @@ export default function StationPage() {
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   /** Last shot of the coffee picked in the recipe (shown under the chart while idle) */
-  const [lastCoffee, setLastCoffee] = useState<CoffeeLastShot | { coffee: string; none: true } | null>(null);
+  /** Last shots of the coffee in the recipe, for the idle screen (null while loading) */
+  const [recentShots, setRecentShots] = useState<CoffeeLastShot[] | null>(null);
   /** Bluetooth link to the Motto 80: the grind fields follow it while it's on */
   const [grinderLink, setGrinderLink] = useState<LinkState>("off");
   /** Stars and notes popup after a shot */
@@ -302,7 +302,6 @@ export default function StationPage() {
             || (s.name ?? "").toLowerCase() === "click to start")) {
           preShotRef.current = true;
           autoFiredRef.current = false;
-          setLastCoffee(null);
           dataRef.current = [];
           dataDirtyRef.current = true;
           setElapsed(0);
@@ -326,11 +325,6 @@ export default function StationPage() {
         if (s.sensors?.t != null) {
           const temp = s.sensors.t;
           const reading = { temp, ...groupTempsFor(groupTempsRef.current) };
-          // Rolling log by time of day (idle view)
-          const clockT = now / 1000;
-          setLiveTemps((prev) =>
-            prev.length && clockT - prev[prev.length - 1].t < 1 ? prev
-              : [...prev.filter((p) => clockT - p.t <= 900), { t: clockT, ...reading }]);
           // Curve for the whole pre-shot session (heating view)
           if (preShotRef.current) {
             if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
@@ -472,7 +466,6 @@ export default function StationPage() {
       rememberBeans(recipe.coffee);
       rememberGrinder(recipe);
       logShotNotes(recipe.coffee, grindText(recipe));
-      setLastCoffee(null);
       startedAtRef.current = Date.now();
       setTargetWeight(Math.min(MAX_FINAL_WEIGHT, beverageWeight(recipe)));
       updateRecipe({ baseProfileId: baseProfile.id });
@@ -484,13 +477,16 @@ export default function StationPage() {
     }
   }
 
-  /** Shows a last shot in the line under the chart, then its face from the machine */
-  function showLast(last: CoffeeLastShot) {
-    setLastCoffee(last);
-    if (last.dbKey == null || demo) return;
-    getShotRating(last.dbKey)
-      .then((face) => setLastCoffee((cur) => cur && !("none" in cur) && cur.dbKey === last.dbKey ? { ...cur, face } : cur))
-      .catch(() => { /* no face shown */ });
+  /** Shows the last shots on the idle screen, then their faces from the machine */
+  function showRecent(list: CoffeeLastShot[]) {
+    setRecentShots(list);
+    if (demo) return;
+    for (const shot of list) {
+      if (shot.dbKey == null) continue;
+      getShotRating(shot.dbKey)
+        .then((face) => setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.dbKey ? { ...x, face } : x) ?? cur))
+        .catch(() => { /* no face shown */ });
+    }
   }
 
   /** Coffee picked from the recent list: bring back its last shot (recipe, grind, time, score). */
@@ -499,16 +495,15 @@ export default function StationPage() {
     // Read the grinder now: connecting needs the tap that picked the coffee
     if (isMotto80(recipe.grinder) && bluetoothSupported() && (grinderLink === "off" || grinderLink === "lost")) connectGrinder();
     try {
-      const found = findLastShotForCoffee(name, await getHistory(60), profiles);
+      const history = await getHistory(60);
+      showRecent(recentShotsForCoffee(name, history, profiles));
+      const found = findLastShotForCoffee(name, history, profiles);
       if (found) {
         // Linked to the grinder: its live settings win over the last shot's (shown in the summary)
         const live = linkRef.current != null && grinderLinkRef.current !== "off";
         const recipeOnly = { ...found.patch };
         for (const k of ["grinder", "grindUm", "grindSetting", "feed", "rpm"] as const) delete recipeOnly[k];
         updateRecipe(live ? recipeOnly : found.patch);
-        showLast(found);
-      } else {
-        setLastCoffee({ coffee: name, none: true });
       }
     } catch (e) {
       setError(`Couldn't read the shot history: ${e instanceof Error ? e.message : String(e)}`);
@@ -586,7 +581,7 @@ export default function StationPage() {
           if (face) {
             try {
               await rateShot(shot.db_key, face);
-              setLastCoffee((cur) => cur && !("none" in cur) && cur.dbKey === shot.db_key ? { ...cur, face } : cur);
+              setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.db_key ? { ...x, face } : x) ?? cur);
             } catch (e) {
               setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
             }
@@ -606,18 +601,15 @@ export default function StationPage() {
   }
 
   const brewing = isExtracting(status);
-  // When the Station opens: last shot of the coffee in the recipe, or the machine's latest shot
+  // When the Station opens: last shots of the coffee in the recipe, or the machine's latest shots
   const lastLoadedRef = useRef(false);
   useEffect(() => {
     if (demo || lastLoadedRef.current || profiles.length === 0) return;
     lastLoadedRef.current = true;
     getHistory(60).then((h) => {
-      const coffee = loadRecipe().coffee?.trim();
-      const found = coffee ? findLastShotForCoffee(coffee, h, profiles) : null;
-      const last = found ?? rememberLatestShot(h, profiles);
-      if (last) showLast(last);
-    }).catch(() => { /* no history: nothing to show */ });
-  // showLast only uses state setters
+      showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
+    }).catch(() => setRecentShots([]));
+  // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo, profiles]);
 
@@ -641,13 +633,13 @@ export default function StationPage() {
     setTimeout(() => setRateOpen(true), 1500);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     setTimeout(() => {
-      getHistory(3).then((h) => {
-        // The shot just made becomes the "last shot" line
-        const last = rememberLatestShot(h, profiles);
-        if (last) showLast(last);
+      getHistory(60).then((h) => {
+        // Records it under its coffee, and the idle list starts with it
+        rememberLatestShot(h, profiles);
+        showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
       }).catch(() => { /* next lookup reads the history */ });
     }, 8000);
-  // showLast only uses state setters
+  // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
   const needsWater = isWaitingForWater(status);
@@ -789,55 +781,6 @@ export default function StationPage() {
               const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
               if (!stageName) {
                 if (brewing || tempView) return null;
-                if (lastCoffee) {
-                  if ("none" in lastCoffee) {
-                    return (
-                      <div className="shrink-0 border-t-2 border-[var(--ink)] pt-2 text-sm text-[var(--ink)]/75">
-                        No shots yet with <span className="font-semibold text-[var(--ink)]">{lastCoffee.coffee}</span>
-                      </div>
-                    );
-                  }
-                  const p = lastCoffee.patch;
-                  const items = (
-                    <>
-                      <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">
-                        {lastCoffee.coffee ? `Last · ${lastCoffee.coffee}` : "Last shot"} · {new Date(lastCoffee.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                      {lastCoffee.score != null && (
-                        <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
-                      )}
-                      {/* Face in the same badge as the score (same look as the rating popup's faces) */}
-                      {lastCoffee.face && (
-                        <span className="self-center rounded-md bg-[var(--primary)] p-0.5 text-[var(--on-primary)]"
-                          aria-label={lastCoffee.face === "like" ? "Liked" : "Didn't like"}>
-                          {lastCoffee.face === "like"
-                            ? <Smile className="h-6 w-6" strokeWidth={1.75} />
-                            : <Frown className="h-6 w-6" strokeWidth={1.75} />}
-                        </span>
-                      )}
-                      {lastCoffee.stars != null && <span className="text-lg text-[var(--accent)]">{"\u2605".repeat(lastCoffee.stars)}</span>}
-                      <span className="text-xl font-extrabold tabular-nums">{lastCoffee.weight.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">g</span></span>
-                      <span className="text-xl font-extrabold tabular-nums">{fmtClock(lastCoffee.seconds)}</span>
-                      {p.dose != null && p.ratio != null && (
-                        <span className="text-base font-semibold tabular-nums">{p.dose}g {formatRatio(p.ratio)} {p.temperature}°C</span>
-                      )}
-                      {(p.grindUm != null || p.grindSetting != null) && (
-                        <span className="text-base font-semibold tabular-nums">{grindText(p).replace(/^Motto 80 /, "")}</span>
-                      )}
-                      <span className="text-sm text-[var(--ink)]/70">{lastCoffee.profileName}</span>
-                    </>
-                  );
-                  // One line scrolling slowly (twice the content, so the loop has no jump)
-                  return (
-                    <div className="w-full min-w-0 shrink-0 overflow-hidden border-t-2 border-[var(--ink)] pt-2 [contain:inline-size] [mask-image:linear-gradient(90deg,transparent,black_3%,black_97%,transparent)]">
-                      <div className="flex w-max animate-ticker whitespace-nowrap motion-reduce:animate-none">
-                        {[0, 1].map((i) => (
-                          <div key={i} aria-hidden={i === 1} className="flex shrink-0 items-baseline gap-x-5 pr-24">{items}</div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
                 if (data.length === 0) return null;
                 const last = data[data.length - 1];
                 const finalW = last.weight ?? 0;
@@ -876,8 +819,8 @@ export default function StationPage() {
               ) : waiting ? (
                 <p className="text-2xl font-semibold text-[var(--accent)]">Ready — tap Brew</p>
               ) : (
-                // Idle: live group temperatures, like the machine's Sensors page
-                <GroupTemperatures samples={liveTemps} target={tempTarget} />
+                // Idle: the last shots of the coffee, and the temperature in one line
+                <RecentShots coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} />
               )
             }
           />

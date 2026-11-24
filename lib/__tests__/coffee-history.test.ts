@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findLastShotForCoffee, parseGrind } from "../coffee-history";
+import { findLastShotForCoffee, parseGrind, recentShotsForCoffee } from "../coffee-history";
 import type { Profile, ShotEntry } from "../types";
 
 const profiles = [{ id: "base-1", name: "Damian's LRv2" }] as unknown as Profile[];
@@ -53,5 +53,27 @@ describe("findLastShotForCoffee", () => {
 
   it("returns null for a coffee with no shots", () => {
     expect(findLastShotForCoffee("Colombia", history, profiles)).toBeNull();
+  });
+});
+
+describe("recentShotsForCoffee (idle screen)", () => {
+  const history = [
+    shot(1, 1_000, "Damian's LRv2 - 20g 1:2 94C - Kenya AA 140um", "Coffee: Kenya AA | Grind: Motto 80 140um feed 65 1000rpm"),
+    shot(2, 2_000, "Damian's LRv2 - 18g 1:2.5 93C - Etiopia Guji 145um", "Coffee: Etiopia Guji | Grind: Motto 80 145um feed 60 900rpm"),
+    shot(3, 3_000, "Damian's LRv2 - 20g 1:3 94C - Kenya AA 135um", "Coffee: Kenya AA | Grind: Motto 80 135um feed 65 1000rpm"),
+  ];
+
+  it("lists that coffee's shots, newest first", () => {
+    const list = recentShotsForCoffee("Kenya AA", history, profiles);
+    expect(list.map((s) => s.dbKey)).toEqual([3, 1]);
+    expect(list.map((s) => s.patch.grindUm)).toEqual([135, 140]);
+  });
+
+  it("lists the machine's latest shots without a coffee, up to the count", () => {
+    expect(recentShotsForCoffee(undefined, history, profiles, 2).map((s) => s.dbKey)).toEqual([3, 2]);
+  });
+
+  it("is empty for a coffee with no shots", () => {
+    expect(recentShotsForCoffee("Colombia", history, profiles)).toEqual([]);
   });
 });

@@ -182,6 +182,25 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
 }
 
 /**
+ * The last few shots of a coffee, newest first (for the idle screen). Without
+ * a coffee: the machine's latest shots. A coffee whose shots are all beyond the
+ * history read falls back to its recorded last shot.
+ */
+export function recentShotsForCoffee(coffee: string | undefined, history: ShotEntry[], profiles: Profile[], count = 4): CoffeeLastShot[] {
+  const log = readLog();
+  const want = coffee?.trim();
+  const shots = [...history].sort((a, b) => b.time - a.time)
+    .filter((s) => !want || sameCoffee(notesFor(s, log).coffee, want))
+    .slice(0, count)
+    .map((s) => summarize(s, want ? { ...notesFor(s, log), coffee: want } : notesFor(s, log), profiles));
+  if (shots.length === 0 && want) {
+    const saved = findLastShotForCoffee(want, [], profiles);
+    return saved ? [saved] : [];
+  }
+  return shots;
+}
+
+/**
  * Records the newest shot under its coffee (called right after a shot ends)
  * and returns its summary (coffee may be empty when none was set).
  */
