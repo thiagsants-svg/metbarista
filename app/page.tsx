@@ -88,7 +88,8 @@ export default function HomePage() {
           </div>
           <p className="mt-6 text-xs text-[var(--ink)]/65">
             Runs in the browser, straight to your machine on the local network. Bluetooth (grinder, refractometer)
-            needs Chrome on Android or a computer; iPhone and iPad can&apos;t.
+            needs Chrome on Android or a computer; iPhone and iPad can&apos;t. It counts, anonymously, how many
+            devices open it each day: no names, no machine or coffee data.
           </p>
         </div>
       </section>

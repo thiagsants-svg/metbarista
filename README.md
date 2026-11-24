@@ -24,6 +24,8 @@ Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)*
 
 Bluetooth (grinder, refractometer) needs Chrome on Android or a computer; iPhone and iPad browsers can't.
 
+**Privacy:** your data stays in your browser. The site counts, anonymously, how many devices open it each day (and how many use the Station with a machine): a +1 on the project's own counter (a Cloudflare Worker, [cloudflare/count-worker.js](cloudflare/count-worker.js)), nothing else. Daily numbers: [not9bar.com/usage](https://not9bar.com/usage).
+
 ## Use it
 
 1. Open [not9bar.com](https://not9bar.com) on a tablet on the same Wi-Fi as the machine and enter the machine's IP address.

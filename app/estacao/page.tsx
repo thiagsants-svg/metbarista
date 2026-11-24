@@ -52,6 +52,7 @@ import { useMachineLive } from "@/lib/station/use-machine-live";
 import { useGrinder } from "@/lib/station/use-grinder";
 import { useDifluid } from "@/lib/station/use-difluid";
 import { useShotRecord } from "@/lib/station/use-shot-record";
+import { countUse } from "@/lib/usage";
 import type { ActionType, Profile } from "@/lib/types";
 
 export default function StationPage() {
@@ -85,6 +86,8 @@ export default function StationPage() {
     useGrinder({ grinder: recipe.grinder, setRecipe, setError, demo });
   const { difluid, deviceTds, measuring: difluidMeasuring, noReply: difluidNoReply, difluidTap } = useDifluid(setError);
   const brewing = isExtracting(status);
+  // Anonymous count of Stations connected to a machine today (see lib/usage.ts)
+  useEffect(() => { if (connected) void countUse("s"); }, [connected]);
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
     useShotRecord({
       demo, profiles, recipe, brewing, data, linkRef, setError,
