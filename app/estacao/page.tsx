@@ -44,7 +44,7 @@ import {
 import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee } from "@/lib/coffee-history";
 import { applyPlan, clearPlan, loadPlan } from "@/lib/next-plan";
 import { bluetoothSupported } from "@/lib/motto80";
-import { fmt, fmtClock, statusLabel } from "@/lib/station/format";
+import { fmt, fmtClock, statusLabel, statusPill } from "@/lib/station/format";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { useStationScreen } from "@/lib/station/use-station-screen";
 import { useMachineNotices } from "@/lib/station/use-machine-notices";
@@ -295,12 +295,6 @@ export default function StationPage() {
       flow={data[data.length - 1]?.grav} brewing={brewing || demoPour !== null} />
   );
 
-  const pillColor =
-    !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70"
-    : brewing || waiting ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
-    : needsWater ? "bg-[var(--water)]/15 text-[var(--water)]"
-    : heating || preheating ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
-    : "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70";
 
   return (
     <div
@@ -310,8 +304,7 @@ export default function StationPage() {
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
 
       <StationHeader title={baseName(status?.loaded_profile ?? "—")}
-        statusText={preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
-        pillClass={pillColor} pulsing={brewing || heating || waiting || needsWater || preheating}
+        pill={statusPill(status, connected, preheatLeft)}
         theme={theme} onToggleTheme={toggleTheme} />
 
       {rateOpen && (() => {

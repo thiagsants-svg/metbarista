@@ -68,22 +68,10 @@ export default function ProfilesPage() {
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="max-w-6xl mx-auto px-3 sm:px-5 py-4 space-y-5">
-        {/* Header + filters */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Profiles</h1>
-              <p className="text-sm text-[var(--ink)]/70">
-                {profiles.length} profile{profiles.length !== 1 ? "s" : ""} on your machine
-              </p>
-            </div>
-            <Link href="/create"
-              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98] shrink-0">
-              <Plus className="h-4 w-4" /> New profile
-            </Link>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+      <div className="pt-1 space-y-3">
+        {/* Filters, count and New profile */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
             {STYLE_FILTERS.map((f) => (
               <button
                 key={f}
@@ -97,6 +85,13 @@ export default function ProfilesPage() {
                 {f}
               </button>
             ))}
+            <span className="flex-1 text-right text-sm text-[var(--ink)]/70">
+              {profiles.length} on your machine
+            </span>
+            <Link href="/create"
+              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98] shrink-0">
+              <Plus className="h-4 w-4" /> New profile
+            </Link>
           </div>
         </div>
 
@@ -117,7 +112,7 @@ export default function ProfilesPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {filtered.map((profile) => (
               <ProfileCard
                 key={profile.id}

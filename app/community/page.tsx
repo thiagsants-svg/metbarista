@@ -142,16 +142,11 @@ export default function CommunityPage() {
   const { style } = useStationTheme();
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="max-w-5xl mx-auto px-3 sm:px-5 py-4 space-y-10">
+      <div className="pt-1 space-y-8">
 
         {/* Live feeds — 2 col on lg */}
         <div>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Community</h1>
-              <p className="text-sm text-[var(--ink)]/70">Meticulous news, live from meticuloushome.com: firmware and company updates</p>
-            </div>
-          </div>
+          <p className="mb-4 text-sm text-[var(--ink)]/70">Meticulous news, live from meticuloushome.com: firmware and company updates</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <FeedSection

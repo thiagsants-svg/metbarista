@@ -1,6 +1,6 @@
 /** Station: colors, labels and number formats (no state) */
 
-import { isExtracting } from "@/lib/brew-state";
+import { isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
 import type { LiveStatus, LiveTemperatures } from "@/lib/types";
 
 /**
@@ -75,4 +75,26 @@ export function fmtClock(sec: number): string {
 
 export function fmt(v: number | null | undefined, digits = 1): string {
   return v == null || Number.isNaN(v) ? "—" : v.toFixed(digits);
+}
+
+export interface StatusPill { text: string; className: string; pulsing: boolean }
+
+/** The machine-state pill in the app's top bar (the same on every page) */
+export function statusPill(status: LiveStatus | null, connected: boolean, preheatLeft: number, hasMachine = true): StatusPill {
+  if (!hasMachine) return { text: "No machine", className: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70", pulsing: false };
+  const brewing = isExtracting(status);
+  const needsWater = isWaitingForWater(status);
+  const waiting = isWaitingForUser(status) && !needsWater;
+  const heating = isHeating(status);
+  const preheating = preheatLeft > 0;
+  return {
+    text: preheating && isIdle(status) ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected),
+    className:
+      !connected ? "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70"
+      : brewing || waiting ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
+      : needsWater ? "bg-[var(--water)]/15 text-[var(--water)]"
+      : heating || preheating ? "bg-[var(--ink)]/[0.06] text-[var(--accent)]"
+      : "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70",
+    pulsing: brewing || heating || waiting || needsWater || preheating,
+  };
 }

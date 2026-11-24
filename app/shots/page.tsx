@@ -160,11 +160,7 @@ function ShotsContent() {
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5">
-        <div className="mb-3 flex items-center gap-3">
-          <h1 className="flex-1 text-2xl font-bold">Shots</h1>
-          {shots && <span className="text-sm tabular-nums text-[var(--ink)]/60">last {shots.length}</span>}
-        </div>
+      <div className="pt-1">
 
         {error ? (
           <div className="py-16 text-center">

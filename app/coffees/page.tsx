@@ -34,21 +34,19 @@ export default function CoffeesPage() {
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5">
-        <div className="mb-3 flex items-center gap-3">
-          <h1 className="flex-1 text-2xl font-bold">Coffees</h1>
-          <button type="button" onClick={() => setOpen("new")}
-            className="flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Add coffee
-          </button>
-        </div>
-
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Where">
+      <div className="pt-1">
+        <div className="mb-3 flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Where">
           {TABS.map((s) => (
             <button key={s} type="button" role="tab" aria-selected={tab === s} onClick={() => setTab(s)} className={chip(tab === s)}>
               {STATUS_LABEL[s]} <span className="ml-1 font-normal opacity-70">{count(s)}</span>
             </button>
           ))}
+        </div>
+          <button type="button" onClick={() => setOpen("new")}
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98]">
+            <Plus className="h-4 w-4" /> Add coffee
+          </button>
         </div>
 
         {!ready ? null : shown.length === 0 ? (
@@ -58,7 +56,7 @@ export default function CoffeesPage() {
               : "No finished coffees yet."}
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {shown.map((c) => <CoffeeCard key={c.key} coffee={c} refresh={version} onOpen={() => setOpen(c)} />)}
           </div>
         )}

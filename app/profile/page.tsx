@@ -76,7 +76,7 @@ function ProfileDetailContent() {
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-5">
+      <div className="pt-1 space-y-5">
         {/* Back */}
         <Link
           href="/profiles"

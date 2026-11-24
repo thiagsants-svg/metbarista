@@ -100,10 +100,7 @@ export default function StatsPage() {
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
-      <div className="mx-auto max-w-4xl px-3 py-4 sm:px-5">
-        <div className="mb-3 flex items-center gap-3">
-          <h1 className="flex-1 text-2xl font-bold">Stats</h1>
-        </div>
+      <div className="pt-1">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Period">
           {PERIODS.map((p) => (
             <button key={p.key} type="button" role="tab" aria-selected={period.key === p.key} onClick={() => setPeriod(p)} className={chip(period.key === p.key)}>
