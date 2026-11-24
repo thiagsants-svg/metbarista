@@ -10,6 +10,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Frown, Loader2, Smile } from "lucide-react";
 import { ShotPlot } from "@/components/estacao-charts";
+import { BrewChart, type BrewPoint } from "@/components/brew-chart";
+import { targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
 import { rateShot } from "@/lib/machine-api";
@@ -21,9 +23,11 @@ import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike";
 
-export function ShotDetail({ shot, row, face, onFace, onSaved, onBack }: {
+export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack }: {
   shot: ShotEntry;
   row: ShotRowData;
+  /** Earlier readings of the same coffee (newest first), for the brew chart */
+  pastBrews: BrewPoint[];
   face: Face | null | undefined;
   /** The face changed on the machine */
   onFace: (face: Face | null) => void;
@@ -95,7 +99,7 @@ export function ShotDetail({ shot, row, face, onFace, onSaved, onBack }: {
       )}
 
       {/* Remount when another shot opens, so the fields start from its notes */}
-      <NotesEditor key={shot.id} shot={shot} row={row} face={face ?? null} onFace={onFace} onSaved={onSaved} />
+      <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved} />
 
       {shot.profile && (
         <p className="text-sm text-[var(--ink)]/70">
@@ -108,9 +112,10 @@ export function ShotDetail({ shot, row, face, onFace, onSaved, onBack }: {
   );
 }
 
-function NotesEditor({ shot, row, face, onFace, onSaved }: {
+function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
   shot: ShotEntry;
   row: ShotRowData;
+  pastBrews: BrewPoint[];
   face: Face | null;
   onFace: (face: Face | null) => void;
   onSaved: () => void;
@@ -184,6 +189,16 @@ function NotesEditor({ shot, row, face, onFace, onSaved }: {
           {ey != null ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b></> : "Refractometer reading, if any"}
         </p>
       </div>
+
+      {/* The brew chart follows the TDS as you type it (saved or not) */}
+      {tds != null && ey != null && (
+        <div className="mt-3">
+          <BrewChart shot={{ tds, ey }} past={pastBrews} target={targetFor(row.sum.patch.ratio)} />
+          {pastBrews.length > 0 && (
+            <p className="text-xs text-[var(--ink)]/60">Big dot: this shot · open dots: earlier shots of this coffee</p>
+          )}
+        </div>
+      )}
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2}
         placeholder="Tasting notes: chocolate, a bit sour…"

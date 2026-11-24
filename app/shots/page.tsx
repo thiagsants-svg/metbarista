@@ -183,6 +183,11 @@ function ShotsContent() {
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-6">
             <div className="hidden lg:block">{list}</div>
             <ShotDetail shot={selectedShot} row={selected} face={faces[selected.id]}
+              pastBrews={rows
+                .slice(rows.indexOf(selected) + 1)
+                .filter((r) => !r.flush && r.sum.coffee && selected.sum.coffee && sameCoffee(r.sum.coffee, selected.sum.coffee)
+                  && r.sum.tds != null && r.sum.ey != null)
+                .map((r) => ({ tds: r.sum.tds!, ey: r.sum.ey! }))}
               onFace={(f) => setFaces((cur) => ({ ...cur, [selected.id]: f }))}
               onSaved={() => setVersion((v) => v + 1)}
               onBack={() => go({ shot: null })} />
