@@ -45,13 +45,13 @@ import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
   loadRecipe, MAX_FINAL_WEIGHT, extractionYield, tdsText, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
-import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
+import { findLastShotForCoffee, findNewShot, linkShot, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
 import { RecentShots } from "@/components/recent-shots";
 import { BackupButton } from "@/components/backup-panel";
 import { applyPlan, clearPlan, loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
 import { DifluidLink, type DifluidState } from "@/lib/difluid";
-import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
+import type { ActionType, LiveStatus, LiveTemperatures, Profile, ShotEntry } from "@/lib/types";
 
 /**
  * Color themes, applied as CSS variables on the Station root: light (the
@@ -204,6 +204,10 @@ export default function StationPage() {
   /** Stars and notes popup after a shot */
   const [rateOpen, setRateOpen] = useState(false);
   const shotStartedAtRef = useRef(0);
+  /** The machine's newest shot number before this shot, to tell the new one apart */
+  const keyBeforeShotRef = useRef<number | null>(null);
+  /** The shot that just ended, once the machine has saved it */
+  const shotFoundRef = useRef<Promise<ShotEntry | null> | null>(null);
   /** DiFluid R2 refractometer (Bluetooth): its readings fill the TDS field */
   const difluidRef = useRef<DifluidLink | null>(null);
   const [difluid, setDifluid] = useState<DifluidState>("off");
@@ -601,27 +605,41 @@ export default function StationPage() {
       tds != null ? tdsText(tds, extractionYield(tds, shotWeight, recipe.dose)) : "",
       rawNote,
     ].filter(Boolean).join(" · ");
-    const since = shotStartedAtRef.current - 60_000;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const shot = (await getHistory(3)).find((h) => h.time * 1000 >= since);
-        if (shot) {
-          if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
-          if (face) {
-            try {
-              await rateShot(shot.db_key, face);
-              setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.db_key ? { ...x, face } : x) ?? cur);
-            } catch (e) {
-              setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
-            }
-          }
-          return;
-        }
-      } catch { /* retry below */ }
-      // The machine may still be saving the shot
-      await new Promise((r) => setTimeout(r, 4000));
+    // The shot is found by its number once the machine saves it (see waitForShot)
+    const shot = await (shotFoundRef.current ??= waitForShot());
+    if (!shot) {
+      setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
+      return;
     }
-    setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
+    if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
+    if (face) {
+      try {
+        await rateShot(shot.db_key, face);
+        setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.db_key ? { ...x, face } : x) ?? cur);
+      } catch (e) {
+        setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+
+  /**
+   * Waits (up to ~30 s) for the machine to save the shot that just ended, then
+   * ties it by number to its coffee and grind and refreshes the idle list.
+   */
+  async function waitForShot(): Promise<ShotEntry | null> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      try {
+        const shot = findNewShot(await getHistory(5), shotStartedAtRef.current, keyBeforeShotRef.current);
+        if (!shot) continue;
+        linkShot(shot);
+        const h = await getHistory(60).catch(() => [shot]);
+        rememberLatestShot(h, profiles, shot);
+        showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
+        return shot;
+      } catch { /* machine busy: try again */ }
+    }
+    return null;
   }
 
   /** First tap connects to the R2 (Chrome's list the first time); then it asks for a reading */
@@ -666,6 +684,9 @@ export default function StationPage() {
     if (demo) return;
     if (started) {
       shotStartedAtRef.current = Date.now();
+      shotFoundRef.current = null;
+      keyBeforeShotRef.current = null;
+      getHistory(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
       const g = linkRef.current?.connected ? linkRef.current.latest : null;
       if (g && isMotto80(recipe.grinder)) {
         recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));
@@ -675,13 +696,7 @@ export default function StationPage() {
     // Rate it: once the cup is out (a short pause so the end of the chart shows first)
     setTimeout(() => setRateOpen(true), 1500);
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
-    setTimeout(() => {
-      getHistory(60).then((h) => {
-        // Records it under its coffee, and the idle list starts with it
-        rememberLatestShot(h, profiles);
-        showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
-      }).catch(() => { /* next lookup reads the history */ });
-    }, 8000);
+    shotFoundRef.current = waitForShot();
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);

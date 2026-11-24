@@ -21,6 +21,8 @@ interface LogEntry {
   grind: string;
   /** Grind read from the grinder when the shot started (wins over the one sent with the profile) */
   atBrew?: boolean;
+  /** The machine's number for the shot made with this load, once it's known */
+  dbKey?: number;
 }
 
 /** Remembers what was loaded, in case the machine's history drops the notes. */
@@ -45,15 +47,47 @@ export function recordBrewGrind(grind: string): void {
   } catch { /* storage blocked */ }
 }
 
+/**
+ * The shot that just ended: the newest one saved after the shot started
+ * (a minute of slack for clocks) that wasn't the newest before it.
+ */
+export function findNewShot(history: ShotEntry[], startedAt: number, keyBefore: number | null): ShotEntry | null {
+  return [...history].sort((a, b) => b.time - a.time)
+    .find((h) => h.db_key !== keyBefore && h.time * 1000 >= startedAt - 60_000) ?? null;
+}
+
+/**
+ * Ties the latest load to the machine's number for the shot made with it, so
+ * its coffee and grind are found by number instead of by time. Skipped when
+ * the shot's own notes name another coffee (e.g. a shot started on the machine).
+ */
+export function linkShot(shot: ShotEntry): void {
+  try {
+    const list = JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]") as LogEntry[];
+    const cur = list[0];
+    if (!cur || cur.dbKey != null || list.some((e) => e.dbKey === shot.db_key)) return;
+    if (shot.time * 1000 < cur.at - 60_000) return; // the shot is older than the load
+    const named = parseShotNotes(shot.profile?.display?.shortDescription).coffee;
+    if (named && !sameCoffee(named, cur.coffee)) return;
+    list[0] = { ...cur, dbKey: shot.db_key };
+    localStorage.setItem(LOG_KEY, JSON.stringify(list));
+  } catch { /* storage blocked */ }
+}
+
 function readLog(): LogEntry[] {
   try { return JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]") as LogEntry[]; } catch { return []; }
 }
 
-/** Notes of a shot: from its profile, else from the local log (loaded up to 30 min before). */
+/**
+ * Notes of a shot: from its profile, else from the local log: the load tied to
+ * its number, or for older records, a load up to 30 min before it that isn't
+ * tied to another shot.
+ */
 function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: string } {
   const fromProfile = parseShotNotes(shot.profile?.display?.shortDescription);
   const t = shot.time * 1000;
-  const hit = log.find((e) => e.at <= t + 60_000 && t - e.at < 30 * 60_000);
+  const hit = log.find((e) => e.dbKey === shot.db_key)
+    ?? log.find((e) => e.dbKey == null && e.at <= t + 60_000 && t - e.at < 30 * 60_000);
   if (fromProfile.coffee) {
     // The grinder reading at brew time is the true record
     const same = hit?.atBrew && hit.coffee.toLowerCase() === fromProfile.coffee.toLowerCase();
@@ -236,8 +270,8 @@ export function recentShotsForCoffee(coffee: string | undefined, history: ShotEn
  * Records the newest shot under its coffee (called right after a shot ends)
  * and returns its summary (coffee may be empty when none was set).
  */
-export function rememberLatestShot(history: ShotEntry[], profiles: Profile[]): CoffeeLastShot | null {
-  const shot = [...history].sort((a, b) => b.time - a.time)[0];
+export function rememberLatestShot(history: ShotEntry[], profiles: Profile[], which?: ShotEntry): CoffeeLastShot | null {
+  const shot = which ?? [...history].sort((a, b) => b.time - a.time)[0];
   if (!shot) return null;
   const notes = notesFor(shot, readLog());
   const summary = summarize(shot, notes, profiles);
