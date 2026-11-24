@@ -21,7 +21,7 @@ import { countUse } from "@/lib/usage";
 const noSubscribe = () => () => {};
 
 const TABS = [
-  { href: "/estacao", label: "Station", icon: Tablet },
+  { href: "/station", label: "Station", icon: Tablet },
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
   { href: "/stats", label: "Stats", icon: Target },
@@ -35,7 +35,7 @@ const TITLES: [string, string][] = [
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const station = path.startsWith("/estacao");
+  const station = path.startsWith("/station");
   const { theme, style, toggle } = useStationTheme();
   // The Station listens to the machine itself
   const { connected, status, preheatLeft } = useMachineStatus(!station);
@@ -51,7 +51,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   return (
     <div style={style} className="flex min-h-screen flex-col bg-[var(--paper)] text-[var(--ink)]">
       <div className="sticky top-0 z-50 bg-[var(--paper)] px-2.5 pb-2 pt-[calc(env(safe-area-inset-top)+0.625rem)] sm:px-3 sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-        <AppHeader title={title} pill={statusPill(status, connected, preheatLeft, hasMachine)} pillHref="/estacao"
+        <AppHeader title={title} pill={statusPill(status, connected, preheatLeft, hasMachine)} pillHref="/station"
           theme={theme} onToggleTheme={toggle} />
       </div>
 

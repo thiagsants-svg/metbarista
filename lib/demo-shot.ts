@@ -1,9 +1,9 @@
 /**
  * Simulated LRv2-style shot for previewing the Estação chart without the
- * machine (open /estacao/?demo). Values are rough, for layout only.
+ * machine (open /station/?demo). Values are rough, for layout only.
  */
 
-import type { ShotPoint } from "@/components/estacao-charts";
+import type { ShotPoint } from "@/components/shot-charts";
 
 const STAGES: { name: string; until: number }[] = [
   { name: "Fill start", until: 2 },

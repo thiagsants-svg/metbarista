@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Frown, Smile } from "lucide-react";
-import { ShotPlot } from "@/components/estacao-charts";
+import { ShotPlot } from "@/components/shot-charts";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
 import { planLines, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { asciiName } from "@/lib/recipe";

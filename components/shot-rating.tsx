@@ -121,8 +121,8 @@ export function ShotRating({
   );
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/40 landscape:items-center" onClick={onSkip}>
-      <div className="max-h-[100dvh] w-full max-w-lg overflow-y-auto rounded-t-xl bg-[var(--paper)] p-4 shadow-xl landscape:rounded-xl"
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-3" onClick={onSkip}>
+      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-[var(--paper)] p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">How was this shot?</p>
         <p className="mt-0.5 text-lg font-bold tabular-nums text-[var(--ink)]">{summary}</p>

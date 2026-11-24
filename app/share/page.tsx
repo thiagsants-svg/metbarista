@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ProfileCurvePreview } from "@/components/charts/profile-curve-preview";
-import { ShotPlot } from "@/components/estacao-charts";
+import { ShotPlot } from "@/components/shot-charts";
 import { shotPoints } from "@/lib/coffee-history";
 import { ArrowLeft, Loader2, GitFork, Share2, Code, Thermometer, Weight, Clock, Droplets, Gauge } from "lucide-react";
 import { listProfiles, getHistory, computeShotStats } from "@/lib/machine-api";

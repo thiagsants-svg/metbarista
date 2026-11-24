@@ -17,7 +17,7 @@ import { getSavedIp, saveIp, getIpFromUrlParam } from "@/lib/connection-store";
 import { testConnection } from "@/lib/machine-api";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
 
-const STATION = "/estacao";
+const STATION = "/station";
 
 const FEATURES = [
   { icon: Tablet, title: "A station by the machine", desc: "Full screen on a tablet: recipe wheels, slide to heat, live curve with the stage the shot is in and what it aims for." },

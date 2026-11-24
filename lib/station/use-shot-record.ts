@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import type { ShotPoint } from "@/components/estacao-charts";
+import type { ShotPoint } from "@/components/shot-charts";
 import type { Face, PlanChoice } from "@/components/shot-rating";
 import { getHistory, getShotRating, rateShot } from "@/lib/machine-api";
 import { getShotNote, saveShotNote, saveShotPlan } from "@/lib/shot-notes";

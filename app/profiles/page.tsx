@@ -105,7 +105,7 @@ export default function ProfilesPage() {
               <p className="text-[var(--ink)]/60 text-xs mt-0.5">Connect your machine first.</p>
             </div>
             <Link
-              href="/estacao"
+              href="/station"
               className="rounded-full border border-[var(--accent)]/40 bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--primary)]/20 transition-colors"
             >
               Go to the Station

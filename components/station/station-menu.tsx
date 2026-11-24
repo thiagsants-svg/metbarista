@@ -17,7 +17,7 @@ import { APP_NAME } from "@/lib/brand";
 import type { MachineInfo } from "@/lib/types";
 
 export const PAGES = [
-  { href: "/estacao", label: "Station", icon: Tablet },
+  { href: "/station", label: "Station", icon: Tablet },
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
   { href: "/profiles", label: "Profiles", icon: Layers },

@@ -42,7 +42,7 @@ export function useMachineNotices(setError: (msg: string | null) => void) {
       : [...prev, n]);
   }
 
-  /** /estacao/?demo=notice previews a machine message (answering it here sends nothing) */
+  /** /station/?demo=notice previews a machine message (answering it here sends nothing) */
   function showDemoNotice() {
     demoNoticeRef.current = true;
     setNotices([{

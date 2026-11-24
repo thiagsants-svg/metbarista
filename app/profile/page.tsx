@@ -8,7 +8,7 @@ import { ProfileFingerprint } from "@/components/charts/profile-fingerprint";
 import { Loader2, ArrowLeft, Thermometer, Weight, User, GitFork, Code } from "lucide-react";
 import { listProfiles, getHistory, loadProfileById, computeShotStats } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
-import { ShotPlot } from "@/components/estacao-charts";
+import { ShotPlot } from "@/components/shot-charts";
 import { shotNotes, shotPoints } from "@/lib/coffee-history";
 import { useStationTheme } from "@/lib/station/use-theme";
 import type { Profile, ShotEntry } from "@/lib/types";

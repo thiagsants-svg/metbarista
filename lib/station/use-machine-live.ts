@@ -8,7 +8,7 @@
 
 import { activeTargets } from "@/lib/shot-facts";
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { HeatPoint, ShotPoint } from "@/components/estacao-charts";
+import type { HeatPoint, ShotPoint } from "@/components/shot-charts";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, type MachineNotification } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";

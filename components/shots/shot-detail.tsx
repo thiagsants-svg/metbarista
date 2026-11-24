@@ -9,7 +9,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Frown, Loader2, Smile } from "lucide-react";
-import { ShotPlot } from "@/components/estacao-charts";
+import { ShotPlot } from "@/components/shot-charts";
 import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";

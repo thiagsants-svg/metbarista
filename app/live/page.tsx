@@ -7,6 +7,6 @@ import { useRouter } from "next/navigation";
 
 export default function LiveRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace("/estacao"); }, [router]);
+  useEffect(() => { router.replace("/station"); }, [router]);
   return null;
 }
