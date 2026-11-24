@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * The shot facts (lib/shot-facts.ts) as a short list: what happened, when, and
- * what it usually means for the next shot.
+ * The shot facts (lib/shot-facts.ts) as a short list: what happened and when.
  */
 
 import { AlertTriangle } from "lucide-react";
-import { FACT_LABEL, FACT_TIP, type ShotFact } from "@/lib/shot-facts";
+import { FACT_LABEL, type ShotFact } from "@/lib/shot-facts";
 
 export function ShotFactsList({ facts, quietWhenEmpty = false }: {
   facts: ShotFact[];
@@ -30,7 +29,6 @@ export function ShotFactsList({ facts, quietWhenEmpty = false }: {
             </span>
           </p>
           <p className="text-sm tabular-nums text-[var(--ink)]/85">{f.detail}</p>
-          <p className="text-sm font-semibold text-[var(--accent)]">{FACT_TIP[f.kind]}</p>
         </li>
       ))}
     </ul>

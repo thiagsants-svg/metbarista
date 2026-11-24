@@ -1,7 +1,6 @@
 /**
  * Shot facts: what the curves say about the puck, worked out from the shot's
- * own samples, no AI. Each fact says when it happened, in which stage, and
- * what it usually means for the next shot.
+ * own samples, no AI. Each fact says what happened, when and in which stage.
  *
  *  - channeling: water found a path. With the machine holding pressure the
  *    flow jumps; holding flow, the pressure collapses.
@@ -36,14 +35,6 @@ export const FACT_LABEL: Record<FactKind, string> = {
   pressureLimit: "Pressure limit hit",
 };
 
-/** What it usually means for the next shot */
-export const FACT_TIP: Record<FactKind, string> = {
-  channeling: "Check distribution and tamping; a slightly coarser grind can help.",
-  choked: "Grind coarser.",
-  weak: "Grind finer, or a little more coffee.",
-  flowLimit: "The puck let water through too easily: grind finer.",
-  pressureLimit: "The puck held the water back: grind coarser.",
-};
 
 /** The target the machine is following: only the one it's controlling, the other is a limit */
 export function activeTargets(sp: ShotSetpoints | undefined): { pTarget: number | null; fTarget: number | null } {
