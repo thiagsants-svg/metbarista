@@ -6,7 +6,7 @@
 export const APP_NAME = "Not Nine Bar";
 export const APP_TAGLINE = "A station for your Meticulous. Because espresso is not nine bar.";
 export const SITE_URL = "https://not9bar.com";
-export const REPO = "thiagsants-svg/metbarista";
+export const REPO = "thiagsants-svg/not-nine-bar";
 export const REPO_URL = `https://github.com/${REPO}`;
 
 /** The project this one is built on: always credited */

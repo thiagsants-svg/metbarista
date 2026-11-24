@@ -1,164 +1,45 @@
-# MetBarista Station
+# Not Nine Bar
 
-> **Fork of [nakashon/metbarista](https://github.com/nakashon/metbarista)** (MIT), the open control plane for Meticulous espresso machines. Everything below the line is the original project's README; credit for MetBarista goes to its author.
+**Espresso is not nine bar.** A station for the [Meticulous](https://meticuloushome.com) espresso machine: recipe, grinder, refractometer and every shot's curve, on a tablet next to the machine.
 
-This fork adds **Station** (`/estacao`), a full-screen bar screen for a 10" tablet next to the machine:
+Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the browser talks straight to your machine on the local network.
 
-- pick a profile from cover art, set dose, ratio and temperature per shot — the profile is loaded unsaved, so no more duplicated profiles;
-- one main button that follows the machine: Start heating → Water added → Brew (fixes Play after preheat by sending `continue` on PUSH TO BREW);
-- live chart with stage shading, stage targets and the running stage's program; optional temperature sensors chart;
-- idle and heating views with every group thermometer; pressure/temperature gauge;
-- machine messages (e.g. motor strain) with their buttons; light and dark themes in yellow and black;
-- no scrolling on the tablet in either orientation, and auto-reconnect after the screen sleeps.
-
-Live at → **[thiagsants-svg.github.io/metbarista/estacao](https://thiagsants-svg.github.io/metbarista/estacao/)**
+Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)** by **[Asaf Nakash](https://nakashon.com)**, the open control center for Meticulous machines (MIT License). The shot charts, profiles and machine connection come from his work.
 
 ---
 
-## What is this?
+## What it does
 
-MetBarista is a free, open-source PWA that connects directly to your [Meticulous](https://meticuloushome.com) espresso machine over your local WiFi. No cloud, no account, no subscription — your machine IP is the only thing you need.
-
-### Features
-
-| Feature | Description |
+| | |
 |---|---|
-| 🎛 **Dashboard** | Live machine status, sensor tiles (temp/weight/pressure), controls (start, stop, preheat, tare, purge) |
-| 📋 **Profiles** | Browse all profiles on your machine with cover images + generative pressure-curve fingerprints |
-| 📈 **Shot History** | Every shot with full telemetry charts (pressure, flow, weight, temperature) |
-| 📡 **Live Monitor** | Real-time shot data — state, temp, weight, pressure, timer + live chart as the shot builds |
-| 🔬 **Compare** | Side-by-side shot comparison |
-| ✏️ **Create** | Build new pressure/flow profiles from scratch |
-| 🌐 **Community** | Firmware changelog, company updates, resources |
-| 📤 **Share** | Export profiles in OEPF format |
+| **Station** | Full screen on a tablet, either orientation, no scrolling. Pick a profile, set dose, ratio and temperature on wheels, *slide to heat*. Live curve with the stage the shot is in and what it aims for. The piston's retraction is set from the recipe. |
+| **Grinder** | The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot. Other grinders: type the setting. |
+| **Refractometer** | The DiFluid R2 Extract fills the TDS by itself; extraction yield and a brew control chart (EY × TDS, ratio lines, target box) follow. |
+| **After the shot** | Like / dislike (saved on the machine, the official app shows it), taste, TDS, notes, and the plan for the next shot (temperature and ratio; grind as a reminder). The plan waits for you when you pick that coffee again. |
+| **Shots** | Every shot with its coffee, grind, TDS / EY, taste and the plan decided after it. Per coffee: likes, EY range, grind now, the plan waiting and the brew chart of all its readings. Notes editable afterwards. |
+| **Coffees** | The shelf: bag photos, in use / frozen / finished. Freezer as single doses (counted down per shot) or a whole bag (off the Station until thawed). |
+| **Stats** | Shots, coffee used, likes, EY, taste and each coffee's story, by week or month. No scores, levels or badges. |
+| **Profiles** | Browse, load, create and share profiles. |
+| **Backup** | Everything lives in the tablet's browser; one file (with the bag photos) saves and restores it. |
 
-### Philosophy
+Bluetooth (grinder, refractometer) needs Chrome on Android or a computer; iPhone and iPad browsers can't.
 
-> **Machine = Identity.** Connecting your Meticulous IS your login. No OAuth, no passwords, no accounts. If you own a machine, you're part of the community.
+## Use it
 
-Everything runs in your browser. MetBarista talks directly to `http://{your-machine-ip}/api/v1/` — the same API the official app uses.
+1. Open [not9bar.com](https://not9bar.com) on a tablet on the same Wi-Fi as the machine and enter the machine's IP address.
+2. In Chrome, *Add to home screen* for a full-screen app.
+3. Save a backup now and then (the button at the top of the Station).
 
----
-
-## HTTP vs HTTPS & Live Data
-
-MetBarista is served over both HTTP and HTTPS at `metbarista.com`.
-
-**Live telemetry** (socket polling to your local machine IP) requires the browser to make requests to `http://192.168.x.x` — a private network address. Modern Chromium browsers protect these requests with a [Local Network Access](https://developer.chrome.com/blog/local-network-access/) permission.
-
-### In practice
-
-| Context | REST API (controls, profiles) | Live Telemetry (socket polling) |
-|---|---|---|
-| `https://metbarista.com` with Local Network Access allowed | ✅ Works | ✅ Works |
-| Local Network Access denied | ❌ Blocked | ❌ Blocked |
-| Cellular or guest WiFi | ❌ Unreachable | ❌ Unreachable |
-
-### If live data stops working
-
-The machine uses socket.io EIO4 HTTP long-polling (not WebSocket). MetBarista implements this manually via `fetch()` to avoid library quirks. The session stays alive by responding to the machine's ping packets (`"2"`) with pong (`"3"`) every 10 seconds.
-
-When connecting, allow the browser prompt that asks whether MetBarista can find and connect to devices on your local network. If access was previously denied, open the site permissions for `metbarista.com`, enable **Local network access**, and connect again.
-
----
-
-## Getting Started (contributors)
-
-### Prerequisites
-
-- Node.js 20+
-- A Meticulous machine on your local network (or the IP doesn't matter for UI work)
-
-### Setup
+## Develop
 
 ```bash
-git clone https://github.com/nakashon/metbarista.git
-cd metbarista
 npm install
-cp .env.example .env.local   # add your own keys (optional — app works without them)
-npm run dev
+npm run dev      # http://localhost:3000
+npm run check    # type check, lint and tests (the deploy runs the same)
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Next.js (static export) on GitHub Pages; pushing to `main` deploys.
 
-### Environment variables
+## Credits and license
 
-The app works fully without any env vars. They only enable optional features:
-
-| Variable | Purpose | Required |
-|---|---|---|
-| `NEXT_PUBLIC_FEEDBACK_TOKEN` | GitHub Issues PAT for the feedback button | Optional |
-| `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` | Cloudflare Web Analytics beacon token | Optional |
-
-See `.env.example` for setup instructions.
-
-> **Note:** The live site at metbarista.com uses its own keys injected at build time via GitHub Actions secrets. Contributors use their own keys (or none at all).
-
----
-
-## Architecture
-
-```
-Browser (PWA)
-    │
-    ├── metbarista.com (GitHub Pages, static export)
-    │       └── Next.js 15 · Tailwind v4 · Recharts
-    │
-    ├── http(s)://192.168.x.x/api/v1/  ← your Meticulous, local network only
-    │       ├── REST API  — machine info, profiles, shot history, actions
-    │       └── Socket.io EIO4 polling — live sensor data (temp, pressure, flow, weight, time)
-    │
-    └── metbarista-feed-proxy.metbarista.workers.dev  ← Cloudflare Worker
-            └── Proxies meticuloushome.com Atom feeds (firmware changelog etc.)
-```
-
-**No server. No database. No user data leaves your network.**
-
----
-
-## Machine API
-
-The Meticulous machine exposes a local HTTP API (same as the official app):
-
-```
-GET  /api/v1/machine                  → machine info (name, serial, firmware)
-GET  /api/v1/profile/list?full=true   → all profiles with full stage data
-GET  /api/v1/profile/load/{id}        → load a stored profile by UUID
-DELETE /api/v1/profile/delete/{id}    → delete a stored profile
-GET  /api/v1/history?max_results=20   → shot history list
-GET  /api/v1/history?ids[]={id}       → single shot telemetry
-POST /api/v1/action/{name}            → action: start | stop | preheat | tare | purge | home | abort
-```
-
-### Live telemetry (socket.io EIO4 polling)
-
-```
-GET  /socket.io/?EIO=4&transport=polling          → open session, returns {sid, pingInterval, pingTimeout}
-POST /socket.io/?EIO=4&transport=polling&sid=...  → body "40" to join namespace
-GET  /socket.io/?EIO=4&transport=polling&sid=...  → poll for events
-```
-
-Events received:
-- `status` → `{name, state, extracting, loaded_profile, time, profile_time, sensors: {p, f, w, t, g}}`
-- `sensors` → raw sensor dump (temperatures, motor position, etc.)
-
-**Important:** The machine sends a ping packet `"2"` every 10 seconds. You must reply with `"3"` (pong) or the session closes. MetBarista handles this automatically in `lib/machine-socket.ts`.
-
----
-
-## Contributing
-
-We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
-
-The easiest way to contribute:
-- 🐛 Found a bug? Use the **feedback button** in the app (bottom-right when connected)
-- ✨ Have an idea? Open a [GitHub Issue](https://github.com/nakashon/metbarista/issues)
-- 🔧 Want to code? Fork → branch → PR
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE). Free forever, for the community.
-
-Built with ☕ by [Asaf Nakash](https://nakashon.com) ([@nakashon](https://github.com/nakashon)) and the Meticulous community.
+MIT License. Original work © Asaf Nakash and contributors ([MetBarista](https://github.com/nakashon/metbarista)); Not Nine Bar changes © its contributors. See [LICENSE](LICENSE).
