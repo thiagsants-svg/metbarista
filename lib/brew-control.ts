@@ -42,10 +42,10 @@ export function brewVerdict(tds: number, ey: number, target: BrewTarget): BrewVe
   const ex = { under: "Under-extracted", ideal: "Extraction in range", over: "Over-extracted" }[extraction];
   const st = { weak: "weak", ideal: "strength OK", strong: "strong" }[strength];
   const hint =
-    extraction === "under" ? "more extraction: warmer, finer or a longer ratio"
-    : extraction === "over" ? "less extraction: cooler, coarser or a shorter ratio"
-    : strength === "weak" ? "stronger: a shorter ratio"
-    : strength === "strong" ? "lighter: a longer ratio"
+    extraction === "under" ? "warmer, finer or a longer ratio"
+    : extraction === "over" ? "cooler, coarser or a shorter ratio"
+    : strength === "weak" ? "a shorter ratio"
+    : strength === "strong" ? "a longer ratio"
     : null;
   return { extraction, strength, text: `${ex} · ${st}`, hint };
 }

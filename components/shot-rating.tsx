@@ -22,6 +22,14 @@ export type Face = "like" | "dislike";
 export type PlanChoice = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grindDelta">;
 
 const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
+const EXTRACTION_TEXT = { under: "Under-extracted", ideal: "Extraction OK", over: "Over-extracted" } as const;
+const STRENGTH_TEXT = { weak: "Weak", ideal: "Strength OK", strong: "Too strong" } as const;
+const verdictChip = (text: string, ok: boolean) => (
+  <span className={`rounded-full px-3 py-1 text-sm font-bold ${
+    ok ? "bg-[var(--primary)] text-[var(--on-primary)]" : "border-2 border-[var(--accent)] text-[var(--accent)]"}`}>
+    {ok ? "✓ " : ""}{text}
+  </span>
+);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
@@ -192,12 +200,16 @@ export function ShotRating({
           </p>
         </div>
         {verdict && tds != null && ey != null && (
-          <div className="mt-2 rounded-md border border-[var(--ink)]/15 px-2 pb-1 pt-2">
-            <p className="px-1 text-sm font-semibold text-[var(--ink)]">
-              {verdict.text}
-              {verdict.hint && <span className="font-normal text-[var(--ink)]/70"> · {verdict.hint}</span>}
-            </p>
-            <BrewChart shot={{ tds, ey }} past={pastBrews} target={target} />
+          <div className="mt-2 rounded-md border border-[var(--ink)]/15 p-3">
+            <div className="flex flex-wrap gap-2">
+              {verdictChip(EXTRACTION_TEXT[verdict.extraction], verdict.extraction === "ideal")}
+              {verdictChip(STRENGTH_TEXT[verdict.strength], verdict.strength === "ideal")}
+            </div>
+            {verdict.hint && <p className="mt-1.5 text-sm text-[var(--ink)]/75">To reach the box: {verdict.hint}</p>}
+            <div className="mt-1"><BrewChart shot={{ tds, ey }} past={pastBrews} target={target} /></div>
+            {!!pastBrews?.length && (
+              <p className="text-xs text-[var(--ink)]/60">Open dots: earlier shots of this coffee, joined in order</p>
+            )}
           </div>
         )}
 
