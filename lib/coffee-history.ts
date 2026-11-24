@@ -113,6 +113,34 @@ export interface CoffeeLastShot {
   dbKey?: number;
   /** Face set on the shot: read from the machine after the summary is made */
   face?: "like" | "dislike" | null;
+  /** Curve of the shot for the idle list's chart (not kept in the device's record) */
+  points?: ShotCurvePoint[];
+}
+
+/** Same fields the Station's shot chart plots */
+export interface ShotCurvePoint {
+  t: number;
+  pressure: number | null;
+  flow: number | null;
+  grav: number | null;
+  weight: number | null;
+  temp: null;
+  stage: string | null;
+}
+
+/** The shot's curve, thinned to about 250 points (the machine keeps ~10 a second) */
+export function shotPoints(shot: ShotEntry, max = 250): ShotCurvePoint[] {
+  const frames = shot.data ?? [];
+  const step = Math.max(1, Math.ceil(frames.length / max));
+  return frames.filter((_, i) => i % step === 0 || i === frames.length - 1).map((f) => ({
+    t: f.time,
+    pressure: f.shot?.pressure ?? null,
+    flow: f.shot?.flow ?? null,
+    grav: f.shot?.gravimetric_flow ?? null,
+    weight: f.shot?.weight ?? null,
+    temp: null,
+    stage: f.status ?? null,
+  }));
 }
 
 const CACHE_KEY = "metbarista_coffee_last";
@@ -192,7 +220,7 @@ export function recentShotsForCoffee(coffee: string | undefined, history: ShotEn
   const shots = [...history].sort((a, b) => b.time - a.time)
     .filter((s) => !want || sameCoffee(notesFor(s, log).coffee, want))
     .slice(0, count)
-    .map((s) => summarize(s, want ? { ...notesFor(s, log), coffee: want } : notesFor(s, log), profiles));
+    .map((s) => ({ ...summarize(s, want ? { ...notesFor(s, log), coffee: want } : notesFor(s, log), profiles), points: shotPoints(s) }));
   if (shots.length === 0 && want) {
     const saved = findLastShotForCoffee(want, [], profiles);
     return saved ? [saved] : [];

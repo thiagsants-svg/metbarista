@@ -820,7 +820,8 @@ export default function StationPage() {
                 <p className="text-2xl font-semibold text-[var(--accent)]">Ready — tap Brew</p>
               ) : (
                 // Idle: the last shots of the coffee, and the temperature in one line
-                <RecentShots coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} />
+                <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
+                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} />
               )
             }
           />

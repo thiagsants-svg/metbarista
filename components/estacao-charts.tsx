@@ -165,7 +165,7 @@ export function ShotCharts({
  * redraw a few hundred points several times a second. Straight segments
  * (`linear`) are cheaper than smoothed curves and look the same at ~10 Hz.
  */
-const ShotPlot = memo(function ShotPlot({
+export const ShotPlot = memo(function ShotPlot({
   data, targetWeight, currentStage,
 }: {
   data: ShotPoint[];
