@@ -6,6 +6,9 @@ import { AppFrame } from "@/components/app-shell/app-frame";
 import { BASE_PATH } from "@/lib/base-path";
 import { APP_NAME, APP_TAGLINE, SITE_URL } from "@/lib/brand";
 
+/** Web Analytics site token for not9bar.com (public by design: it ships in every page) */
+const CF_BEACON_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN || "cbd864f1527945e781d63288660acb29";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -55,12 +58,12 @@ export default function RootLayout({
       <body className="min-h-full bg-background overflow-x-hidden">
         {/* Station-style header and menu on every page (the Station has its own) */}
         <AppFrame>{children}</AppFrame>
-        {/* Cloudflare Web Analytics */}
-        {process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN && (
+        {/* Cloudflare Web Analytics (cookieless; the token is public, it only names the site) */}
+        {process.env.NODE_ENV === "production" && (
           <Script
             defer
             src="https://static.cloudflareinsights.com/beacon.min.js"
-            data-cf-beacon={`{"token": "${process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN}"}`}
+            data-cf-beacon={`{"token": "${CF_BEACON_TOKEN}"}`}
             strategy="afterInteractive"
           />
         )}
