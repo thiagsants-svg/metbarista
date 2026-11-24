@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Home. With a machine saved it goes straight to the Station (the app's home);
- * without one it introduces Not Nine Bar and connects the machine.
+ * Home. With a machine saved it goes straight to the Station (the app's home),
+ * unless opened as "About" (/?about); without one it introduces Not Nine Bar
+ * and connects the machine.
  */
 
 import { useState, useEffect } from "react";
@@ -10,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Bluetooth, ClipboardList, Droplets, HardDriveDownload, Loader2, Tablet, TrendingUp } from "lucide-react";
 import { ConnectDialog } from "@/components/connect-dialog";
+import { UsageStrip } from "@/components/usage-strip";
 import { BrandMark } from "@/components/brand-mark";
 import { getSavedIp, saveIp, getIpFromUrlParam } from "@/lib/connection-store";
 import { testConnection } from "@/lib/machine-api";
@@ -40,7 +42,8 @@ export default function HomePage() {
       return;
     }
     const ip = getSavedIp();
-    if (!ip) { setChecking(false); return; }
+    // "About" from the menu: stay here
+    if (!ip || new URLSearchParams(window.location.search).has("about")) { setChecking(false); return; }
     testConnection(ip)
       .then(() => router.replace(STATION))
       .catch(() => setChecking(false));
@@ -93,6 +96,8 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+
+      <UsageStrip />
 
       {/* What it does */}
       <section className="border-t border-[var(--ink)]/15">

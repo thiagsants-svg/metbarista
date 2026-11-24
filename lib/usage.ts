@@ -48,3 +48,17 @@ export async function readUsage(days = 14): Promise<UsageDay[]> {
   const list = (await res.json()) as { day: string; d: number; s: number }[];
   return list.map((x) => ({ day: x.day, devices: x.d, station: x.s }));
 }
+
+export interface UsageSummary {
+  today: { d: number; s: number };
+  week: { d: number; s: number };
+  /** Cloudflare Web Analytics, last 7 days (null until set up on the Worker) */
+  web: { visits: number; pageViews: number } | null;
+}
+
+/** Today and the last 7 days, for the home page */
+export async function readSummary(): Promise<UsageSummary> {
+  const res = await fetch(`${API}/summary`, { ...OPTS, signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as UsageSummary;
+}

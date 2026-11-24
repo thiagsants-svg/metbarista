@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Coffee, History, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
+import { Coffee, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { clearIp, getSavedIp } from "@/lib/connection-store";
@@ -23,6 +23,7 @@ export const PAGES = [
   { href: "/profiles", label: "Profiles", icon: Layers },
   { href: "/stats", label: "Stats", icon: Target },
   { href: "/community", label: "Community", icon: Users },
+  { href: "/?about", label: "About", icon: Info },
 ];
 
 export function StationMenuButton() {
@@ -76,7 +77,7 @@ function StationMenu({ onClose }: { onClose: () => void }) {
 
         <nav className="mt-3 grid grid-cols-2 gap-2">
           {PAGES.map(({ href, label, icon: Icon }) => {
-            const here = path.startsWith(href);
+            const here = href !== "/?about" && path.startsWith(href);
             return (
               <Link key={href} href={href} onClick={onClose} aria-current={here ? "page" : undefined}
                 className={`flex h-14 items-center gap-2.5 rounded-md border px-3 text-base font-semibold active:scale-[0.98] ${
