@@ -8,7 +8,8 @@
  */
 
 import { useState } from "react";
-import { Frown, Smile } from "lucide-react";
+import { Bluetooth, Frown, Loader2, Smile } from "lucide-react";
+import type { DifluidState } from "@/lib/difluid";
 import { WheelPicker } from "@/components/wheel-picker";
 import {
   grindLabel, grindOptions, grindTarget, planLines, TASTE_HINT, TASTE_LABEL, type NextPlan, type Taste,
@@ -22,7 +23,7 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, onDifluid, onSave, onSkip,
 }: {
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
@@ -33,6 +34,11 @@ export function ShotRating({
   shotRecipe: Partial<Recipe>;
   /** Beverage weight from the scale (g), for the extraction yield */
   weight: number;
+  /** Latest reading from the DiFluid R2 (Bluetooth), with when it arrived */
+  deviceTds?: { value: number; at: number } | null;
+  difluid?: DifluidState;
+  /** Connects to the R2, or asks it to measure when connected */
+  onDifluid?: () => void;
   onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null) => void;
   onSkip: () => void;
 }) {
@@ -45,8 +51,13 @@ export function ShotRating({
   const [wheel, setWheel] = useState<"temp" | "ratio" | null>(null);
   /** Refractometer reading (DiFluid etc.), as typed */
   const [tdsInput, setTdsInput] = useState("");
-  const tdsValue = Number(tdsInput.replace(",", "."));
-  const tds = tdsInput.trim() && tdsValue > 0 && tdsValue < 30 ? tdsValue : null;
+  // Readings from the R2 fill the field, unless you typed after them; older readings don't count
+  const [openedAt] = useState(() => Date.now());
+  const [typedAt, setTypedAt] = useState(0);
+  const fromDevice = !!deviceTds && deviceTds.at > openedAt && deviceTds.at > typedAt;
+  const tdsShown = fromDevice ? deviceTds!.value.toFixed(2) : tdsInput;
+  const tdsValue = Number(tdsShown.replace(",", "."));
+  const tds = tdsShown.trim() && tdsValue > 0 && tdsValue < 30 ? tdsValue : null;
   const ey = tds != null ? extractionYield(tds, weight, shotRecipe.dose ?? 0) : null;
   const hasCoffee = !!coffee?.trim();
 
@@ -155,12 +166,20 @@ export function ShotRating({
         <div className="mt-3 flex items-center gap-3">
           <label className="flex h-12 w-40 shrink-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">TDS</span>
-            <input type="text" inputMode="decimal" value={tdsInput} placeholder="—" aria-label="TDS (%)"
-              onChange={(e) => setTdsInput(e.target.value.replace(/[^\d.,]/g, ""))}
+            <input type="text" inputMode="decimal" value={tdsShown} placeholder="—" aria-label="TDS (%)"
+              onChange={(e) => { setTdsInput(e.target.value.replace(/[^\d.,]/g, "")); setTypedAt(Date.now()); }}
               className="w-full min-w-0 bg-transparent text-right text-lg font-bold tabular-nums text-[var(--ink)] outline-none placeholder:text-[var(--ink)]/40" />
             <span className="text-sm text-[var(--ink)]/70">%</span>
           </label>
-          <p className="text-sm text-[var(--ink)]/75">
+          {onDifluid && (
+            <button type="button" onClick={onDifluid} disabled={difluid === "connecting"}
+              className={`flex h-12 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold active:scale-[0.97] disabled:opacity-50 ${
+                difluid === "on" ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]" : "border-[var(--ink)]/25 text-[var(--ink)]/80"}`}>
+              {difluid === "connecting" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bluetooth className="h-4 w-4" />}
+              {difluid === "on" ? "Measure" : "DiFluid"}
+            </button>
+          )}
+          <p className="min-w-0 text-sm text-[var(--ink)]/75">
             {ey != null
               ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b> <span className="text-[var(--ink)]/60">({weight.toFixed(1)} g ÷ {shotRecipe.dose} g)</span></>
               : "Optional: refractometer reading (DiFluid…)"}

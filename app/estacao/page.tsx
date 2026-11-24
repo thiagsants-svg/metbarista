@@ -49,6 +49,7 @@ import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLate
 import { RecentShots } from "@/components/recent-shots";
 import { applyPlan, clearPlan, loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
+import { DifluidLink, type DifluidState } from "@/lib/difluid";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
 /**
@@ -202,6 +203,10 @@ export default function StationPage() {
   /** Stars and notes popup after a shot */
   const [rateOpen, setRateOpen] = useState(false);
   const shotStartedAtRef = useRef(0);
+  /** DiFluid R2 refractometer (Bluetooth): its readings fill the TDS field */
+  const difluidRef = useRef<DifluidLink | null>(null);
+  const [difluid, setDifluid] = useState<DifluidState>("off");
+  const [deviceTds, setDeviceTds] = useState<{ value: number; at: number } | null>(null);
   const linkRef = useRef<Motto80Link | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   /** Light Swiss or dark bumblebee, remembered on this device */
@@ -618,6 +623,19 @@ export default function StationPage() {
     setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
   }
 
+  /** First tap connects to the R2 (Chrome's list the first time); then it asks for a reading */
+  function difluidTap() {
+    if (!difluidRef.current) {
+      difluidRef.current = new DifluidLink(
+        (value) => setDeviceTds({ value, at: Date.now() }),
+        (state, err) => { setDifluid(state); if (err) setError(`DiFluid: ${err}`); },
+      );
+    }
+    const link = difluidRef.current;
+    if (link.connected) link.measure().catch((e) => setError(`DiFluid: ${e instanceof Error ? e.message : String(e)}`));
+    else link.connect();
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
@@ -766,7 +784,8 @@ export default function StationPage() {
         const recipeText = [`${recipe.dose} g`, formatRatio(recipe.ratio), `${recipe.temperature} °C`, grindText(recipe)]
           .filter(Boolean).join(" · ");
         return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
-          shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+          shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w}
+          deviceTds={deviceTds} difluid={difluid} onDifluid={difluidTap} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
         <button onClick={() => setError(null)}
