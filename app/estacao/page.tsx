@@ -329,8 +329,8 @@ export default function StationPage() {
         return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
           shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w}
           deviceTds={deviceTds} difluid={difluid} difluidLog={difluidLog} onDifluid={difluidTap}
-          pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} onSkip={() => setRateOpen(false)}
-          // Saved: back to the coffee's last shots, with the plan just decided
+          pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
+          onSkip={() => { setRateOpen(false); setData([]); }}
           onSave={(...args) => { void saveRating(...args); setData([]); }} />;
       })()}
       {error && (
