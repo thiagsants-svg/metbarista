@@ -47,6 +47,7 @@ import {
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
 import { RecentShots } from "@/components/recent-shots";
+import { BackupButton } from "@/components/backup-panel";
 import { applyPlan, clearPlan, loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
 import { DifluidLink, type DifluidState } from "@/lib/difluid";
@@ -769,6 +770,7 @@ export default function StationPage() {
           className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
           {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
+        <BackupButton />
         <button onClick={toggleFullscreen} aria-label="Full screen"
           className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
           {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
