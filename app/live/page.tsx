@@ -74,7 +74,7 @@ export default function LivePage() {
   useEffect(() => {
     if (!ip) return;
 
-    connectSocket({
+    const handlers: Parameters<typeof connectSocket>[0] = {
       connect: () => setConnected(true),
       disconnect: () => { setConnected(false); setPhase("idle"); },
       status: (s) => {
@@ -127,9 +127,10 @@ export default function LivePage() {
           }
         }
       },
-    });
+    };
+    connectSocket(handlers);
 
-    return () => disconnectSocket();
+    return () => disconnectSocket(handlers);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ip]);
 

@@ -7,7 +7,7 @@
  */
 
 import { useState, useSyncExternalStore } from "react";
-import { Moon, Plus, Sun } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { listCoffees, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
 import { CoffeeCard } from "@/components/coffees/coffee-card";
@@ -18,7 +18,7 @@ const noSubscribe = () => () => {};
 const TABS: CoffeeStatus[] = ["open", "frozen", "finished"];
 
 export default function CoffeesPage() {
-  const { theme, style, toggle } = useStationTheme();
+  const { style } = useStationTheme();
   const ready = useSyncExternalStore(noSubscribe, () => true, () => false);
   /** Bumped after a change, to read the shelf again */
   const [version, setVersion] = useState(0);
@@ -33,17 +33,13 @@ export default function CoffeesPage() {
     on ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/25 text-[var(--ink)]/80"}`;
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5">
         <div className="mb-3 flex items-center gap-3">
           <h1 className="flex-1 text-2xl font-bold">Coffees</h1>
           <button type="button" onClick={() => setOpen("new")}
             className="flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Add coffee
-          </button>
-          <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
         </div>
 

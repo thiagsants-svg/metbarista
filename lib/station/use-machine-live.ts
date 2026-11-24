@@ -57,7 +57,7 @@ export function useMachineLive({
   useEffect(() => {
     // ?demo pages are offline previews: no live data mixed into the fake shot
     if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
-    connectSocket({
+    const handlers: Parameters<typeof connectSocket>[0] = {
       connect: () => setConnected(true),
       error: () => setConnected(false),
       heater: (sec) => setPreheatLeft(sec),
@@ -151,8 +151,9 @@ export function useMachineLive({
           shotStartRef.current = null;
         }
       },
-    }).catch((e) => { setConnected(false); setError(String(e)); });
-    return () => { disconnectSocket(); };
+    };
+    connectSocket(handlers).catch((e) => { setConnected(false); setError(String(e)); });
+    return () => { disconnectSocket(handlers); };
   // Runs once: everything it calls is a ref or a state setter
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

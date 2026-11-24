@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap, Moon, Sun } from "lucide-react";
+import { ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
 
@@ -139,9 +139,9 @@ const RESOURCES = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CommunityPage() {
-  const { theme, style, toggle } = useStationTheme();
+  const { style } = useStationTheme();
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="max-w-5xl mx-auto px-3 sm:px-5 py-4 space-y-10">
 
         {/* Live feeds — 2 col on lg */}
@@ -151,10 +151,6 @@ export default function CommunityPage() {
               <h1 className="text-2xl font-bold">Community</h1>
               <p className="text-sm text-[var(--ink)]/70">Meticulous news, live from meticuloushome.com: firmware and company updates</p>
             </div>
-            <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

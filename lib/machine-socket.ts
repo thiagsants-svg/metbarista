@@ -10,6 +10,10 @@
  * with a brand-new open packet instead of events, so a stale session would
  * silently freeze the UI. A watchdog reopens the session whenever no event
  * has arrived for a few seconds, and right away when the page becomes visible.
+ *
+ * Several parts of the app can listen at once (the Station and the app's
+ * status pill): each connectSocket() adds a listener, each disconnectSocket()
+ * with the same handlers removes it, and the session closes with the last one.
  */
 
 import type { LiveStatus, LiveTemperatures } from "./types";
@@ -40,7 +44,17 @@ let generation = 0;
 let activeSid: string | null = null;
 let activeBase: string | null = null;
 let stopped = false;
-let activeHandlers: Partial<SocketEventMap> = {};
+type Handlers = Partial<SocketEventMap>;
+const listeners = new Set<Handlers>();
+/** Calls the event on every listener */
+const emit = {
+  status: (d: LiveStatus) => listeners.forEach((h) => h.status?.(d)),
+  temperatures: (d: LiveTemperatures) => listeners.forEach((h) => h.temperatures?.(d)),
+  heater: (n: number) => listeners.forEach((h) => h.heater?.(n)),
+  notification: (n: Parameters<SocketEventMap["notification"]>[0]) => listeners.forEach((h) => h.notification?.(n)),
+  connect: () => listeners.forEach((h) => h.connect?.()),
+  disconnect: () => listeners.forEach((h) => h.disconnect?.()),
+};
 let lastEventAt = 0;
 let reopening: Promise<void> | null = null;
 /** A poll is running; refreshNow() must not start a second one on the same session */
@@ -109,9 +123,9 @@ function reopen(): Promise<void> {
   if (reopening || stopped || !activeBase || Date.now() < retryAt) return reopening ?? Promise.resolve();
   const base = activeBase;
   const gen = generation;
-  activeHandlers.disconnect?.();
+  emit.disconnect();
   reopening = openSession(base, 8000, gen)
-    .then(() => { if (gen === generation && activeSid) activeHandlers.connect?.(); })
+    .then(() => { if (gen === generation && activeSid) emit.connect(); })
     .catch(() => { retryAt = Date.now() + 3000; /* unreachable — try again in a few seconds */ })
     .finally(() => { if (gen === generation) reopening = null; });
   return reopening;
@@ -135,14 +149,14 @@ async function doPoll(): Promise<void> {
     if (sessionGone) { await reopen(); return; }
     if (events.length) lastEventAt = Date.now();
     for (const [event, data] of events) {
-      if (event === "status")       activeHandlers.status?.(data as LiveStatus);
-      if (event === "sensors")      activeHandlers.temperatures?.(data as LiveTemperatures);
-      if (event === "temperatures") activeHandlers.temperatures?.(data as LiveTemperatures);
-      if (event === "heater_status" && typeof data === "number") activeHandlers.heater?.(data);
+      if (event === "status")       emit.status(data as LiveStatus);
+      if (event === "sensors")      emit.temperatures(data as LiveTemperatures);
+      if (event === "temperatures") emit.temperatures(data as LiveTemperatures);
+      if (event === "heater_status" && typeof data === "number") emit.heater(data);
       if (event === "notification") {
         try {
           const n = typeof data === "string" ? JSON.parse(data) : data;
-          if (n && typeof n.id === "string") activeHandlers.notification?.(n);
+          if (n && typeof n.id === "string") emit.notification(n);
         } catch { /* malformed notification */ }
       }
     }
@@ -150,11 +164,15 @@ async function doPoll(): Promise<void> {
   finally { if (gen === generation) polling = false; }
 }
 
-export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<void> {
-  if (!stopped && activeBase) return; // already running
+export async function connectSocket(handlers: Handlers): Promise<void> {
+  listeners.add(handlers);
+  if (!stopped && activeBase) {
+    // Already running: this listener joins it
+    if (activeSid) handlers.connect?.();
+    return;
+  }
   stopped = false;
   const gen = ++generation;
-  activeHandlers = handlers;
 
   const ip = getMachineIp();
   if (!ip) throw new Error("Machine IP not configured");
@@ -187,7 +205,11 @@ export async function connectSocket(handlers: Partial<SocketEventMap>): Promise<
   await loop();
 }
 
-export function disconnectSocket(): void {
+/** Removes a listener (all of them without an argument); the session stops with the last one */
+export function disconnectSocket(handlers?: Handlers): void {
+  if (handlers) listeners.delete(handlers);
+  else listeners.clear();
+  if (listeners.size > 0) return;
   stopped = true;
   generation++;
   reopening = null;
@@ -196,7 +218,6 @@ export function disconnectSocket(): void {
   if (onVisibility) { document.removeEventListener("visibilitychange", onVisibility); onVisibility = null; }
   activeSid = null;
   activeBase = null;
-  activeHandlers = {};
 }
 
 export function isSocketConnected(): boolean {

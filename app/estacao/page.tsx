@@ -44,7 +44,8 @@ import {
 import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee } from "@/lib/coffee-history";
 import { applyPlan, clearPlan, loadPlan } from "@/lib/next-plan";
 import { bluetoothSupported } from "@/lib/motto80";
-import { THEMES, fmt, fmtClock, statusLabel, type ThemeName } from "@/lib/station/format";
+import { fmt, fmtClock, statusLabel } from "@/lib/station/format";
+import { useStationTheme } from "@/lib/station/use-theme";
 import { useStationScreen } from "@/lib/station/use-station-screen";
 import { useMachineNotices } from "@/lib/station/use-machine-notices";
 import { useMachineLive } from "@/lib/station/use-machine-live";
@@ -71,7 +72,7 @@ export default function StationPage() {
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
   const [error, setError] = useState<string | null>(null);
   /** Light Swiss or dark bumblebee, remembered on this device */
-  const [theme, setTheme] = useState<ThemeName>("light");
+  const { theme, style: themeStyle, toggle: toggleTheme } = useStationTheme();
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   const startedAtRef = useRef(0);
 
@@ -94,7 +95,6 @@ export default function StationPage() {
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
     setRecipe(loadRecipe());
-    if (localStorage.getItem("metbarista_theme") === "dark") setTheme("dark");
     // /estacao/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
     if (demoParam === "notice") showDemoNotice();
@@ -305,18 +305,14 @@ export default function StationPage() {
   return (
     <div
       className="fixed inset-x-0 top-0 z-[100] flex flex-col [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-[var(--ink)] motion-reduce:[&_*]:animate-none gap-2 overflow-hidden bg-[var(--paper)] p-2.5 text-[var(--ink)] select-none sm:gap-2.5 sm:p-3"
-      style={{ height: "100dvh", ...(THEMES[theme] as unknown as React.CSSProperties) }}
+      style={{ height: "100dvh", ...themeStyle }}
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
 
       <StationHeader title={baseName(status?.loaded_profile ?? "—")}
         statusText={preheating && idle ? `Preheating ${fmtClock(preheatLeft)}` : statusLabel(status, connected)}
         pillClass={pillColor} pulsing={brewing || heating || waiting || needsWater || preheating}
-        theme={theme} onToggleTheme={() => setTheme((t) => {
-          const next = t === "dark" ? "light" : "dark";
-          localStorage.setItem("metbarista_theme", next);
-          return next;
-        })} />
+        theme={theme} onToggleTheme={toggleTheme} />
 
       {rateOpen && (() => {
         const last = data[data.length - 1];

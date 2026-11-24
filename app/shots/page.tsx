@@ -9,7 +9,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Moon, Sun } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getHistory, getShotRating } from "@/lib/machine-api";
 import { useRequireConnection } from "@/lib/connection-store";
 import { shotSummary } from "@/lib/coffee-history";
@@ -52,7 +52,7 @@ function ShotsContent() {
   const params = useSearchParams();
   const selectedId = params.get("shot") ?? params.get("id");
   const coffee = params.get("coffee");
-  const { theme, style, toggle } = useStationTheme();
+  const { style } = useStationTheme();
 
   const [limit, setLimit] = useState(PAGE);
   const [shots, setShots] = useState<ShotEntry[] | null>(null);
@@ -159,15 +159,11 @@ function ShotsContent() {
   );
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5">
         <div className="mb-3 flex items-center gap-3">
           <h1 className="flex-1 text-2xl font-bold">Shots</h1>
           {shots && <span className="text-sm tabular-nums text-[var(--ink)]/60">last {shots.length}</span>}
-          <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </button>
         </div>
 
         {error ? (
@@ -200,7 +196,7 @@ function ShotsContent() {
 
 export default function ShotsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" /></div>}>
+    <Suspense fallback={<div className="flex min-h-[60vh] justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" /></div>}>
       <ShotsContent />
     </Suspense>
   );

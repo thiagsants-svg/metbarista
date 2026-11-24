@@ -1,22 +1,23 @@
 "use client";
 
 /**
- * The Station's menu (it is the app's home, so the rest of the app opens from
- * here): the other pages, the machine's details (what the old Dashboard showed,
- * read only).
+ * The app's menu, the same on the Station and every page: the pages (the one
+ * you're on marked), the machine's details (what the old Dashboard showed,
+ * read only) and switching machines.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Coffee, History, Layers, Loader2, Menu, Target, Users, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Coffee, History, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { clearIp, getSavedIp } from "@/lib/connection-store";
 import { APP_NAME } from "@/lib/brand";
 import type { MachineInfo } from "@/lib/types";
 
-const PAGES = [
+export const PAGES = [
+  { href: "/estacao", label: "Station", icon: Tablet },
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
   { href: "/profiles", label: "Profiles", icon: Layers },
@@ -39,6 +40,7 @@ export function StationMenuButton() {
 
 function StationMenu({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const path = usePathname();
   const [info, setInfo] = useState<MachineInfo | null>(null);
   const [failed, setFailed] = useState(false);
   const ip = getSavedIp();
@@ -73,15 +75,19 @@ function StationMenu({ onClose }: { onClose: () => void }) {
         </div>
 
         <nav className="mt-3 grid grid-cols-2 gap-2">
-          {PAGES.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href}
-              className="flex h-14 items-center gap-2.5 rounded-md border border-[var(--ink)]/20 px-3 text-base font-semibold active:scale-[0.98]">
-              <Icon className="h-5 w-5 text-[var(--accent)]" /> {label}
-            </Link>
-          ))}
+          {PAGES.map(({ href, label, icon: Icon }) => {
+            const here = path.startsWith(href);
+            return (
+              <Link key={href} href={href} onClick={onClose} aria-current={here ? "page" : undefined}
+                className={`flex h-14 items-center gap-2.5 rounded-md border px-3 text-base font-semibold active:scale-[0.98] ${
+                  here ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20"}`}>
+                <Icon className={`h-5 w-5 ${here ? "" : "text-[var(--accent)]"}`} /> {label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="mt-4 rounded-md border border-[var(--ink)]/15 p-3">
+        {ip && <div className="mt-4 rounded-md border border-[var(--ink)]/15 p-3">
           <p className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">Machine</p>
           {!info && !failed && <Loader2 className="mt-2 h-5 w-5 animate-spin text-[var(--ink)]/50" />}
           {failed && <p className="mt-1 text-sm text-[var(--ink)]/70">Couldn&apos;t read the machine ({ip}).</p>}
@@ -102,7 +108,7 @@ function StationMenu({ onClose }: { onClose: () => void }) {
             className="mt-3 h-10 w-full rounded-md border border-[var(--ink)]/25 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
             Connect another machine
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

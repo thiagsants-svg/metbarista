@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Layers, Moon, Plus, Sun } from "lucide-react";
+import { Loader2, Layers, Plus } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { listProfiles, loadProfileById } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
@@ -15,7 +15,7 @@ type Toast = { type: "success" | "error"; msg: string } | null;
 
 export default function ProfilesPage() {
   useRequireConnection();
-  const { theme, style, toggle } = useStationTheme();
+  const { style } = useStationTheme();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
@@ -61,13 +61,13 @@ export default function ProfilesPage() {
     : profiles.filter((p) => inferTypes(p).includes(filter));
 
   if (loading) return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] flex items-center justify-center">
+    <div style={style} className="min-h-[60vh] bg-[var(--paper)] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
     </div>
   );
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="max-w-6xl mx-auto px-3 sm:px-5 py-4 space-y-5">
         {/* Header + filters */}
         <div className="space-y-4">
@@ -82,10 +82,6 @@ export default function ProfilesPage() {
               className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98] shrink-0">
               <Plus className="h-4 w-4" /> New profile
             </Link>
-            <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
           </div>
           <div className="flex gap-2 flex-wrap">
             {STYLE_FILTERS.map((f) => (

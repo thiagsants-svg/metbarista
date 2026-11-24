@@ -59,13 +59,13 @@ function ProfileDetailContent() {
   }
 
   if (loading) return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] flex items-center justify-center">
+    <div style={style} className="min-h-[60vh] bg-[var(--paper)] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
     </div>
   );
 
   if (!profile) return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] flex items-center justify-center">
+    <div style={style} className="min-h-[60vh] bg-[var(--paper)] flex items-center justify-center">
       <p className="text-[var(--ink)]/70 text-sm">Profile not found</p>
     </div>
   );
@@ -75,7 +75,7 @@ function ProfileDetailContent() {
   const imageUrl = profile.display?.image && ip ? `http://${ip}${profile.display.image}` : null;
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-5">
         {/* Back */}
         <Link
@@ -300,7 +300,7 @@ function ProfileDetailContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[var(--paper)] flex items-center justify-center">
+      <div className="min-h-[60vh] bg-[var(--paper)] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
       </div>
     }>

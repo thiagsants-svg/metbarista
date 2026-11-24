@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Moon, Snowflake, Sun } from "lucide-react";
+import { Loader2, Snowflake } from "lucide-react";
 import { getHistoryLight, getShotRating } from "@/lib/machine-api";
 import { useRequireConnection } from "@/lib/connection-store";
 import { shotSummary } from "@/lib/coffee-history";
@@ -47,7 +47,7 @@ const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month:
 
 export default function StatsPage() {
   useRequireConnection();
-  const { theme, style, toggle } = useStationTheme();
+  const { style } = useStationTheme();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[1]);
   const [history, setHistory] = useState<ShotEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,14 +99,10 @@ export default function StatsPage() {
   const section = "mt-6 text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70";
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+    <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">
       <div className="mx-auto max-w-4xl px-3 py-4 sm:px-5">
         <div className="mb-3 flex items-center gap-3">
           <h1 className="flex-1 text-2xl font-bold">Stats</h1>
-          <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </button>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Period">
           {PERIODS.map((p) => (
