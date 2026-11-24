@@ -20,6 +20,7 @@ import { listCoffees, type Coffee } from "@/lib/coffees";
 import { TASTE_LABEL, type Taste } from "@/lib/next-plan";
 import { formatRatio } from "@/lib/recipe";
 import { useStationTheme } from "@/lib/station/use-theme";
+import { PistonCard } from "@/components/stats/piston-card";
 import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike" | null;
@@ -230,6 +231,9 @@ export default function StatsPage() {
                 </ol>
               </>
             )}
+
+            {/* The machine itself: seal friction over the months */}
+            <PistonCard />
           </>
         )}
       </div>

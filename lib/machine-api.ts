@@ -30,12 +30,12 @@ function getBaseUrl(): string {
   return ip ? `http://${ip}` : "";
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const base = getBaseUrl();
   if (!base) throw new Error("Machine IP not configured");
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(`${base}/api/v1${path}`, localNetworkRequestInit({
@@ -159,6 +159,19 @@ export async function getHistoryLight(maxResults = 1000): Promise<ShotEntry[]> {
   return res.history.map((h) => ({ ...h, data: [] })).sort((a, b) => b.time - a.time);
 }
 
+/**
+ * Shots of a time window with their curves (POST /history is the machine's
+ * history search: it reads, it doesn't change anything). Ask a few days at a
+ * time: each shot is ~300 KB.
+ */
+export async function searchHistory(startSec: number, endSec: number, maxResults = 200): Promise<ShotEntry[]> {
+  const res = await apiFetch<HistoryResponse>("/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sort: "asc", max_results: maxResults, dump_data: true, start_date: startSec, end_date: endSec }),
+  }, 90_000);
+  return res.history ?? [];
+}
 // ── Actions ──────────────────────────────────────────────────
 
 export async function executeAction(action: ActionType): Promise<void> {
