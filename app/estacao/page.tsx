@@ -801,7 +801,7 @@ export default function StationPage() {
                   const items = (
                     <>
                       <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">
-                        {lastCoffee.coffee ? `Last · ${lastCoffee.coffee}` : "Last shot"} · {new Date(lastCoffee.when).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                        {lastCoffee.coffee ? `Last · ${lastCoffee.coffee}` : "Last shot"} · {new Date(lastCoffee.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                       {lastCoffee.score != null && (
                         <span className="rounded-md bg-[var(--primary)] px-1.5 py-0.5 text-lg font-extrabold tabular-nums text-[var(--on-primary)]">{lastCoffee.score}</span>
