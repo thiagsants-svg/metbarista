@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Coffee as CoffeeIcon, Snowflake } from "lucide-react";
 import { listPhotos } from "@/lib/coffee-photos";
 import { findLastShotForCoffee } from "@/lib/coffee-history";
-import { STATUS_LABEL, type Coffee } from "@/lib/coffees";
+import { daysAgo, STATUS_LABEL, type Coffee } from "@/lib/coffees";
 
 export function CoffeeCard({ coffee, refresh, onOpen }: {
   coffee: Coffee;
@@ -36,13 +36,18 @@ export function CoffeeCard({ coffee, refresh, onOpen }: {
         {coffee.status !== "open" && (
           <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--paper)]/90 px-2 py-0.5 text-xs font-semibold">
             {coffee.status === "frozen" && <Snowflake className="h-3.5 w-3.5" />}
-            {STATUS_LABEL[coffee.status]}
+            {coffee.status !== "frozen" ? STATUS_LABEL[coffee.status]
+              : coffee.freezeMode === "bag" ? "Frozen bag"
+              : coffee.doses != null ? `${coffee.doses} dose${coffee.doses === 1 ? "" : "s"} left` : "Frozen doses"}
           </span>
         )}
       </div>
       <div className="p-3">
         <p className="truncate text-base font-bold">{coffee.name}</p>
         <p className="truncate text-sm text-[var(--ink)]/70">{coffee.roaster || " "}</p>
+        {coffee.status === "open" && coffee.thawedAt && (
+          <p className="truncate text-xs font-semibold text-[var(--accent)]">Thawed {daysAgo(coffee.thawedAt)}</p>
+        )}
         <p className="mt-1 truncate text-xs tabular-nums text-[var(--ink)]/60">
           {last
             ? `Last shot ${new Date(last.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${grind ? ` · ${grind}` : ""}`

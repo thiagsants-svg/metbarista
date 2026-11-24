@@ -2,15 +2,19 @@
 
 /**
  * Add or edit a coffee: name (fixed once saved: shots carry it), roaster,
- * notes, where it is (in use, frozen, finished) and photos of the bag,
+ * notes, where it is (in use, frozen as single doses or as a whole bag,
+ * finished) and photos of the bag,
  * taken with the tablet's camera or picked from the gallery.
  */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Loader2, Trash2, X } from "lucide-react";
+import { Camera, Loader2, Minus, Plus, Snowflake, Trash2, X } from "lucide-react";
 import { addPhoto, deleteCoffeePhotos, deletePhoto, listPhotos, shrinkImage, type CoffeePhoto } from "@/lib/coffee-photos";
-import { coffeeKey, deleteCoffee, getCoffee, saveCoffee, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
+import {
+  coffeeKey, daysAgo, deleteCoffee, FREEZE_LABEL, getCoffee, saveCoffee, STATUS_LABEL, thawCoffee,
+  type Coffee, type CoffeeStatus, type FreezeMode,
+} from "@/lib/coffees";
 
 export function CoffeeSheet({ coffee, onClose, onChanged }: {
   /** null: a new coffee */
@@ -22,6 +26,8 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
   const [roaster, setRoaster] = useState(coffee?.roaster ?? "");
   const [notes, setNotes] = useState(coffee?.notes ?? "");
   const [status, setStatus] = useState<CoffeeStatus>(coffee?.status ?? "open");
+  const [freezeMode, setFreezeMode] = useState<FreezeMode>(coffee?.freezeMode ?? "doses");
+  const [doses, setDoses] = useState(coffee?.doses != null ? String(coffee.doses) : "");
   const [photos, setPhotos] = useState<CoffeePhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +49,11 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
   function save(): boolean {
     if (!key) { setError("Give the coffee a name"); return false; }
     if (taken) { setError("There's already a coffee with this name"); return false; }
-    saveCoffee({ name, roaster, notes, status });
+    const n = Number(doses);
+    saveCoffee({
+      name, roaster, notes, status,
+      ...(status === "frozen" ? { freezeMode, doses: freezeMode === "doses" && doses.trim() && n >= 0 ? n : undefined } : {}),
+    });
     if (!coffee) setCreated(true);
     onChanged();
     return true;
@@ -74,6 +84,14 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
     setViewing(null);
     onChanged();
   }
+
+  function thaw() {
+    thawCoffee(coffee!.name);
+    onChanged();
+    onClose();
+  }
+
+  const stepDoses = (d: number) => setDoses(String(Math.max(0, (Number(doses) || 0) + d)));
 
   async function remove() {
     if (!window.confirm(`Delete ${name.trim()}? Its photos go too; its shots keep the name.`)) return;
@@ -122,6 +140,51 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
         </div>
         {status === "finished" && (
           <p className="mt-1 text-sm text-[var(--ink)]/70">Finished coffees leave the Station&apos;s list; their shots stay.</p>
+        )}
+        {status === "open" && coffee?.status === "open" && coffee.thawedAt && (
+          <p className="mt-1 text-sm text-[var(--ink)]/75">Thawed {daysAgo(coffee.thawedAt)}.</p>
+        )}
+
+        {/* Frozen: single doses (brewed straight from the freezer) or the whole bag */}
+        {status === "frozen" && (
+          <div className="mt-2 rounded-md border border-[var(--ink)]/15 p-3">
+            <div className="flex gap-2" role="radiogroup" aria-label="How it's frozen">
+              {(Object.keys(FREEZE_LABEL) as FreezeMode[]).map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={freezeMode === m} onClick={() => setFreezeMode(m)} className={chip(freezeMode === m)}>
+                  {FREEZE_LABEL[m]}
+                </button>
+              ))}
+            </div>
+            {freezeMode === "doses" ? (
+              <>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="flex-1 text-sm font-semibold">Doses in the freezer</span>
+                  <button type="button" aria-label="One dose less" onClick={() => stepDoses(-1)}
+                    className="flex h-11 w-11 items-center justify-center rounded-md border border-[var(--ink)]/25 active:scale-95"><Minus className="h-5 w-5" /></button>
+                  <input type="text" inputMode="numeric" value={doses} placeholder="—" aria-label="Doses in the freezer"
+                    onChange={(e) => setDoses(e.target.value.replace(/\D/g, ""))}
+                    className="h-11 w-16 rounded-md border border-[var(--ink)]/20 bg-transparent text-center text-xl font-bold tabular-nums" />
+                  <button type="button" aria-label="One dose more" onClick={() => stepDoses(1)}
+                    className="flex h-11 w-11 items-center justify-center rounded-md border border-[var(--ink)]/25 active:scale-95"><Plus className="h-5 w-5" /></button>
+                </div>
+                <p className="mt-2 text-sm text-[var(--ink)]/70">
+                  Stays on the Station&apos;s list; each shot of it on the Station takes one dose.
+                  {doses === "0" ? " No doses left: mark it Finished?" : ""}
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-[var(--ink)]/70">Off the Station&apos;s list until you thaw it.</p>
+            )}
+            {coffee?.status === "frozen" && coffee.frozenAt && (
+              <p className="mt-1 text-sm text-[var(--ink)]/70">In the freezer since {daysAgo(coffee.frozenAt)}.</p>
+            )}
+            {coffee?.status === "frozen" && coffee.freezeMode === "bag" && freezeMode === "bag" && (
+              <button type="button" onClick={thaw}
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-[var(--accent)] text-base font-bold active:scale-[0.98]">
+                <Snowflake className="h-5 w-5" /> Thaw now: back on the Station
+              </button>
+            )}
+          </div>
         )}
 
         <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Bag photos</p>

@@ -14,6 +14,7 @@ import type { Face, PlanChoice } from "@/components/shot-rating";
 import { getHistory, getShotRating, rateShot } from "@/lib/machine-api";
 import { getShotNote, saveShotNote, saveShotPlan } from "@/lib/shot-notes";
 import { composeShotNote } from "@/lib/shot-record";
+import { takeDose } from "@/lib/coffees";
 import { findNewShot, linkShot, recentShotsForCoffee, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { loadPlan, savePlan, type NextPlan } from "@/lib/next-plan";
 import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "@/lib/recipe";
@@ -144,6 +145,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       shotFoundRef.current = null;
       keyBeforeShotRef.current = null;
       getHistory(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
+      // A frozen single dose of this coffee went into the shot
+      takeDose(recipe.coffee);
       const g = linkRef.current?.connected ? linkRef.current.latest : null;
       if (g && isMotto80(recipe.grinder)) {
         recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));
