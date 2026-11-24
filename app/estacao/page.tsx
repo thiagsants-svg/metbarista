@@ -785,7 +785,8 @@ export default function StationPage() {
           .filter(Boolean).join(" · ");
         return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
           shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w}
-          deviceTds={deviceTds} difluid={difluid} onDifluid={difluidTap} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+          deviceTds={deviceTds} difluid={difluid} onDifluid={difluidTap}
+          pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
         <button onClick={() => setError(null)}

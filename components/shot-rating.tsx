@@ -10,6 +10,8 @@
 import { useState } from "react";
 import { Bluetooth, Frown, Loader2, Smile } from "lucide-react";
 import type { DifluidState } from "@/lib/difluid";
+import { brewVerdict, targetFor } from "@/lib/brew-control";
+import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { WheelPicker } from "@/components/wheel-picker";
 import {
   grindLabel, grindOptions, grindTarget, planLines, TASTE_HINT, TASTE_LABEL, type NextPlan, type Taste,
@@ -23,7 +25,7 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, onDifluid, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, onDifluid, pastBrews, onSave, onSkip,
 }: {
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
@@ -39,6 +41,8 @@ export function ShotRating({
   difluid?: DifluidState;
   /** Connects to the R2, or asks it to measure when connected */
   onDifluid?: () => void;
+  /** Earlier shots of this coffee with a TDS reading, for the brew chart */
+  pastBrews?: BrewPoint[];
   onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null) => void;
   onSkip: () => void;
 }) {
@@ -60,6 +64,8 @@ export function ShotRating({
   const tds = tdsShown.trim() && tdsValue > 0 && tdsValue < 30 ? tdsValue : null;
   const ey = tds != null ? extractionYield(tds, weight, shotRecipe.dose ?? 0) : null;
   const hasCoffee = !!coffee?.trim();
+  const target = targetFor(shotRecipe.ratio);
+  const verdict = tds != null && ey != null ? brewVerdict(tds, ey, target) : null;
 
   const plan: PlanChoice | null = taste && {
     taste,
@@ -185,6 +191,15 @@ export function ShotRating({
               : "Optional: refractometer reading (DiFluid…)"}
           </p>
         </div>
+        {verdict && tds != null && ey != null && (
+          <div className="mt-2 rounded-md border border-[var(--ink)]/15 px-2 pb-1 pt-2">
+            <p className="px-1 text-sm font-semibold text-[var(--ink)]">
+              {verdict.text}
+              {verdict.hint && <span className="font-normal text-[var(--ink)]/70"> · {verdict.hint}</span>}
+            </p>
+            <BrewChart shot={{ tds, ey }} past={pastBrews} target={target} />
+          </div>
+        )}
 
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
           placeholder="Tasting notes (optional): chocolate, a bit sour…"
