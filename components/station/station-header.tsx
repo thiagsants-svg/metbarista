@@ -16,8 +16,10 @@ import type { StatusPill, ThemeName } from "@/lib/station/format";
 
 export const headerButton = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95";
 
-export function AppHeader({ title, pill, pillHref, theme, onToggleTheme, extra }: {
+export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleTheme, extra }: {
   title: string;
+  /** Next to the title, lighter (the Station: the profile loaded on the machine) */
+  subtitle?: string;
   pill: StatusPill;
   /** Off the Station, the pill leads there */
   pillHref?: string;
@@ -36,7 +38,10 @@ export function AppHeader({ title, pill, pillHref, theme, onToggleTheme, extra }
     <header className="flex shrink-0 items-center gap-2.5">
       <StationMenuButton />
       <BrandMark className="hidden h-7 w-7 sm:inline-block" />
-      <p className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</p>
+      <p className="min-w-0 flex-1 truncate text-lg">
+        <span className="font-semibold">{title}</span>
+        {subtitle && <span className="text-[var(--ink)]/60"> · {subtitle}</span>}
+      </p>
       {pillHref
         ? <Link href={pillHref} aria-label={`Machine: ${pill.text}. Open the Station`} className={pillClass}>{pillBody}</Link>
         : <span className={pillClass}>{pillBody}</span>}

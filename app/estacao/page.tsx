@@ -303,7 +303,7 @@ export default function StationPage() {
     >
       <MachineNotice notices={notices} busy={noticeBusy} onRespond={respondToNotice} />
 
-      <StationHeader title={baseName(status?.loaded_profile ?? "—")}
+      <StationHeader title="Station" subtitle={status?.loaded_profile ? baseName(status.loaded_profile) : undefined}
         pill={statusPill(status, connected, preheatLeft)}
         theme={theme} onToggleTheme={toggleTheme} />
 
