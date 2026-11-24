@@ -182,11 +182,13 @@ export function ShotCharts({
  * (`linear`) are cheaper than smoothed curves and look the same at ~10 Hz.
  */
 export const ShotPlot = memo(function ShotPlot({
-  data, targetWeight, currentStage,
+  data, targetWeight, currentStage, marks = [],
 }: {
   data: ShotPoint[];
   targetWeight: number | null;
   currentStage: string | null;
+  /** Moments to point out (shot facts), as a dashed vertical line */
+  marks?: { t: number; label: string }[];
 }) {
   const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
   const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
@@ -250,6 +252,10 @@ export const ShotPlot = memo(function ShotPlot({
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
               <Line yAxisId="l" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+              {marks.map((m) => (
+                <ReferenceLine key={`${m.label}-${m.t}`} yAxisId="l" x={m.t} stroke="var(--accent)" strokeWidth={1.5} strokeDasharray="5 3"
+                  label={{ value: m.label, position: "insideBottomLeft", fill: "var(--accent)", fontSize: 12, fontWeight: 700 }} />
+              ))}
 
             </ComposedChart>
           </ResponsiveContainer>

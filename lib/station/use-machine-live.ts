@@ -6,6 +6,7 @@
  * once by itself when "Auto brew" is on and the machine is ready.
  */
 
+import { activeTargets } from "@/lib/shot-facts";
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { HeatPoint, ShotPoint } from "@/components/estacao-charts";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
@@ -141,8 +142,7 @@ export function useMachineLive({
               temp: s.sensors?.t ?? null,
               ...groupTempsFor(groupTempsRef.current),
               stage: s.name ?? null,
-              pTarget: s.setpoints?.pressure ?? null,
-              fTarget: s.setpoints?.flow ?? null,
+              ...activeTargets(s.setpoints),
             },
           ];
           dataDirtyRef.current = true;

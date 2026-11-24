@@ -12,6 +12,8 @@ import { Bluetooth, Frown, Loader2, Smile } from "lucide-react";
 import type { DifluidState } from "@/lib/difluid";
 import { targetFor } from "@/lib/brew-control";
 import { BrewChart, type BrewPoint } from "@/components/brew-chart";
+import { ShotFactsList } from "@/components/shots/shot-facts";
+import type { ShotFact } from "@/lib/shot-facts";
 import { WheelPicker } from "@/components/wheel-picker";
 import {
   grindLabel, grindOptions, grindTarget, planLines, TASTE_HINT, TASTE_LABEL, type NextPlan, type Taste,
@@ -25,8 +27,10 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, facts, onSave, onSkip,
 }: {
+  /** What the shot's curves show (channeling, choking, limits), once the machine saved it */
+  facts?: ShotFact[] | null;
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
   coffee?: string;
@@ -126,6 +130,7 @@ export function ShotRating({
           <p className="truncate text-base font-semibold text-[var(--ink)]">{coffee?.trim() || "No coffee set"}</p>
           {recipe && <p className="text-sm tabular-nums text-[var(--ink)]/75">{recipe}</p>}
         </div>
+        {facts && facts.length > 0 && <div className="mt-2"><ShotFactsList facts={facts} quietWhenEmpty /></div>}
 
         <div className="mt-3 flex gap-3" role="radiogroup" aria-label="Rating">
           {faceBtn("like", "Liked it", Smile)}

@@ -20,6 +20,7 @@ import { loadPlan, savePlan, type NextPlan } from "@/lib/next-plan";
 import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "@/lib/recipe";
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
+import { shotFacts, type ShotFact } from "@/lib/shot-facts";
 
 export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, data, linkRef, setError }: {
   demo: boolean;
@@ -46,6 +47,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
   const keyBeforeShotRef = useRef<number | null>(null);
   /** The shot that just ended, once the machine has saved it */
   const shotFoundRef = useRef<Promise<ShotEntry | null> | null>(null);
+  /** What the curves of the shot that just ended show (null until it's saved) */
+  const [lastFacts, setLastFacts] = useState<ShotFact[] | null>(null);
 
   /** Shows the last shots on the idle screen, then their faces from the machine */
   function showRecent(list: CoffeeLastShot[]) {
@@ -143,6 +146,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       rateDueRef.current = false;
       shotStartedAtRef.current = Date.now();
       shotFoundRef.current = null;
+      setLastFacts(null);
       keyBeforeShotRef.current = null;
       getHistory(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
       // A frozen single dose of this coffee went into the shot
@@ -158,6 +162,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     rateDueRef.current = true;
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     shotFoundRef.current = waitForShot();
+    shotFoundRef.current.then((s) => { if (s) setLastFacts(shotFacts(s.data ?? [], s.profile?.stages ?? [])); }).catch(() => { /* no facts */ });
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
@@ -173,5 +178,5 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     setRateOpen(true);
   }, [purgeAsked]);
 
-  return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating };
+  return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts };
 }

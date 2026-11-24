@@ -14,6 +14,8 @@ import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
+import { FACT_LABEL, shotFacts } from "@/lib/shot-facts";
+import { ShotFactsList } from "@/components/shots/shot-facts";
 import { rateShot } from "@/lib/machine-api";
 import { getShotNote, getShotPlan, saveShotNote } from "@/lib/shot-notes";
 import { composeShotNote } from "@/lib/shot-record";
@@ -41,6 +43,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const plan = getShotPlan(shot.time);
   const planText = plan ? planLines(p, plan) : [];
   const points = shotPoints(shot);
+  const facts = shotFacts(shot.data ?? [], shot.profile?.stages ?? []);
   const actualRatio = p.dose ? s.weight / p.dose : null;
 
   const tile = (label: string, value: string, sub?: string | null) => (
@@ -84,10 +87,16 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
       </div>
 
       {points.length > 1 && (
-        <div className="relative h-64">
-          <ShotPlot data={points} targetWeight={null} currentStage={null} />
+        <div>
+          <div className="relative h-64">
+            <ShotPlot data={points} targetWeight={null} currentStage={null}
+              marks={facts.map((f) => ({ t: f.at, label: FACT_LABEL[f.kind] }))} />
+          </div>
+          <p className="mt-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following (pressure or flow)</p>
         </div>
       )}
+
+      {points.length > 1 && <ShotFactsList facts={facts} />}
 
       {plan && (
         <div className="rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2">

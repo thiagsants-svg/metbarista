@@ -88,7 +88,7 @@ export default function StationPage() {
   const brewing = isExtracting(status);
   // Anonymous count of Stations connected to a machine today (see lib/usage.ts)
   useEffect(() => { if (connected) void countUse("s"); }, [connected]);
-  const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating } =
+  const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts } =
     useShotRecord({
       demo, profiles, recipe, brewing, data, linkRef, setError,
       // The machine is waiting for the purge tap after the shot
@@ -322,6 +322,7 @@ export default function StationPage() {
           shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w}
           deviceTds={deviceTds} difluid={difluid} difluidMeasuring={difluidMeasuring} difluidNoReply={difluidNoReply} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
+          facts={lastFacts}
           onSkip={() => { setRateOpen(false); setData([]); }}
           onSave={(...args) => { void saveRating(...args); setData([]); }} />;
       })()}

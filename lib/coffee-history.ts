@@ -7,6 +7,7 @@
  * small local log of what was loaded and when, matched to shots by time.
  */
 
+import { activeTargets } from "./shot-facts";
 import { analyzeShot } from "./shot-analysis";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
@@ -165,6 +166,9 @@ export interface ShotCurvePoint {
   weight: number | null;
   temp: null;
   stage: string | null;
+  /** What the machine was following: the pressure or the flow target (the other one is a limit) */
+  pTarget: number | null;
+  fTarget: number | null;
 }
 
 /** The shot's curve, thinned to about 250 points (the machine keeps ~10 a second) */
@@ -179,6 +183,7 @@ export function shotPoints(shot: ShotEntry, max = 250): ShotCurvePoint[] {
     weight: f.shot?.weight ?? null,
     temp: null,
     stage: f.status ?? null,
+    ...activeTargets(f.shot?.setpoints),
   }));
 }
 
