@@ -898,13 +898,9 @@ export default function StationPage() {
             onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
           />
 
-          {/* Start heating and Brew: slide, so a stray tap can't start the machine */}
+          {/* Start heating: slide, so a stray tap can't start the machine. Brew stays a tap (wet hands slide badly). */}
           {mainAction === "load" && busy === null ? (
             <SlideToStart label="Slide to heat" hint={mainHint} onConfirm={startShot}
-              className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:h-24 landscape:min-h-0 landscape:self-end`} />
-          ) : tone === "brew" && mainAction === "continue" && busy === null ? (
-            // Brew (or Purge) too: slide, so the shot never starts by accident
-            <SlideToStart label={`Slide to ${mainLabel.toLowerCase()}`} hint={mainHint} onConfirm={() => run("continue")}
               className={`${stopFirst ? "order-3" : "order-2"} min-h-[84px] landscape:h-24 landscape:min-h-0 landscape:self-end`} />
           ) : (
           <button
