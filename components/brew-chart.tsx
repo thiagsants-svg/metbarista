@@ -47,10 +47,7 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
   const bx0 = sx(target.ey[0]), bx1 = sx(target.ey[1]);
   const by0 = sy(target.tds[1]), by1 = sy(target.tds[0]);
   const trail = [...past].reverse().concat(shot);
-  // Value label above the dot, or below when it would leave the plot
-  const labelBelow = sy(shot.tds) < PAD.t + 26;
-  const labelX = Math.min(Math.max(sx(shot.ey), PAD.l + 60), PAD.l + PW - 60);
-  const zone = { fontSize: 11, fontWeight: 600, fill: "var(--ink)", fillOpacity: 0.5, letterSpacing: 0.6 } as const;
+  const zone = { fontSize: 10, fontWeight: 600, fill: "var(--ink)", fillOpacity: 0.5, letterSpacing: 0.6 } as const;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img"
@@ -69,10 +66,10 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
 
       <rect x={PAD.l} y={PAD.t} width={PW} height={PH} fill="none" stroke="var(--ink)" strokeOpacity={0.2} />
       {xTicks.map((v) => (
-        <text key={`x${v}`} x={sx(v)} y={H - PAD.b + 15} textAnchor="middle" fontSize={11} fill="var(--ink)" fillOpacity={0.65}>{v}</text>
+        <text key={`x${v}`} x={sx(v)} y={H - PAD.b + 15} textAnchor="middle" fontSize={10} fill="var(--ink)" fillOpacity={0.6}>{v}</text>
       ))}
       {yTicks.map((v) => (
-        <text key={`y${v}`} x={PAD.l - 6} y={sy(v) + 4} textAnchor="end" fontSize={11} fill="var(--ink)" fillOpacity={0.65}>{v}</text>
+        <text key={`y${v}`} x={PAD.l - 6} y={sy(v) + 4} textAnchor="end" fontSize={10} fill="var(--ink)" fillOpacity={0.6}>{v}</text>
       ))}
       <text x={PAD.l + PW} y={H - 2} textAnchor="end" fontSize={11} fontWeight={600} fill="var(--ink)" fillOpacity={0.7}>EY %</text>
       <text x={2} y={PAD.t - 8} fontSize={11} fontWeight={600} fill="var(--ink)" fillOpacity={0.7}>TDS %</text>
@@ -110,13 +107,6 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
       ))}
       <text x={bx0 + 4} y={by0 + 13} fontSize={11} fontWeight={700} fill="var(--ink)" fillOpacity={0.75}>{target.name}</text>
 
-      {/* The shot's numbers next to its dot */}
-      <g transform={`translate(${labelX}, ${labelBelow ? sy(shot.tds) + 18 : sy(shot.tds) - 30})`}>
-        <rect x={-58} y={0} width={116} height={18} rx={4} fill="var(--ink)" />
-        <text x={0} y={13} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--paper)">
-          EY {shot.ey.toFixed(1)} · TDS {shot.tds.toFixed(2)}
-        </text>
-      </g>
     </svg>
   );
 }
