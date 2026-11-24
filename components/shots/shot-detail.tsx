@@ -105,7 +105,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
         <p className="text-sm text-[var(--ink)]/70">
           Profile: <b className="text-[var(--ink)]">{s.profileName}</b>
           {" · "}
-          <Link href={`/profiles?id=${shot.profile.id}`} className="font-semibold underline underline-offset-2">open</Link>
+          <Link href={`/profile?id=${shot.profile.id}`} className="font-semibold underline underline-offset-2">open</Link>
         </p>
       )}
     </article>

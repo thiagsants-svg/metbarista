@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Layers, Plus, Upload, ArrowLeft } from "lucide-react";
+import { Loader2, Layers, Moon, Plus, Sun } from "lucide-react";
+import { useStationTheme } from "@/lib/station/use-theme";
 import { listProfiles, loadProfileById } from "@/lib/machine-api";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import { ProfileCard } from "@/components/profile-card";
@@ -15,6 +15,7 @@ type Toast = { type: "success" | "error"; msg: string } | null;
 
 export default function ProfilesPage() {
   useRequireConnection();
+  const { theme, style, toggle } = useStationTheme();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
@@ -60,35 +61,41 @@ export default function ProfilesPage() {
     : profiles.filter((p) => inferTypes(p).includes(filter));
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-[#ffc400]" />
+    <div style={style} className="min-h-screen bg-[var(--paper)] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+    <div style={style} className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <div className="max-w-6xl mx-auto px-3 sm:px-5 py-4 space-y-5">
         {/* Header + filters */}
         <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#fafafa]">Profiles</h1>
-            <p className="text-sm text-[#fafafa]/40 mt-0.5">
-              {profiles.length} profile{profiles.length !== 1 ? "s" : ""} on your machine
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold">Profiles</h1>
+              <p className="text-sm text-[var(--ink)]/70">
+                {profiles.length} profile{profiles.length !== 1 ? "s" : ""} on your machine
+              </p>
+            </div>
+            <Link href="/create"
+              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98] shrink-0">
+              <Plus className="h-4 w-4" /> New profile
+            </Link>
+            <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={toggle}
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
           </div>
-          <Link href="/create"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc400] px-4 py-2 text-sm font-semibold text-[#0a0a0a] hover:bg-[#ffd23f] transition-all shrink-0">
-            <Plus className="h-3.5 w-3.5" /> New Profile
-          </Link>
           <div className="flex gap-2 flex-wrap">
             {STYLE_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer capitalize ${
+                className={`h-10 rounded-full border px-4 text-sm font-semibold capitalize active:scale-[0.97] ${
                   filter === f
-                    ? "bg-[#ffc400]/15 text-[#ffc400] border-[#ffc400]/20"
-                    : "bg-transparent text-[#fafafa]/40 border-white/[0.08] hover:text-[#fafafa]/70"
+                    ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]"
+                    : "border-[var(--ink)]/25 text-[var(--ink)]/80"
                 }`}
               >
                 {f}
@@ -99,18 +106,18 @@ export default function ProfilesPage() {
 
         {!profiles.length ? (
           <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center">
-            <div className="rounded-full bg-[#ffc400]/10 p-4">
-              <Layers className="h-8 w-8 text-[#ffc400]" />
+            <div className="rounded-full bg-[var(--primary)]/10 p-4">
+              <Layers className="h-8 w-8 text-[var(--accent)]" />
             </div>
             <div>
-              <p className="text-[#fafafa]/60 text-sm">No profiles found.</p>
-              <p className="text-[#fafafa]/30 text-xs mt-0.5">Connect your machine first.</p>
+              <p className="text-[var(--ink)]/85 text-sm">No profiles found.</p>
+              <p className="text-[var(--ink)]/60 text-xs mt-0.5">Connect your machine first.</p>
             </div>
             <Link
               href="/estacao"
-              className="rounded-full border border-[#ffc400]/20 bg-[#ffc400]/10 px-4 py-2 text-sm font-medium text-[#ffc400] hover:bg-[#ffc400]/20 transition-colors"
+              className="rounded-full border border-[var(--accent)]/40 bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--primary)]/20 transition-colors"
             >
-              Go to Dashboard
+              Go to the Station
             </Link>
           </div>
         ) : (
@@ -119,7 +126,7 @@ export default function ProfilesPage() {
               <ProfileCard
                 key={profile.id}
                 profile={profile}
-                href={`/profiles?id=${profile.id}`}
+                href={`/profile?id=${profile.id}`}
                 onLoad={loadingId === null ? handleLoad : undefined}
               />
             ))}
@@ -131,8 +138,8 @@ export default function ProfilesPage() {
       {toast && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-xl transition-all z-50 ${
           toast.type === "success"
-            ? "border-[#4ade80]/20 bg-[#0a0a0a] text-[#4ade80]"
-            : "border-red-500/20 bg-[#0a0a0a] text-red-400"
+            ? "border-[var(--accent)]/40 bg-[var(--paper)] text-[var(--ink)]"
+            : "border-red-500/20 bg-[var(--paper)] text-red-400"
         }`}>
           {toast.msg}
         </div>
