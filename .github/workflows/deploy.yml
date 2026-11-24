@@ -27,6 +27,17 @@ jobs:
 
       - run: npm ci
 
+      # Checks before publishing: if any fails, nothing is deployed and the
+      # tablet keeps the version that works
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint (Station files)
+        run: npm run lint:station
+
+      - name: Tests (machine-facing logic)
+        run: npm test
+
       - id: pages
         uses: actions/configure-pages@v5
 

@@ -68,7 +68,38 @@ export function bluetoothSupported(): boolean {
   return !!bluetooth();
 }
 
-function frame(json: unknown, seq = 0): Uint8Array {
+/**
+ * Adds received bytes to what was pending and returns a full frame's JSON text
+ * once its declared length is in (a frame starts with a5; pieces join up).
+ */
+export function joinFrame(pending: Uint8Array, chunk: Uint8Array): { rest: Uint8Array; text: string | null } {
+  const joined = new Uint8Array(pending.length + chunk.length);
+  joined.set(pending); joined.set(chunk, pending.length);
+  const buf: Uint8Array = joined[0] === 0xa5 ? joined : chunk[0] === 0xa5 ? chunk : new Uint8Array(0);
+  if (buf.length < 8) return { rest: buf, text: null };
+  const len = new DataView(buf.buffer, buf.byteOffset).getUint32(4, true);
+  if (buf.length < 8 + len) return { rest: buf, text: null };
+  return { rest: new Uint8Array(0), text: new TextDecoder().decode(buf.subarray(8, 8 + len)) };
+}
+
+/**
+ * Reading from a periodInfo message, field by field (a message cut short still
+ * gives what it has; missing feed/rpm keep the previous values).
+ */
+export function parseReading(text: string, prev: Motto80Reading | null): Motto80Reading | null {
+  const num = (k: string) => { const m = new RegExp(`"${k}":(-?\\d+)`).exec(text); return m ? Number(m[1]) : undefined; };
+  const bladeGap = num("bladeGap");
+  if (bladeGap == null || !/periodInfo/.test(text)) return null;
+  return {
+    bladeGap,
+    feedingRpm: num("feedingRpm") ?? prev?.feedingRpm ?? 0,
+    grindRpm: num("grindRpm") ?? prev?.grindRpm ?? 0,
+    devState: /"devState":"([A-Z_]+)"/.exec(text)?.[1],
+    totalGrinds: num("totalGrinds"),
+  };
+}
+
+export function frame(json: unknown, seq = 0): Uint8Array {
   const body = new TextEncoder().encode(JSON.stringify(json));
   const out = new Uint8Array(8 + body.length);
   out.set([0xa5, 0x01, seq & 0xff, 0x00], 0);
@@ -172,29 +203,14 @@ export class Motto80Link {
 
   /** Turns received bytes into a reading. Frames may arrive whole, in pieces, or cut short. */
   private takeBytes(buf: { b: Uint8Array }, chunk: Uint8Array): void {
-    const joined = new Uint8Array(buf.b.length + chunk.length);
-    joined.set(buf.b); joined.set(chunk, buf.b.length);
-    buf.b = joined[0] === 0xa5 ? joined : chunk[0] === 0xa5 ? chunk : new Uint8Array(0);
-    if (buf.b.length < 8) return;
-    const len = new DataView(buf.b.buffer, buf.b.byteOffset).getUint32(4, true);
-    if (buf.b.length < 8 + len) return;
-    const text = new TextDecoder().decode(buf.b.subarray(8, 8 + len));
-    buf.b = new Uint8Array(0);
-    this.takeText(text);
+    const { rest, text } = joinFrame(buf.b, chunk);
+    buf.b = rest;
+    if (text != null) this.takeText(text);
   }
 
   private takeText(text: string): void {
-    // Field by field, so a message cut short still gives what it has
-    const num = (k: string) => { const m = new RegExp(`"${k}":(-?\\d+)`).exec(text); return m ? Number(m[1]) : undefined; };
-    const bladeGap = num("bladeGap");
-    if (bladeGap == null || !/periodInfo/.test(text)) return;
-    const r: Motto80Reading = {
-      bladeGap,
-      feedingRpm: num("feedingRpm") ?? this.latest?.feedingRpm ?? 0,
-      grindRpm: num("grindRpm") ?? this.latest?.grindRpm ?? 0,
-      devState: /"devState":"([A-Z_]+)"/.exec(text)?.[1],
-      totalGrinds: num("totalGrinds"),
-    };
+    const r = parseReading(text, this.latest);
+    if (!r) return;
     this.lastReadingAt = Date.now();
     const changed = !this.latest || this.latest.bladeGap !== r.bladeGap
       || this.latest.feedingRpm !== r.feedingRpm || this.latest.grindRpm !== r.grindRpm;
