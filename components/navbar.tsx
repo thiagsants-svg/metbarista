@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { History, Layers, Users, Target, Tablet } from "lucide-react";
 import { BrandMark } from "./brand-mark";
-import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { APP_NAME, REPO_URL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { ConnectionDot } from "./connection-dot";
 
@@ -41,10 +41,6 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <a href={UPSTREAM.repoUrl} target="_blank" rel="noopener noreferrer"
-            className="hidden xl:flex items-center gap-1 whitespace-nowrap text-xs text-[#fafafa]/35 hover:text-[#fafafa]/60 transition-colors">
-            based on {UPSTREAM.name} by {UPSTREAM.author}
-          </a>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
             title="Source on GitHub"
             className="flex items-center text-[#fafafa]/30 hover:text-[#fafafa]/70 transition-colors">

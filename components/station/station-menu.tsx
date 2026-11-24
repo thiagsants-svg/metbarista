@@ -3,7 +3,7 @@
 /**
  * The Station's menu (it is the app's home, so the rest of the app opens from
  * here): the other pages, the machine's details (what the old Dashboard showed,
- * read only) and the credits.
+ * read only).
  */
 
 import { useEffect, useState } from "react";
@@ -13,7 +13,7 @@ import { History, Layers, Loader2, Menu, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { clearIp, getSavedIp } from "@/lib/connection-store";
-import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { APP_NAME } from "@/lib/brand";
 import type { MachineInfo } from "@/lib/types";
 
 const PAGES = [
@@ -102,15 +102,6 @@ function StationMenu({ onClose }: { onClose: () => void }) {
             Connect another machine
           </button>
         </div>
-
-        <p className="mt-4 text-xs leading-relaxed text-[var(--ink)]/65">
-          Based on{" "}
-          <a href={UPSTREAM.repoUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">{UPSTREAM.name}</a>
-          {" "}by{" "}
-          <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer" className="underline">{UPSTREAM.author}</a>
-          {" "}· MIT License ·{" "}
-          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="underline">source</a>
-        </p>
       </div>
     </div>
   );

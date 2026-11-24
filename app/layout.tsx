@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { FeedbackButton } from "@/components/feedback-button";
 import { BASE_PATH } from "@/lib/base-path";
 import { BrandMark } from "@/components/brand-mark";
-import { APP_NAME, APP_TAGLINE, REPO_URL, SITE_URL, UPSTREAM } from "@/lib/brand";
+import { APP_NAME, APP_TAGLINE, REPO_URL, SITE_URL } from "@/lib/brand";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -72,19 +72,7 @@ export default function RootLayout({
               <BrandMark className="h-6 w-6" />
               <span className="text-sm font-semibold text-[#fafafa]/60">{APP_NAME}</span>
             </div>
-            <p className="text-xs text-[#fafafa]/25 text-center">
-              Based on{" "}
-              <a href={UPSTREAM.repoUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[#fafafa]/45 hover:text-[#ffc400] transition-colors">
-                {UPSTREAM.name}
-              </a>{" "}
-              by{" "}
-              <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[#fafafa]/45 hover:text-[#ffc400] transition-colors">
-                {UPSTREAM.author}
-              </a>{" "}
-              · MIT License · Free
-            </p>
+            <p className="text-xs text-[#fafafa]/35 text-center">{APP_TAGLINE}</p>
             <div className="flex items-center gap-3">
               <span className="font-mono text-[10px] text-[#fafafa]/15">
                 {process.env.NEXT_PUBLIC_APP_VERSION ? `v${process.env.NEXT_PUBLIC_APP_VERSION}` : ""}{" "}

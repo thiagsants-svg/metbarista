@@ -110,23 +110,14 @@ export default function HomePage() {
 
       {/* Credits */}
       <section className="border-t border-white/[0.06]">
-        <div className="mx-auto max-w-3xl px-6 py-14 text-center">
-          <h2 className="text-2xl font-bold mb-3">Built on {UPSTREAM.name}</h2>
-          <p className="text-sm text-[#fafafa]/60 max-w-xl mx-auto mb-6 leading-relaxed">
-            {APP_NAME} started as a fork of {UPSTREAM.name} by {UPSTREAM.author}, the open control center for
-            Meticulous machines. The shot charts, profiles and machine connection come from his work, under the MIT License.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href={UPSTREAM.siteUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-5 py-2.5 text-sm font-semibold hover:bg-white/[0.06] transition-all">
-              {UPSTREAM.name} <ArrowRight className="h-4 w-4" />
-            </a>
-            <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-5 py-2.5 text-sm font-medium text-[#fafafa]/75 hover:bg-white/[0.06] transition-all">
-              {APP_NAME} source on GitHub
-            </a>
-          </div>
-        </div>
+        <p className="mx-auto max-w-2xl px-6 py-12 text-center text-sm leading-relaxed text-[#fafafa]/60">
+          {APP_NAME} is built on{" "}
+          <a href={UPSTREAM.siteUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#fafafa]/85 underline underline-offset-2 hover:text-[#ffc400]">{UPSTREAM.name}</a>,
+          the open control center for Meticulous machines by{" "}
+          <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer" className="text-[#fafafa]/85 underline underline-offset-2 hover:text-[#ffc400]">{UPSTREAM.author}</a>.
+          The shot charts, profiles and machine connection come from his work, under the MIT License. Our code is on{" "}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-[#fafafa]/85 underline underline-offset-2 hover:text-[#ffc400]">GitHub</a>.
+        </p>
       </section>
 
       {/* Ecosystem */}
