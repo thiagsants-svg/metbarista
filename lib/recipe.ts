@@ -150,6 +150,26 @@ export function retractionFor(r: Pick<Recipe, "dose" | "ratio">): number {
   return Math.min(RETRACTION_MAX_ML, Math.max(RETRACTION_MIN_ML, ml));
 }
 
+// ── Refractometer (DiFluid etc.) ──
+
+/** Extraction yield (%) = TDS (%) × beverage (g) ÷ dose (g), one decimal */
+export function extractionYield(tds: number, beverageG: number, doseG: number): number | null {
+  if (!(tds > 0) || !(beverageG > 0) || !(doseG > 0)) return null;
+  return Math.round(((tds * beverageG) / doseG) * 10) / 10;
+}
+
+/** "TDS 9.50% · EY 23.8%" (kept in the shot's notes) */
+export function tdsText(tds: number, ey: number | null): string {
+  return `TDS ${tds.toFixed(2)}%${ey != null ? ` · EY ${ey.toFixed(1)}%` : ""}`;
+}
+
+/** Reads TDS / EY back from a shot's notes */
+export function parseTds(note: string | undefined | null): { tds?: number; ey?: number } {
+  const tds = note ? /TDS ([\d.]+)%/.exec(note)?.[1] : undefined;
+  const ey = note ? /EY ([\d.]+)%/.exec(note)?.[1] : undefined;
+  return { ...(tds ? { tds: Number(tds) } : {}), ...(ey ? { ey: Number(ey) } : {}) };
+}
+
 export const DEFAULT_RECIPE: Recipe = {
   baseProfileId: null,
   dose: 20,

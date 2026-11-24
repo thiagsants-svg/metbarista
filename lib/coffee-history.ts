@@ -10,7 +10,7 @@
 import { analyzeShot } from "./shot-analysis";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
-import { asciiName, baseName, parseShotNotes, recentBeans, SHOT_NAME_RE, type Recipe } from "./recipe";
+import { asciiName, baseName, parseShotNotes, parseTds, recentBeans, SHOT_NAME_RE, type Recipe } from "./recipe";
 import type { Profile, ShotEntry } from "./types";
 
 const LOG_KEY = "metbarista_shot_log";
@@ -109,6 +109,9 @@ export interface CoffeeLastShot {
   score: number | null;
   /** Your stars from Tasting Notes (saved on this device), if any */
   stars: number | null;
+  /** Refractometer reading and extraction yield, from the shot's notes (this device) */
+  tds?: number;
+  ey?: number;
   /** The shot in the machine's history (to read its face) */
   dbKey?: number;
   /** Face set on the shot: read from the machine after the summary is made */
@@ -185,6 +188,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     weight: stats.finalWeight,
     seconds: stats.durationSec,
     stars: getShotNote(shot.time)?.rating || null,
+    ...parseTds(getShotNote(shot.time)?.note),
     dbKey: shot.db_key,
     score: analysis.throwaway || analysis.applicableCount === 0 ? null : analysis.overallScore,
   };

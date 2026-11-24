@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  asciiName, baseName, buildShotProfile, grindText, maxYieldFor, MAX_FINAL_WEIGHT, overCapacity, parseShotNotes,
+  asciiName, baseName, buildShotProfile, extractionYield, grindText, parseTds, tdsText, maxYieldFor, MAX_FINAL_WEIGHT, overCapacity, parseShotNotes,
   retractionFor, retractionMlToMm, retractionMmToMl, RETRACTION_MAX_ML, RETRACTION_MIN_ML, SHOT_NAME_RE, shotNotesText,
 } from "../recipe";
 import type { Profile } from "../types";
@@ -109,5 +109,25 @@ describe("shot name and notes (kept in the machine's history)", () => {
       "Coffee: Acai | Grind: Motto 80 140um feed 65 1000rpm",
     );
     expect(asciiName("Etiópia · Guji °")).toBe("Etiopia Guji");
+  });
+});
+
+describe("refractometer (TDS → EY)", () => {
+  it("EY = TDS × beverage ÷ dose", () => {
+    expect(extractionYield(9.5, 50.9, 20)).toBe(24.2);
+    expect(extractionYield(10, 40, 20)).toBe(20);
+  });
+
+  it("no EY without a reading, weight or dose", () => {
+    expect(extractionYield(0, 50, 20)).toBeNull();
+    expect(extractionYield(9, 0, 20)).toBeNull();
+    expect(extractionYield(9, 50, 0)).toBeNull();
+  });
+
+  it("writes and reads it back from the shot's notes", () => {
+    const note = `Sour · ${tdsText(9.5, 24.2)} · chocolate`;
+    expect(note).toBe("Sour · TDS 9.50% · EY 24.2% · chocolate");
+    expect(parseTds(note)).toEqual({ tds: 9.5, ey: 24.2 });
+    expect(parseTds("no reading")).toEqual({});
   });
 });

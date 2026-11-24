@@ -13,7 +13,7 @@ import { WheelPicker } from "@/components/wheel-picker";
 import {
   grindLabel, grindOptions, grindTarget, planLines, TASTE_HINT, TASTE_LABEL, type NextPlan, type Taste,
 } from "@/lib/next-plan";
-import { formatRatio, RATIO_PRESETS, type Recipe } from "@/lib/recipe";
+import { extractionYield, formatRatio, RATIO_PRESETS, type Recipe } from "@/lib/recipe";
 
 export type Face = "like" | "dislike";
 export type PlanChoice = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grindDelta">;
@@ -22,7 +22,7 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, onSave, onSkip,
 }: {
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
   summary: string;
@@ -31,7 +31,9 @@ export function ShotRating({
   recipe?: string;
   /** The shot's recipe: the wheels start here */
   shotRecipe: Partial<Recipe>;
-  onSave: (face: Face | null, note: string, plan: PlanChoice | null) => void;
+  /** Beverage weight from the scale (g), for the extraction yield */
+  weight: number;
+  onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null) => void;
   onSkip: () => void;
 }) {
   const [face, setFace] = useState<Face | null>(null);
@@ -41,6 +43,11 @@ export function ShotRating({
   const [ratio, setRatio] = useState(nearest(RATIO_PRESETS, shotRecipe.ratio ?? 2));
   const [grindDelta, setGrindDelta] = useState<number | undefined>(undefined);
   const [wheel, setWheel] = useState<"temp" | "ratio" | null>(null);
+  /** Refractometer reading (DiFluid etc.), as typed */
+  const [tdsInput, setTdsInput] = useState("");
+  const tdsValue = Number(tdsInput.replace(",", "."));
+  const tds = tdsInput.trim() && tdsValue > 0 && tdsValue < 30 ? tdsValue : null;
+  const ey = tds != null ? extractionYield(tds, weight, shotRecipe.dose ?? 0) : null;
   const hasCoffee = !!coffee?.trim();
 
   const plan: PlanChoice | null = taste && {
@@ -144,6 +151,22 @@ export function ShotRating({
           </p>
         )}
 
+        {/* Refractometer: TDS in, extraction yield out */}
+        <div className="mt-3 flex items-center gap-3">
+          <label className="flex h-12 w-40 shrink-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">TDS</span>
+            <input type="text" inputMode="decimal" value={tdsInput} placeholder="—" aria-label="TDS (%)"
+              onChange={(e) => setTdsInput(e.target.value.replace(/[^\d.,]/g, ""))}
+              className="w-full min-w-0 bg-transparent text-right text-lg font-bold tabular-nums text-[var(--ink)] outline-none placeholder:text-[var(--ink)]/40" />
+            <span className="text-sm text-[var(--ink)]/70">%</span>
+          </label>
+          <p className="text-sm text-[var(--ink)]/75">
+            {ey != null
+              ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b> <span className="text-[var(--ink)]/60">({weight.toFixed(1)} g ÷ {shotRecipe.dose} g)</span></>
+              : "Optional: refractometer reading (DiFluid…)"}
+          </p>
+        </div>
+
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
           placeholder="Tasting notes (optional): chocolate, a bit sour…"
           className="mt-3 w-full resize-none rounded-md border border-[var(--ink)]/20 bg-transparent px-3 py-2 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50" />
@@ -153,8 +176,8 @@ export function ShotRating({
             className="h-12 rounded-md border border-[var(--ink)]/20 text-base font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
             Skip
           </button>
-          <button type="button" disabled={!face && !note.trim() && !taste}
-            onClick={() => onSave(face, note.trim(), plan)}
+          <button type="button" disabled={!face && !note.trim() && !taste && tds == null}
+            onClick={() => onSave(face, note.trim(), plan, tds)}
             className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98] disabled:opacity-40">
             Save
           </button>

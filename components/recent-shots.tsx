@@ -119,6 +119,9 @@ export function RecentShots({
                   {p.dose != null && p.ratio != null && (
                     <span className="text-sm tabular-nums text-[var(--ink)]/70">{p.dose}g {formatRatio(p.ratio)} {p.temperature}°C</span>
                   )}
+                  {s.ey != null && (
+                    <span className="text-sm font-semibold tabular-nums text-[var(--ink)]/80">EY {s.ey.toFixed(1)}%{s.tds != null ? ` · TDS ${s.tds.toFixed(2)}` : ""}</span>
+                  )}
                   {!!s.points?.length && (
                     <ChevronDown className={`ml-auto h-5 w-5 self-center text-[var(--ink)]/60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   )}

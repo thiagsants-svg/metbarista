@@ -43,7 +43,7 @@ import {
 } from "@/lib/brew-state";
 import {
   type GrinderFields, type Recipe, DEFAULT_RECIPE, RATIO_PRESETS, beverageWeight, buildShotProfile, formatRatio,
-  loadRecipe, MAX_FINAL_WEIGHT, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
+  loadRecipe, MAX_FINAL_WEIGHT, extractionYield, tdsText, maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl, sortByMachineOrder, GRINDER_DEFAULTS, baseName, grindText, grinderFields, isMotto80, recentBeans, recentGrinders, rememberBeans, rememberGrinder,
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
 import { RecentShots } from "@/components/recent-shots";
@@ -579,7 +579,7 @@ export default function StationPage() {
   }
 
   /** Face → the machine (shows in the official app); notes → the Shots page's Tasting Notes */
-  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null) {
+  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null, tds: number | null) {
     setRateOpen(false);
     if (demo) return;
     // What to change next time, kept for this coffee
@@ -589,7 +589,12 @@ export default function StationPage() {
       setNextPlan(saved);
     }
     // The taste also goes in the shot's notes (Shots page)
-    const note = [plan ? TASTE_LABEL[plan.taste] : "", rawNote].filter(Boolean).join(" · ");
+    const shotWeight = data[data.length - 1]?.weight ?? 0;
+    const note = [
+      plan ? TASTE_LABEL[plan.taste] : "",
+      tds != null ? tdsText(tds, extractionYield(tds, shotWeight, recipe.dose)) : "",
+      rawNote,
+    ].filter(Boolean).join(" · ");
     const since = shotStartedAtRef.current - 60_000;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -761,7 +766,7 @@ export default function StationPage() {
         const recipeText = [`${recipe.dose} g`, formatRatio(recipe.ratio), `${recipe.temperature} °C`, grindText(recipe)]
           .filter(Boolean).join(" · ");
         return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
-          shotRecipe={{ ...recipe, ...grinderFields(recipe) }} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+          shotRecipe={{ ...recipe, ...grinderFields(recipe) }} weight={w} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
         <button onClick={() => setError(null)}
