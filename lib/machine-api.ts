@@ -150,6 +150,15 @@ export async function getHistory(
   return res.history.sort((a, b) => b.time - a.time);
 }
 
+/**
+ * Many shots without their curves (dump_data=false): name, time, profile and
+ * notes only, ~3 KB a shot instead of ~300 KB. For stats over months.
+ */
+export async function getHistoryLight(maxResults = 1000): Promise<ShotEntry[]> {
+  const res = await apiFetch<HistoryResponse>(`/history?max_results=${Math.max(1, Math.floor(maxResults))}&dump_data=false`);
+  return res.history.map((h) => ({ ...h, data: [] })).sort((a, b) => b.time - a.time);
+}
+
 // ── Actions ──────────────────────────────────────────────────
 
 export async function executeAction(action: ActionType): Promise<void> {

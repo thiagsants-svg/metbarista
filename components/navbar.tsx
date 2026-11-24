@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { href: "/shots",      label: "Shots",     icon: History },
   { href: "/coffees",    label: "Coffees",   icon: Coffee },
   { href: "/profiles",   label: "Profiles",  icon: Layers },
-  { href: "/barista",    label: "Stats",  icon: Target },
+  { href: "/stats",    label: "Stats",  icon: Target },
   { href: "/community",  label: "Community", icon: Users },
 ];
 
