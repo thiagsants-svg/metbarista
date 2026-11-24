@@ -52,6 +52,8 @@ function ShotsContent() {
   const params = useSearchParams();
   const selectedId = params.get("shot") ?? params.get("id");
   const coffee = params.get("coffee");
+  /** The shot the open one is compared with */
+  const vs = params.get("vs");
   const { style } = useStationTheme();
 
   const [limit, setLimit] = useState(PAGE);
@@ -107,12 +109,15 @@ function ShotsContent() {
   const selected = selectedId ? rows.find((r) => r.id === selectedId) ?? null : null;
   const selectedShot = selected ? shots?.find((s) => s.id === selected.id) ?? null : null;
 
-  function go(next: { coffee?: string | null; shot?: string | null }) {
+  function go(next: { coffee?: string | null; shot?: string | null; vs?: string | null }) {
     const c = next.coffee !== undefined ? next.coffee : coffee;
     const s = next.shot !== undefined ? next.shot : selectedId;
+    // Opening another shot stops the comparison
+    const v = next.vs !== undefined ? next.vs : next.shot !== undefined ? null : vs;
     const q = new URLSearchParams();
     if (c) q.set("coffee", c);
     if (s) q.set("shot", s);
+    if (s && v) q.set("vs", v);
     const qs = q.toString();
     router.push(qs ? `/shots?${qs}` : "/shots", { scroll: false });
   }
@@ -182,7 +187,13 @@ function ShotsContent() {
                 .map((r) => ({ tds: r.sum.tds!, ey: r.sum.ey! }))}
               onFace={(f) => setFaces((cur) => ({ ...cur, [selected.id]: f }))}
               onSaved={() => setVersion((v) => v + 1)}
-              onBack={() => go({ shot: null })} />
+              onBack={() => go({ shot: null })}
+              others={rows.filter((r) => r.id !== selected.id).flatMap((r) => {
+                const sh = shots.find((x) => x.id === r.id);
+                return sh ? [{ row: r, shot: sh }] : [];
+              })}
+              compareId={vs}
+              onCompare={(id) => go({ vs: id })} />
           </div>
         ) : list}
       </div>

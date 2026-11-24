@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Frown, Loader2, Smile } from "lucide-react";
+import { ArrowLeft, Frown, GitCompareArrows, Loader2, Smile } from "lucide-react";
 import { ShotPlot } from "@/components/shot-charts";
 import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { targetFor } from "@/lib/brew-control";
@@ -16,6 +16,9 @@ import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-r
 import { shotPoints } from "@/lib/coffee-history";
 import { FACT_LABEL, shotFacts } from "@/lib/shot-facts";
 import { ShotFactsList } from "@/components/shots/shot-facts";
+import { StageTable } from "@/components/shots/stage-table";
+import { CompareView, ComparePicker, type ShotPick } from "@/components/shots/compare-view";
+import { stageSummary } from "@/lib/stage-summary";
 import { rateShot } from "@/lib/machine-api";
 import { getShotNote, getShotPlan, saveShotNote } from "@/lib/shot-notes";
 import { composeShotNote } from "@/lib/shot-record";
@@ -25,8 +28,13 @@ import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike";
 
-export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack }: {
+export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack, others, compareId, onCompare }: {
   shot: ShotEntry;
+  /** The other loaded shots, to compare with */
+  others: ShotPick[];
+  /** The shot it's being compared with */
+  compareId: string | null;
+  onCompare: (id: string | null) => void;
   row: ShotRowData;
   /** Earlier readings of the same coffee (newest first), for the brew chart */
   pastBrews: BrewPoint[];
@@ -45,6 +53,9 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const points = shotPoints(shot);
   const facts = shotFacts(shot.data ?? [], shot.profile?.stages ?? []);
   const actualRatio = p.dose ? s.weight / p.dose : null;
+  const stages = stageSummary(shot.data ?? [], shot.profile);
+  const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
+  const [picking, setPicking] = useState(false);
 
   const tile = (label: string, value: string, sub?: string | null) => (
     <div className="min-w-0 border-t-2 border-[var(--ink)] pt-1.5">
@@ -86,13 +97,29 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
         {tile("EY", s.ey != null ? `${s.ey.toFixed(1)}%` : "—")}
       </div>
 
-      {points.length > 1 && (
+      {versus ? (
+        <CompareView a={{ row, shot }} b={versus} onClose={() => onCompare(null)} />
+      ) : points.length > 1 && (
         <div>
           <div className="relative h-64">
             <ShotPlot data={points} targetWeight={null} currentStage={null}
               marks={facts.map((f) => ({ t: f.at, label: FACT_LABEL[f.kind] }))} />
           </div>
-          <p className="mt-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following (pressure or flow)</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following (pressure or flow)</p>
+            {!picking && others.length > 0 && (
+              <button type="button" onClick={() => setPicking(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold active:scale-[0.97]">
+                <GitCompareArrows className="h-4 w-4" /> Compare with…
+              </button>
+            )}
+          </div>
+          {picking && (
+            <div className="mt-2">
+              <ComparePicker current={row} others={others} onClose={() => setPicking(false)}
+                onPick={(id) => { setPicking(false); onCompare(id); }} />
+            </div>
+          )}
         </div>
       )}
 
@@ -109,6 +136,8 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
 
       {/* Remount when another shot opens, so the fields start from its notes */}
       <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved} />
+
+      <StageTable summary={stages} />
 
       {shot.profile && (
         <p className="text-sm text-[var(--ink)]/70">
