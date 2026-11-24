@@ -148,6 +148,8 @@ export interface CoffeeLastShot {
   ey?: number;
   /** The shot in the machine's history (to read its face) */
   dbKey?: number;
+  /** The shot's string id on the machine (its face is read and set with it) */
+  shotId?: string;
   /** Face set on the shot: read from the machine after the summary is made */
   face?: "like" | "dislike" | null;
   /** Curve of the shot for the idle list's chart (not kept in the device's record) */
@@ -224,6 +226,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     stars: getShotNote(shot.time)?.rating || null,
     ...parseTds(getShotNote(shot.time)?.note),
     dbKey: shot.db_key,
+    shotId: shot.id,
     score: analysis.throwaway || analysis.applicableCount === 0 ? null : analysis.overallScore,
   };
 }

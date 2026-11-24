@@ -50,8 +50,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     setRecentShots(list);
     if (demo) return;
     for (const shot of list) {
-      if (shot.dbKey == null) continue;
-      getShotRating(shot.dbKey)
+      if (!shot.shotId) continue;
+      getShotRating(shot.shotId)
         .then((face) => setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.dbKey ? { ...x, face } : x) ?? cur))
         .catch(() => { /* no face shown */ });
     }
@@ -83,7 +83,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
     if (face) {
       try {
-        await rateShot(shot.db_key, face);
+        await rateShot(shot.id, face);
         setRecentShots((cur) => cur?.map((x) => x.dbKey === shot.db_key ? { ...x, face } : x) ?? cur);
       } catch (e) {
         setError(`Couldn't send the rating to the machine: ${e instanceof Error ? e.message : String(e)}`);

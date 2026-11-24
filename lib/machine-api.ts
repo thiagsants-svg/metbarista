@@ -96,10 +96,12 @@ export async function loadProfileInline(profile: Profile): Promise<void> {
 
 /**
  * The official app's face on a shot ("like" / "dislike"), stored on the machine
- * (POST /history/rating/{db_key}, as in Meticulous's own API clients).
+ * (POST /history/rating/{id}). The id is the shot's string `id` (a UUID), not its
+ * db_key: the machine answers 404 for a number (checked on the machine and in
+ * Meticulous's backend, crates/backend/src/api/history.rs).
  */
-export async function rateShot(dbKey: number, rating: "like" | "dislike"): Promise<void> {
-  await apiFetch<unknown>(`/history/rating/${dbKey}`, {
+export async function rateShot(shotId: string, rating: "like" | "dislike"): Promise<void> {
+  await apiFetch<unknown>(`/history/rating/${encodeURIComponent(shotId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rating }),
@@ -107,8 +109,9 @@ export async function rateShot(dbKey: number, rating: "like" | "dislike"): Promi
 }
 
 /** The face set on a shot (official app or Station), or null */
-export async function getShotRating(dbKey: number): Promise<"like" | "dislike" | null> {
-  const r = await apiFetch<{ rating?: string | null }>(`/history/rating/${dbKey}`);
+export async function getShotRating(shotId: string): Promise<"like" | "dislike" | null> {
+  // An unknown id also answers 200 with rating null
+  const r = await apiFetch<{ rating?: string | null }>(`/history/rating/${encodeURIComponent(shotId)}`);
   return r.rating === "like" || r.rating === "dislike" ? r.rating : null;
 }
 
