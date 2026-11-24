@@ -25,7 +25,7 @@ import { ShotCharts, HeatingProgress, COLORS, type HeatPoint, type ShotPoint } f
 import { ProfilePicker } from "@/components/profile-picker";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { WheelPicker } from "@/components/wheel-picker";
-import { ShotRating, type Face } from "@/components/shot-rating";
+import { ShotRating, type Face, type PlanChoice } from "@/components/shot-rating";
 import { SlideToStart } from "@/components/slide-to-start";
 import { getShotNote, saveShotNote } from "@/lib/shot-notes";
 import { demoShot } from "@/lib/demo-shot";
@@ -47,6 +47,7 @@ import {
 } from "@/lib/recipe";
 import { findLastShotForCoffee, logShotNotes, recentShotsForCoffee, rememberLatestShot, recordBrewGrind, type CoffeeLastShot } from "@/lib/coffee-history";
 import { RecentShots } from "@/components/recent-shots";
+import { applyPlan, clearPlan, loadPlan, savePlan, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { bluetoothSupported, Motto80Link, type LinkState } from "@/lib/motto80";
 import type { ActionType, LiveStatus, LiveTemperatures, Profile } from "@/lib/types";
 
@@ -194,6 +195,8 @@ export default function StationPage() {
   /** Last shot of the coffee picked in the recipe (shown under the chart while idle) */
   /** Last shots of the coffee in the recipe, for the idle screen (null while loading) */
   const [recentShots, setRecentShots] = useState<CoffeeLastShot[] | null>(null);
+  /** What was decided after the coffee's last shot, shown over its shots */
+  const [nextPlan, setNextPlan] = useState<NextPlan | null>(null);
   /** Bluetooth link to the Motto 80: the grind fields follow it while it's on */
   const [grinderLink, setGrinderLink] = useState<LinkState>("off");
   /** Stars and notes popup after a shot */
@@ -464,6 +467,9 @@ export default function StationPage() {
       }
       await loadProfileInline(buildShotProfile(baseProfile, { ...recipe, ...grinderFields(recipe) }));
       rememberBeans(recipe.coffee);
+      // The plan for this coffee is being brewed now; the next one is decided after tasting
+      clearPlan(recipe.coffee);
+      setNextPlan(null);
       rememberGrinder(recipe);
       logShotNotes(recipe.coffee, grindText(recipe));
       startedAtRef.current = Date.now();
@@ -498,12 +504,16 @@ export default function StationPage() {
       const history = await getHistory(60);
       showRecent(recentShotsForCoffee(name, history, profiles));
       const found = findLastShotForCoffee(name, history, profiles);
+      const plan = loadPlan(name);
+      setNextPlan(plan);
       if (found) {
-        // Linked to the grinder: its live settings win over the last shot's (shown in the summary)
+        // Last shot's recipe with what was decided after tasting it
+        const next = plan ? applyPlan(found.patch, plan) : found.patch;
+        // Linked to the grinder: its live settings win (the planned grind is a reminder)
         const live = linkRef.current != null && grinderLinkRef.current !== "off";
-        const recipeOnly = { ...found.patch };
+        const recipeOnly = { ...next };
         for (const k of ["grinder", "grindUm", "grindSetting", "feed", "rpm"] as const) delete recipeOnly[k];
-        updateRecipe(live ? recipeOnly : found.patch);
+        updateRecipe(live ? recipeOnly : next);
       }
     } catch (e) {
       setError(`Couldn't read the shot history: ${e instanceof Error ? e.message : String(e)}`);
@@ -569,9 +579,17 @@ export default function StationPage() {
   }
 
   /** Face → the machine (shows in the official app); notes → the Shots page's Tasting Notes */
-  async function saveRating(face: Face | null, note: string) {
+  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null) {
     setRateOpen(false);
     if (demo) return;
+    // What to change next time, kept for this coffee
+    if (plan && recipe.coffee?.trim()) {
+      const saved: NextPlan = { ...plan, coffee: recipe.coffee.trim(), at: Date.now() };
+      savePlan(saved);
+      setNextPlan(saved);
+    }
+    // The taste also goes in the shot's notes (Shots page)
+    const note = [plan ? TASTE_LABEL[plan.taste] : "", rawNote].filter(Boolean).join(" · ");
     const since = shotStartedAtRef.current - 60_000;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -608,6 +626,7 @@ export default function StationPage() {
     lastLoadedRef.current = true;
     getHistory(60).then((h) => {
       showRecent(recentShotsForCoffee(loadRecipe().coffee, h, profiles));
+      setNextPlan(loadPlan(loadRecipe().coffee));
     }).catch(() => setRecentShots([]));
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -741,7 +760,8 @@ export default function StationPage() {
           : "Shot done";
         const recipeText = [`${recipe.dose} g`, formatRatio(recipe.ratio), `${recipe.temperature} °C`, grindText(recipe)]
           .filter(Boolean).join(" · ");
-        return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
+        return <ShotRating summary={summary} coffee={recipe.coffee} recipe={recipeText}
+          shotRecipe={{ ...recipe, ...grinderFields(recipe) }} onSave={saveRating} onSkip={() => setRateOpen(false)} />;
       })()}
       {error && (
         <button onClick={() => setError(null)}
@@ -821,7 +841,7 @@ export default function StationPage() {
               ) : (
                 // Idle: the last shots of the coffee, and the temperature in one line
                 <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
-                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} />
+                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} plan={nextPlan} />
               )
             }
           />

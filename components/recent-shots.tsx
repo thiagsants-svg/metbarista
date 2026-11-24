@@ -10,6 +10,8 @@ import { useState } from "react";
 import { ChevronDown, Frown, Smile } from "lucide-react";
 import { ShotPlot } from "@/components/estacao-charts";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
+import { planLines, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
+import { asciiName } from "@/lib/recipe";
 import { formatRatio } from "@/lib/recipe";
 
 function fmtClock(s: number): string {
@@ -31,17 +33,21 @@ function grindLabel(s: CoffeeLastShot): string {
 const keyOf = (s: CoffeeLastShot) => `${s.dbKey ?? s.when}`;
 
 export function RecentShots({
-  coffee, shots, temp, target,
+  coffee, shots, temp, target, plan,
 }: {
   coffee?: string;
   /** null while loading */
   shots: CoffeeLastShot[] | null;
   temp: number | null | undefined;
   target?: number | null;
+  /** Decided after tasting this coffee's last shot */
+  plan?: NextPlan | null;
 }) {
   // The newest shot starts open (the parent remounts this when the list changes)
   const [open, setOpen] = useState<string | null>(shots?.[0] ? keyOf(shots[0]) : null);
   const name = coffee?.trim();
+  const planHere = plan && name && asciiName(plan.coffee).toLowerCase() === asciiName(name).toLowerCase() ? plan : null;
+  const lastRecipe = shots?.[0]?.patch;
 
   return (
     <div className="flex h-full w-full flex-col text-left text-[var(--ink)]">
@@ -55,6 +61,22 @@ export function RecentShots({
       <p className="mt-3 shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">
         {name ? `Last shots · ${name}` : "Last shots"}
       </p>
+
+      {/* The plan decided after the last shot: temperature and ratio are already in the
+          recipe; grind is a reminder (the grinder is set by hand) */}
+      {planHere && (
+        <div className="mt-2 shrink-0 rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
+            Plan from last shot · {TASTE_LABEL[planHere.taste]}
+          </p>
+          <p className="text-lg font-bold tabular-nums text-[var(--ink)]">
+            {lastRecipe && planLines(lastRecipe, planHere).length
+              ? planLines(lastRecipe, planHere).join(" · ")
+              : "Same recipe"}
+          </p>
+          {planHere.grindDelta ? <p className="text-sm text-[var(--ink)]/75">Set the grinder before grinding</p> : null}
+        </div>
+      )}
 
       {!name ? (
         <p className="mt-3 text-base text-[var(--ink)]/75">Pick a coffee to see its last shots</p>
