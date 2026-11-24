@@ -30,7 +30,7 @@ function ScoreRing({ score, size = 96 }: { score: number; size?: number }) {
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (score / 100) * circumference;
   const color =
-    score >= 90 ? "#22c55e" : score >= 70 ? "#e8944a" : score >= 50 ? "#f59e0b" : "#ef4444";
+    score >= 90 ? "#22c55e" : score >= 70 ? "#ffc400" : score >= 50 ? "#f59e0b" : "#ef4444";
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -52,7 +52,7 @@ function ScoreRing({ score, size = 96 }: { score: number; size?: number }) {
         <span className="text-2xl font-bold font-mono" style={{ color }}>
           {score}
         </span>
-        <span className="text-[10px] text-[#f5f0ea]/30 uppercase tracking-wider">score</span>
+        <span className="text-[10px] text-[#fafafa]/30 uppercase tracking-wider">score</span>
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ const METRIC_ICONS: Record<string, typeof Gauge> = {
 
 const STATUS_COLORS: Record<MetricStatus, string> = {
   excellent: "#22c55e",
-  good: "#e8944a",
+  good: "#ffc400",
   warning: "#f59e0b",
   poor: "#ef4444",
 };
@@ -80,20 +80,20 @@ function MetricRow({ metric }: { metric: ShotMetric }) {
   const Icon = METRIC_ICONS[metric.key] ?? Info;
   const color = metric.applicable
     ? STATUS_COLORS[metric.status]
-    : "rgba(245,240,234,0.15)";
+    : "rgba(250,250,250,0.15)";
 
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
       <Icon className="h-4 w-4 shrink-0" style={{ color }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-[#f5f0ea]/80">{metric.label}</span>
+          <span className="text-sm text-[#fafafa]/80">{metric.label}</span>
           {metric.applicable ? (
             <span className="text-sm font-mono font-medium" style={{ color }}>
               {metric.score}
             </span>
           ) : (
-            <span className="text-xs text-[#f5f0ea]/20">N/A</span>
+            <span className="text-xs text-[#fafafa]/20">N/A</span>
           )}
         </div>
         {metric.applicable && (
@@ -104,7 +104,7 @@ function MetricRow({ metric }: { metric: ShotMetric }) {
             />
           </div>
         )}
-        <p className="text-xs text-[#f5f0ea]/30 mt-1">{metric.value}</p>
+        <p className="text-xs text-[#fafafa]/30 mt-1">{metric.value}</p>
       </div>
     </div>
   );
@@ -126,13 +126,13 @@ function ThermalCard({ breakdown }: { breakdown: ThermalBreakdown }) {
 
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 mt-2 space-y-2">
-      <p className="text-[10px] text-[#f5f0ea]/25 uppercase tracking-wider">Thermal Breakdown</p>
+      <p className="text-[10px] text-[#fafafa]/25 uppercase tracking-wider">Thermal Breakdown</p>
       <div className="grid grid-cols-2 gap-2 text-xs">
         {/* Barista-influenced */}
         <div className="space-y-1.5">
-          <p className="text-[10px] text-[#f5f0ea]/20 uppercase">Barista</p>
+          <p className="text-[10px] text-[#fafafa]/20 uppercase">Barista</p>
           <div className="flex items-center justify-between">
-            <span className="text-[#f5f0ea]/40">Preheat</span>
+            <span className="text-[#fafafa]/40">Preheat</span>
             <span style={{ color: breakdown.coldStart ? "#ef4444" : "#22c55e" }}
               className="font-mono text-[11px]">
               {breakdown.coldStart ? "Cold start" : "Good"}
@@ -140,7 +140,7 @@ function ThermalCard({ breakdown }: { breakdown: ThermalBreakdown }) {
           </div>
           {breakdown.offsetFromTarget != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[#f5f0ea]/40">vs Target</span>
+              <span className="text-[#fafafa]/40">vs Target</span>
               <span style={{ color: offsetColor }} className="font-mono text-[11px]">
                 {breakdown.offsetFromTarget > 0 ? "+" : ""}
                 {breakdown.offsetFromTarget}°C
@@ -148,7 +148,7 @@ function ThermalCard({ breakdown }: { breakdown: ThermalBreakdown }) {
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-[#f5f0ea]/40">Drift</span>
+            <span className="text-[#fafafa]/40">Drift</span>
             <span style={{ color: driftColor }} className="font-mono text-[11px]">
               {breakdown.drift > 0 ? "+" : ""}
               {breakdown.drift}°C
@@ -157,21 +157,21 @@ function ThermalCard({ breakdown }: { breakdown: ThermalBreakdown }) {
         </div>
         {/* Machine-controlled */}
         <div className="space-y-1.5">
-          <p className="text-[10px] text-[#f5f0ea]/20 uppercase">Machine</p>
+          <p className="text-[10px] text-[#fafafa]/20 uppercase">Machine</p>
           <div className="flex items-center justify-between">
-            <span className="text-[#f5f0ea]/40">Jitter</span>
+            <span className="text-[#fafafa]/40">Jitter</span>
             <span style={{ color: breakdown.jitter < 0.15 ? "#22c55e" : breakdown.jitter < 0.3 ? "#f59e0b" : "#ef4444" }}
               className="font-mono text-[11px]">
               {breakdown.jitter}°C
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[#f5f0ea]/40">Start</span>
-            <span className="text-[#f5f0ea]/50 font-mono text-[11px]">{breakdown.startTemp}°C</span>
+            <span className="text-[#fafafa]/40">Start</span>
+            <span className="text-[#fafafa]/50 font-mono text-[11px]">{breakdown.startTemp}°C</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[#f5f0ea]/40">End</span>
-            <span className="text-[#f5f0ea]/50 font-mono text-[11px]">{breakdown.endTemp}°C</span>
+            <span className="text-[#fafafa]/40">End</span>
+            <span className="text-[#fafafa]/50 font-mono text-[11px]">{breakdown.endTemp}°C</span>
           </div>
         </div>
       </div>
@@ -184,7 +184,7 @@ function ThermalCard({ breakdown }: { breakdown: ThermalBreakdown }) {
 const PRIORITY_STYLES: Record<string, { bg: string; border: string; icon: typeof AlertTriangle }> = {
   high: { bg: "bg-red-500/5", border: "border-red-500/15", icon: AlertTriangle },
   medium: { bg: "bg-amber-500/5", border: "border-amber-500/15", icon: Info },
-  low: { bg: "bg-[#f5f0ea]/[0.02]", border: "border-white/[0.06]", icon: CheckCircle2 },
+  low: { bg: "bg-[#fafafa]/[0.02]", border: "border-white/[0.06]", icon: CheckCircle2 },
 };
 
 function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
@@ -194,11 +194,11 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   return (
     <div className={`rounded-xl border ${style.border} ${style.bg} p-3.5`}>
       <div className="flex items-start gap-2.5">
-        <Icon className="h-4 w-4 shrink-0 mt-0.5 text-[#f5f0ea]/40" />
+        <Icon className="h-4 w-4 shrink-0 mt-0.5 text-[#fafafa]/40" />
         <div>
-          <p className="text-sm font-medium text-[#f5f0ea]/80">{suggestion.message}</p>
+          <p className="text-sm font-medium text-[#fafafa]/80">{suggestion.message}</p>
           {suggestion.detail && (
-            <p className="text-xs text-[#f5f0ea]/35 mt-1 leading-relaxed">{suggestion.detail}</p>
+            <p className="text-xs text-[#fafafa]/35 mt-1 leading-relaxed">{suggestion.detail}</p>
           )}
         </div>
       </div>
@@ -232,7 +232,7 @@ function TrendSparkline({ entries }: { entries: TrendEntry[] }) {
   const DirIcon =
     direction === "improving" ? TrendingUp : direction === "declining" ? TrendingDown : Minus;
   const dirColor =
-    direction === "improving" ? "#22c55e" : direction === "declining" ? "#ef4444" : "#f5f0ea";
+    direction === "improving" ? "#22c55e" : direction === "declining" ? "#ef4444" : "#fafafa";
   const dirLabel =
     direction === "improving"
       ? "Improving"
@@ -248,7 +248,7 @@ function TrendSparkline({ entries }: { entries: TrendEntry[] }) {
         <polyline
           points={points}
           fill="none"
-          stroke="#e8944a"
+          stroke="#ffc400"
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -256,7 +256,7 @@ function TrendSparkline({ entries }: { entries: TrendEntry[] }) {
         {scores.map((s, i) => {
           const x = padding + (i / (scores.length - 1)) * (w - padding * 2);
           const y = h - padding - ((s - min) / range) * (h - padding * 2);
-          return <circle key={i} cx={x} cy={y} r={2} fill="#e8944a" />;
+          return <circle key={i} cx={x} cy={y} r={2} fill="#ffc400" />;
         })}
       </svg>
       {dirLabel && (
@@ -297,12 +297,12 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
 
   if (analysis.throwaway) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5 opacity-50">
-        <div className="flex items-center gap-2 text-[#f5f0ea]/40">
+      <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5 opacity-50">
+        <div className="flex items-center gap-2 text-[#fafafa]/40">
           <Info className="h-4 w-4" />
           <div>
             <p className="text-sm font-medium">Flush / warmup shot</p>
-            <p className="text-xs text-[#f5f0ea]/25 mt-0.5">{analysis.throwawayReason} — excluded from stats and gamification</p>
+            <p className="text-xs text-[#fafafa]/25 mt-0.5">{analysis.throwawayReason} — excluded from stats and gamification</p>
           </div>
         </div>
       </div>
@@ -311,8 +311,8 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
 
   if (analysis.applicableCount === 0) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5">
-        <div className="flex items-center gap-2 text-[#f5f0ea]/30">
+      <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5">
+        <div className="flex items-center gap-2 text-[#fafafa]/30">
           <Info className="h-4 w-4" />
           <p className="text-sm">Not enough data to analyze this shot</p>
         </div>
@@ -321,12 +321,12 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5 space-y-5">
+    <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5 space-y-5">
       {/* Header: score + summary */}
       <div className="flex items-start gap-5">
         <ScoreRing score={analysis.overallScore} />
         <div className="flex-1 pt-1">
-          <h3 className="text-sm font-semibold text-[#f5f0ea]">
+          <h3 className="text-sm font-semibold text-[#fafafa]">
             Shot Analysis
             {dialedIn && (
               <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e] text-xs font-bold">
@@ -334,13 +334,13 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
               </span>
             )}
           </h3>
-          <p className="text-xs text-[#f5f0ea]/30 mt-0.5">
+          <p className="text-xs text-[#fafafa]/30 mt-0.5">
             {analysis.applicableCount} of {analysis.totalCount} metrics analyzed
           </p>
           {/* Trend sparkline */}
           {trendEntries.length >= 2 && (
             <div className="mt-3">
-              <p className="text-xs text-[#f5f0ea]/25 mb-1.5 uppercase tracking-wider">
+              <p className="text-xs text-[#fafafa]/25 mb-1.5 uppercase tracking-wider">
                 Last {trendEntries.length} shots on this profile
               </p>
               <TrendSparkline entries={trendEntries} />
@@ -351,7 +351,7 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
 
       {/* Barista metrics (scored) */}
       <div>
-        <p className="text-xs text-[#f5f0ea]/25 uppercase tracking-wider mb-2">Your Skill</p>
+        <p className="text-xs text-[#fafafa]/25 uppercase tracking-wider mb-2">Your Skill</p>
         {analysis.metrics
           .filter((m) => m.category === "barista")
           .map((m) => <MetricRow key={m.key} metric={m} />)}
@@ -359,7 +359,7 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
 
       {/* Machine metrics (informational) */}
       <div>
-        <p className="text-xs text-[#f5f0ea]/15 uppercase tracking-wider mb-2">Machine Performance</p>
+        <p className="text-xs text-[#fafafa]/15 uppercase tracking-wider mb-2">Machine Performance</p>
         <div className="opacity-50">
           {analysis.metrics
             .filter((m) => m.category === "machine")
@@ -378,7 +378,7 @@ export function ShotReportCard({ shot, defaultExpanded = true }: ShotReportCardP
       {/* Suggestions */}
       {analysis.suggestions.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-[#f5f0ea]/25 uppercase tracking-wider">Suggestions</p>
+          <p className="text-xs text-[#fafafa]/25 uppercase tracking-wider">Suggestions</p>
           {analysis.suggestions.map((s, i) => (
             <SuggestionCard key={i} suggestion={s} />
           ))}
@@ -398,7 +398,7 @@ export function ShotScoreBadge({ shot, size = "sm" }: { shot: ShotEntry; size?: 
   if (analysis.throwaway) {
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-md font-mono ${sizeClasses} text-[#f5f0ea]/20 bg-[#f5f0ea]/[0.04] border border-[#f5f0ea]/[0.06]`}
+        className={`inline-flex items-center gap-1 rounded-md font-mono ${sizeClasses} text-[#fafafa]/20 bg-[#fafafa]/[0.04] border border-[#fafafa]/[0.06]`}
         title={analysis.throwawayReason}
       >
         flush
@@ -410,7 +410,7 @@ export function ShotScoreBadge({ shot, size = "sm" }: { shot: ShotEntry; size?: 
 
   const score = analysis.overallScore;
   const color =
-    score >= 90 ? "#22c55e" : score >= 70 ? "#e8944a" : score >= 50 ? "#f59e0b" : "#ef4444";
+    score >= 90 ? "#22c55e" : score >= 70 ? "#ffc400" : score >= 50 ? "#f59e0b" : "#ef4444";
 
   return (
     <span

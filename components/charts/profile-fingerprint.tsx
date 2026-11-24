@@ -89,11 +89,11 @@ export function ProfileFingerprint({ profile, height = 144, accent }: Props) {
       const sorted = [...rawPts].sort((a, b) => a.t - b.t);
       const d = sorted.map((p, i) => `${i === 0 ? "M" : "L"} ${px(p.t).toFixed(1)} ${py(p.v).toFixed(1)}`).join(" ");
       const fill = `${d} L ${px(sorted.at(-1)!.t).toFixed(1)} ${height} L ${px(sorted[0].t).toFixed(1)} ${height} Z`;
-      return { type, d, fill, color: TYPE_COLOR[type] ?? "#e8944a" };
+      return { type, d, fill, color: TYPE_COLOR[type] ?? "#ffc400" };
     });
 
     // Stage background bands + transition markers
-    const bands = segs.map((s) => ({ x: px(s.start), w: px(s.end) - px(s.start), color: TYPE_COLOR[s.type] ?? "#e8944a" }));
+    const bands = segs.map((s) => ({ x: px(s.start), w: px(s.end) - px(s.start), color: TYPE_COLOR[s.type] ?? "#ffc400" }));
     const markers = segs.slice(1).map((s) => px(s.start));
 
     // Horizontal grid lines at 3 / 6 / 9 units
@@ -104,7 +104,7 @@ export function ProfileFingerprint({ profile, height = 144, accent }: Props) {
 
   if (!data) return null;
 
-  const accentColor = accent ?? profile.display?.accentColor ?? "#e8944a";
+  const accentColor = accent ?? profile.display?.accentColor ?? "#ffc400";
   const uid = profile.id ?? "fp";
 
   return (

@@ -48,7 +48,7 @@ export const DEFAULT_BASICS: ProfileBasics = {
   temperature: 93,
   targetWeight: 36,
   shortDescription: "",
-  accentColor: "#e8944a",
+  accentColor: "#ffc400",
 };
 
 export function newStage(type: StageType = "pressure", index = 0): StageConfig {

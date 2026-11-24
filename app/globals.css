@@ -55,30 +55,31 @@
 }
 
 :root {
-  --background: oklch(0.10 0.008 45);
-  --foreground: oklch(0.96 0.008 55);
-  --card: oklch(0.13 0.010 43);
-  --card-foreground: oklch(0.96 0.008 55);
-  --popover: oklch(0.14 0.010 43);
-  --popover-foreground: oklch(0.96 0.008 55);
-  --primary: oklch(0.72 0.12 60);
-  --primary-foreground: oklch(0.10 0.008 45);
-  --secondary: oklch(0.17 0.010 43);
-  --secondary-foreground: oklch(0.96 0.008 55);
-  --muted: oklch(0.17 0.010 43);
-  --muted-foreground: oklch(0.62 0.025 50);
-  --accent: oklch(0.20 0.012 43);
-  --accent-foreground: oklch(0.96 0.008 55);
-  --destructive: oklch(0.60 0.20 22);
-  --border: oklch(1 0 0 / 6%);
-  --input: oklch(1 0 0 / 8%);
-  --ring: oklch(0.72 0.12 60);
+  /* Not Nine Bar: the Station's dark bumblebee (black and yellow) */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #141414;
+  --card-foreground: #fafafa;
+  --popover: #161616;
+  --popover-foreground: #fafafa;
+  --primary: #ffc400;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #fafafa;
+  --muted: #1c1c1c;
+  --muted-foreground: #a3a3a3;
+  --accent: #222222;
+  --accent-foreground: #fafafa;
+  --destructive: #ef4444;
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: #ffc400;
   --radius: 0.75rem;
   --shot-pressure: #60a5fa;
   --shot-flow: #22d3ee;
   --shot-weight: #fb923c;
   --shot-temp: #f87171;
-  --chart-1: oklch(0.72 0.12 60);
+  --chart-1: #ffc400;
   --chart-2: oklch(0.65 0.14 200);
   --chart-3: oklch(0.70 0.16 75);
   --chart-4: oklch(0.60 0.18 25);
@@ -94,7 +95,7 @@
 .recharts-tooltip-wrapper .recharts-default-tooltip {
   border-radius: 0.75rem;
   border: 1px solid rgba(255,255,255,0.08);
-  background: #1e1b16;
+  background: #1c1c1c;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 /* Station: last-shot line scrolling slowly (content is doubled, so -50% loops seamlessly) */

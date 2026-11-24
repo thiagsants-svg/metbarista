@@ -57,29 +57,29 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel?.()}>
-      <DialogContent className="sm:max-w-md bg-[#161210] border-white/[0.08] text-[#f5f0ea] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md bg-[#141414] border-white/[0.08] text-[#fafafa] p-0 overflow-hidden">
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
           <DialogHeader>
             <div className="flex items-center gap-2.5 mb-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8944a]/15 text-[#e8944a]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ffc400]/15 text-[#ffc400]">
                 <Coffee className="h-4 w-4" />
               </div>
-              <DialogTitle className="text-[#f5f0ea] font-semibold">Connect your machine</DialogTitle>
+              <DialogTitle className="text-[#fafafa] font-semibold">Connect your machine</DialogTitle>
             </div>
           </DialogHeader>
 
           {/* Same-network and browser-permission reminder */}
-          <div className="flex items-start gap-2.5 rounded-xl bg-[#e8944a]/[0.07] border border-[#e8944a]/15 px-3 py-2.5 mt-1">
-            <Wifi className="h-4 w-4 text-[#e8944a] shrink-0 mt-0.5" />
-            <div className="text-xs text-[#f5f0ea]/60 leading-relaxed space-y-1">
+          <div className="flex items-start gap-2.5 rounded-xl bg-[#ffc400]/[0.07] border border-[#ffc400]/15 px-3 py-2.5 mt-1">
+            <Wifi className="h-4 w-4 text-[#ffc400] shrink-0 mt-0.5" />
+            <div className="text-xs text-[#fafafa]/60 leading-relaxed space-y-1">
               <p>
-                <span className="text-[#e8944a] font-medium">Same WiFi required.</span>{" "}
-                MetBarista connects directly to your machine — no cloud involved.
+                <span className="text-[#ffc400] font-medium">Same WiFi required.</span>{" "}
+                Not Nine Bar connects directly to your machine — no cloud involved.
               </p>
-              <p className="text-[#f5f0ea]/45">
-                When prompted, allow MetBarista to find and connect to devices on your local network.
+              <p className="text-[#fafafa]/45">
+                When prompted, allow Not Nine Bar to find and connect to devices on your local network.
               </p>
             </div>
           </div>
@@ -88,16 +88,16 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
         {/* IP input */}
         <div className="px-6 py-4 space-y-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[#f5f0ea]/50">Machine IP address</label>
+            <label className="text-xs font-medium text-[#fafafa]/50">Machine IP address</label>
             <input
               placeholder="192.168.1.42"
               value={ip}
               onChange={(e) => setIp(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.05] px-3 py-2.5 text-sm font-mono text-[#f5f0ea] placeholder:text-[#f5f0ea]/25 focus:outline-none focus:border-[#e8944a]/40"
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.05] px-3 py-2.5 text-sm font-mono text-[#fafafa] placeholder:text-[#fafafa]/25 focus:outline-none focus:border-[#ffc400]/40"
             />
-            <p className="text-[11px] text-[#f5f0ea]/25">
-              Usually starts with <span className="font-mono text-[#f5f0ea]/40">192.168.</span> — port is optional
+            <p className="text-[11px] text-[#fafafa]/25">
+              Usually starts with <span className="font-mono text-[#fafafa]/40">192.168.</span> — port is optional
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
           <button
             onClick={handleConnect}
             disabled={!ip.trim() || status === "testing" || status === "ok"}
-            className="w-full rounded-xl bg-[#e8944a] py-2.5 text-sm font-semibold text-[#0c0a09] hover:bg-[#f5a855] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full rounded-xl bg-[#ffc400] py-2.5 text-sm font-semibold text-[#0a0a0a] hover:bg-[#ffd23f] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {status === "testing"
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Testing connection…</>
@@ -137,7 +137,7 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
         <div className="border-t border-white/[0.06]">
           <button
             onClick={() => setShowHelp((v) => !v)}
-            className="w-full flex items-center justify-between px-6 py-3 text-xs font-medium text-[#f5f0ea]/35 hover:text-[#f5f0ea]/60 transition-colors"
+            className="w-full flex items-center justify-between px-6 py-3 text-xs font-medium text-[#fafafa]/35 hover:text-[#fafafa]/60 transition-colors"
           >
             <span>How do I find my machine&apos;s IP?</span>
             {showHelp ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -148,11 +148,11 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
               {HOW_TO_FIND.map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex gap-3">
                   <div className="h-7 w-7 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0 mt-0.5">
-                    <Icon className="h-3.5 w-3.5 text-[#f5f0ea]/30" />
+                    <Icon className="h-3.5 w-3.5 text-[#fafafa]/30" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-[#f5f0ea]/60">{title}</p>
-                    <p className="text-xs text-[#f5f0ea]/30 mt-0.5 leading-relaxed">{desc}</p>
+                    <p className="text-xs font-medium text-[#fafafa]/60">{title}</p>
+                    <p className="text-xs text-[#fafafa]/30 mt-0.5 leading-relaxed">{desc}</p>
                   </div>
                 </div>
               ))}

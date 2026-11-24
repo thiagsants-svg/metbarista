@@ -32,7 +32,7 @@ function stageBadgeStyle(type: string): string {
     case "pressure": return "bg-blue-500/15 text-blue-400";
     case "flow":     return "bg-cyan-500/15 text-cyan-400";
     case "power":    return "bg-violet-400/15 text-violet-400";
-    default:         return "bg-white/10 text-[#f5f0ea]/50";
+    default:         return "bg-white/10 text-[#fafafa]/50";
   }
 }
 
@@ -49,7 +49,7 @@ function ShotListItem({
 }) {
   const stats = computeShotStats(shot.data);
   const date = new Date(shot.time * 1000);
-  const accent = shot.profile?.display?.accentColor ?? "#e8944a";
+  const accent = shot.profile?.display?.accentColor ?? "#ffc400";
   const [rating, setRating] = useState<number | null>(null);
   const isThrowaway = useMemo(() => analyzeShot(shot).throwaway, [shot]);
   const coffee = useMemo(() => shotNotes(shot).coffee, [shot]);
@@ -66,29 +66,29 @@ function ShotListItem({
         isThrowaway ? "opacity-40" : ""
       } ${
         selected
-          ? "border-[#e8944a]/30 bg-[#1e1b16]"
-          : "border-white/[0.05] bg-[#161210] hover:border-white/[0.10] hover:bg-[#1e1b16]"
+          ? "border-[#ffc400]/30 bg-[#1c1c1c]"
+          : "border-white/[0.05] bg-[#141414] hover:border-white/[0.10] hover:bg-[#1c1c1c]"
       }`}
     >
       <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate transition-colors ${selected ? "text-[#e8944a]" : "text-[#f5f0ea]"}`}>
+        <p className={`text-sm font-medium truncate transition-colors ${selected ? "text-[#ffc400]" : "text-[#fafafa]"}`}>
           {shot.name}
         </p>
-        {coffee && <p className="text-xs text-[#f5f0ea]/70 truncate">{coffee}</p>}
-        <p className="text-xs text-[#f5f0ea]/35 mt-0.5">
+        {coffee && <p className="text-xs text-[#fafafa]/70 truncate">{coffee}</p>}
+        <p className="text-xs text-[#fafafa]/35 mt-0.5">
           {format(date, "MMM d · HH:mm")} · {formatDistanceToNow(date, { addSuffix: true })}
         </p>
       </div>
       {rating && rating > 0 && (
         <div className="hidden sm:flex items-center gap-0.5 shrink-0">
           {[1, 2, 3, 4, 5].map((s) => (
-            <Star key={s} className="h-2.5 w-2.5" fill={rating >= s ? "#e8944a" : "none"} stroke={rating >= s ? "#e8944a" : "rgba(245,240,234,0.15)"} />
+            <Star key={s} className="h-2.5 w-2.5" fill={rating >= s ? "#ffc400" : "none"} stroke={rating >= s ? "#ffc400" : "rgba(250,250,250,0.15)"} />
           ))}
         </div>
       )}
       <ShotScoreBadge shot={shot} size="xs" />
-      <div className="hidden sm:flex items-center gap-3 text-xs font-mono text-[#f5f0ea]/30 shrink-0">
+      <div className="hidden sm:flex items-center gap-3 text-xs font-mono text-[#fafafa]/30 shrink-0">
         <span>{stats.durationSec}s</span>
         <span>{stats.finalWeight.toFixed(1)}g</span>
       </div>
@@ -101,7 +101,7 @@ function ShotListItem({
 function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: ShotEntry[]; onClose: () => void }) {
   const stats = computeShotStats(shot.data);
   const date = new Date(shot.time * 1000);
-  const accent = shot.profile?.display?.accentColor ?? "#e8944a";
+  const accent = shot.profile?.display?.accentColor ?? "#ffc400";
   const [showTemp, setShowTemp] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
@@ -124,13 +124,13 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
         <div className="flex items-start gap-3 min-w-0">
           <div className="h-2 w-2 rounded-full mt-2.5 shrink-0" style={{ backgroundColor: accent }} />
           <div className="min-w-0">
-            <h2 className="text-xl font-bold text-[#f5f0ea] truncate">{shot.name}</h2>
-            <p className="text-sm font-mono text-[#f5f0ea]/40 mt-0.5">
+            <h2 className="text-xl font-bold text-[#fafafa] truncate">{shot.name}</h2>
+            <p className="text-sm font-mono text-[#fafafa]/40 mt-0.5">
               {format(date, "MMMM d, yyyy · HH:mm")} · #{shot.db_key}
             </p>
           </div>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-[#f5f0ea]/30 hover:text-[#f5f0ea]/60 hover:bg-white/[0.05] transition-all md:hidden">
+        <button onClick={onClose} className="p-1.5 rounded-lg text-[#fafafa]/30 hover:text-[#fafafa]/60 hover:bg-white/[0.05] transition-all md:hidden">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -138,59 +138,59 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { Icon: Clock,    color: "#e8944a", value: `${stats.durationSec}s`,              label: "Duration"     },
+          { Icon: Clock,    color: "#ffc400", value: `${stats.durationSec}s`,              label: "Duration"     },
           { Icon: Weight,   color: "#fb923c", value: `${stats.finalWeight.toFixed(1)}g`,   label: "Weight"       },
           { Icon: Gauge,    color: "#60a5fa", value: `${stats.maxPressure.toFixed(1)} bar`, label: "Pressure"     },
           { Icon: Droplets, color: "#22d3ee", value: `${stats.maxFlow.toFixed(1)} ml/s`,   label: "Flow"         },
         ].map(({ Icon, color, value, label }) => (
-          <div key={label} className="rounded-xl border border-white/[0.06] bg-[#0c0a09] p-3 text-center">
+          <div key={label} className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-3 text-center">
             <Icon className="h-3.5 w-3.5 mx-auto mb-1.5" style={{ color }} />
-            <p className="text-lg font-bold font-mono text-[#f5f0ea]">{value}</p>
-            <p className="text-[10px] text-[#f5f0ea]/30 uppercase tracking-wider">{label}</p>
+            <p className="text-lg font-bold font-mono text-[#fafafa]">{value}</p>
+            <p className="text-[10px] text-[#fafafa]/30 uppercase tracking-wider">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Chart */}
-      <div className="rounded-xl border border-white/[0.06] bg-[#0c0a09] p-4">
+      <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-[#f5f0ea]">Extraction Curve</p>
+          <p className="text-sm font-semibold text-[#fafafa]">Extraction Curve</p>
           <button
             onClick={() => setShowTemp((v) => !v)}
             className={`rounded-lg border px-2 py-0.5 text-xs font-medium transition-all flex items-center gap-1 ${
               showTemp
                 ? "border-red-500/30 bg-red-500/10 text-red-400"
-                : "border-white/[0.08] text-[#f5f0ea]/40 hover:text-[#f5f0ea]"
+                : "border-white/[0.08] text-[#fafafa]/40 hover:text-[#fafafa]"
             }`}
           >
             <Thermometer className="h-3 w-3" /> Temp
           </button>
         </div>
-        <Suspense fallback={<div className="h-[280px] flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#e8944a]" /></div>}>
+        <Suspense fallback={<div className="h-[280px] flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#ffc400]" /></div>}>
           <ShotChart frames={shot.data} height={280} showTemp={showTemp} />
         </Suspense>
       </div>
 
       {/* Analysis */}
-      <Suspense fallback={<div className="h-32 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#e8944a]" /></div>}>
+      <Suspense fallback={<div className="h-32 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#ffc400]" /></div>}>
         <ShotReportCard shot={shot} />
       </Suspense>
 
       {/* Profile used */}
       {shot.profile && (
-        <div className="rounded-xl border border-white/[0.06] bg-[#0c0a09] p-4 space-y-3">
+        <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Layers className="h-3.5 w-3.5 text-[#f5f0ea]/30" />
-            <p className="text-sm font-semibold text-[#f5f0ea]">Profile Used</p>
+            <Layers className="h-3.5 w-3.5 text-[#fafafa]/30" />
+            <p className="text-sm font-semibold text-[#fafafa]">Profile Used</p>
           </div>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-medium text-[#f5f0ea] text-sm">{shot.profile.name}</p>
-              <p className="text-xs text-[#f5f0ea]/40">by {shot.profile.author}</p>
+              <p className="font-medium text-[#fafafa] text-sm">{shot.profile.name}</p>
+              <p className="text-xs text-[#fafafa]/40">by {shot.profile.author}</p>
               {(() => {
                 const n = shotNotes(shot);
                 return n.coffee || n.grind ? (
-                  <p className="mt-1 text-xs text-[#f5f0ea]/80">
+                  <p className="mt-1 text-xs text-[#fafafa]/80">
                     {n.coffee && <>Coffee: <b>{n.coffee}</b></>}
                     {n.coffee && n.grind && " · "}
                     {n.grind && <>Grind: <b>{n.grind}</b></>}
@@ -198,24 +198,24 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
                 ) : null;
               })()}
             </div>
-            <div className="flex gap-2 text-xs text-[#f5f0ea]/40 font-mono shrink-0">
+            <div className="flex gap-2 text-xs text-[#fafafa]/40 font-mono shrink-0">
               <span>{shot.profile.temperature}°C</span>
-              <span className="text-[#f5f0ea]/20">·</span>
+              <span className="text-[#fafafa]/20">·</span>
               <span>{shot.profile.final_weight}g</span>
             </div>
           </div>
           {shot.profile.stages.map((stage, i) => (
             <div key={stage.key} className="flex items-center gap-2 py-1 border-b border-white/[0.04] last:border-0">
-              <span className="text-xs font-mono text-[#f5f0ea]/20 w-4 shrink-0">{i + 1}</span>
+              <span className="text-xs font-mono text-[#fafafa]/20 w-4 shrink-0">{i + 1}</span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize shrink-0 ${stageBadgeStyle(stage.type)}`}>
                 {stage.type}
               </span>
-              <span className="text-xs text-[#f5f0ea]/60 flex-1 truncate">{stage.name}</span>
+              <span className="text-xs text-[#fafafa]/60 flex-1 truncate">{stage.name}</span>
             </div>
           ))}
           <Link
             href={`/profiles?id=${shot.profile.id}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.10] px-2.5 py-1 text-xs font-medium text-[#f5f0ea]/60 hover:text-[#f5f0ea] hover:border-white/[0.20] transition-all"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.10] px-2.5 py-1 text-xs font-medium text-[#fafafa]/60 hover:text-[#fafafa] hover:border-white/[0.20] transition-all"
           >
             View Full Profile →
           </Link>
@@ -226,17 +226,17 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
       {drift && drift.metrics.length > 0 && (
         <div className={`rounded-xl border p-4 space-y-3 ${
           drift.hasDrift
-            ? "border-[#e8944a]/20 bg-[#e8944a]/[0.04]"
-            : "border-white/[0.06] bg-[#0c0a09]"
+            ? "border-[#ffc400]/20 bg-[#ffc400]/[0.04]"
+            : "border-white/[0.06] bg-[#0a0a0a]"
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Lightbulb className="h-3.5 w-3.5 text-[#e8944a]" />
-              <p className="text-sm font-semibold text-[#e8944a]">Profile Drift</p>
+              <Lightbulb className="h-3.5 w-3.5 text-[#ffc400]" />
+              <p className="text-sm font-semibold text-[#ffc400]">Profile Drift</p>
             </div>
-            <span className="text-[10px] text-[#f5f0ea]/20 font-mono">{drift.shotCount} shot{drift.shotCount !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-[#fafafa]/20 font-mono">{drift.shotCount} shot{drift.shotCount !== 1 ? "s" : ""}</span>
           </div>
-          <p className="text-xs text-[#f5f0ea]/35">Plan vs what you actually brew</p>
+          <p className="text-xs text-[#fafafa]/35">Plan vs what you actually brew</p>
 
           <div className="space-y-2">
             {drift.metrics.map((m) => {
@@ -246,11 +246,11 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
 
               return (
                 <div key={m.field} className="flex items-center gap-3 py-1.5">
-                  <span className="text-xs text-[#f5f0ea]/40 w-20 shrink-0">{m.label}</span>
+                  <span className="text-xs text-[#fafafa]/40 w-20 shrink-0">{m.label}</span>
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="font-mono text-sm text-[#f5f0ea]/50">{m.planned}{m.unit}</span>
-                    <ArrowRight className="h-3 w-3 text-[#f5f0ea]/15" />
-                    <span className="font-mono text-sm font-bold text-[#f5f0ea]">{m.actual}{m.unit}</span>
+                    <span className="font-mono text-sm text-[#fafafa]/50">{m.planned}{m.unit}</span>
+                    <ArrowRight className="h-3 w-3 text-[#fafafa]/15" />
+                    <span className="font-mono text-sm font-bold text-[#fafafa]">{m.actual}{m.unit}</span>
                   </div>
                   <span
                     className="font-mono text-xs font-bold px-1.5 py-0.5 rounded"
@@ -266,11 +266,11 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
           {/* Suggestions for significant drift */}
           {drift.metrics.filter((m) => m.suggestion).map((m) => (
             <div key={`sug-${m.field}`} className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 space-y-2">
-              <p className="text-xs text-[#f5f0ea]/50">{m.suggestion!.reason}</p>
+              <p className="text-xs text-[#fafafa]/50">{m.suggestion!.reason}</p>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm text-[#f5f0ea]/40 line-through">{m.planned}{m.unit}</span>
-                <ArrowRight className="h-3 w-3 text-[#e8944a]" />
-                <span className="font-mono text-sm font-bold text-[#e8944a]">{m.suggestion!.value}{m.unit}</span>
+                <span className="font-mono text-sm text-[#fafafa]/40 line-through">{m.planned}{m.unit}</span>
+                <ArrowRight className="h-3 w-3 text-[#ffc400]" />
+                <span className="font-mono text-sm font-bold text-[#ffc400]">{m.suggestion!.value}{m.unit}</span>
                 {m.suggestion!.confidence === "high" && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 font-medium">
                     High confidence
@@ -283,10 +283,10 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
       )}
 
       {/* Notes */}
-      <div className="rounded-xl border border-white/[0.06] bg-[#0c0a09] p-4 space-y-3">
+      <div className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <NotebookPen className="h-3.5 w-3.5 text-[#f5f0ea]/30" />
-          <p className="text-sm font-semibold text-[#f5f0ea]">Tasting Notes</p>
+          <NotebookPen className="h-3.5 w-3.5 text-[#fafafa]/30" />
+          <p className="text-sm font-semibold text-[#fafafa]">Tasting Notes</p>
         </div>
         <Suspense fallback={null}>
           <ShotNoteEditor timestamp={shot.time} />
@@ -296,12 +296,12 @@ function ShotDetail({ shot, allShots, onClose }: { shot: ShotEntry; allShots: Sh
       {/* Raw JSON */}
       <button
         onClick={() => setShowRaw((v) => !v)}
-        className="text-xs text-[#f5f0ea]/30 hover:text-[#f5f0ea]/60 transition-colors"
+        className="text-xs text-[#fafafa]/30 hover:text-[#fafafa]/60 transition-colors"
       >
         {showRaw ? "▾" : "▸"} Raw data ({shot.data.length} frames)
       </button>
       {showRaw && (
-        <pre className="bg-[#0c0a09] border border-white/[0.06] rounded-xl p-3 text-xs font-mono text-[#f5f0ea]/50 overflow-auto max-h-48">
+        <pre className="bg-[#0a0a0a] border border-white/[0.06] rounded-xl p-3 text-xs font-mono text-[#fafafa]/50 overflow-auto max-h-48">
           {JSON.stringify(shot.data.slice(0, 3), null, 2)}
           {"\n... and "}{shot.data.length - 3}{" more"}
         </pre>
@@ -357,20 +357,20 @@ function ShotsPageContent() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20 min-h-screen bg-[#0c0a09]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#e8944a]" />
+      <div className="flex justify-center py-20 min-h-screen bg-[#0a0a0a]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0c0a09] gap-4 px-6">
-        <Gauge className="h-8 w-8 text-[#f5f0ea]/20" />
-        <p className="text-sm text-[#f5f0ea]/40">{error}</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] gap-4 px-6">
+        <Gauge className="h-8 w-8 text-[#fafafa]/20" />
+        <p className="text-sm text-[#fafafa]/40">{error}</p>
         <button
           onClick={() => { setLoading(true); setError(null); getHistory().then(setShots).catch((e) => setError(e instanceof Error ? e.message : "Failed")).finally(() => setLoading(false)); }}
-          className="rounded-xl border border-white/[0.10] px-4 py-2 text-sm font-medium text-[#f5f0ea]/60 hover:text-[#f5f0ea] transition-all"
+          className="rounded-xl border border-white/[0.10] px-4 py-2 text-sm font-medium text-[#fafafa]/60 hover:text-[#fafafa] transition-all"
         >
           Retry
         </button>
@@ -380,10 +380,10 @@ function ShotsPageContent() {
 
   if (shots.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0c0a09] gap-4 px-6">
-        <Clock className="h-8 w-8 text-[#f5f0ea]/20" />
-        <p className="text-sm text-[#f5f0ea]/40">No shots yet. Pull your first espresso!</p>
-        <Link href="/dashboard" className="rounded-xl bg-[#e8944a] px-4 py-2 text-sm font-semibold text-[#0c0a09]">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] gap-4 px-6">
+        <Clock className="h-8 w-8 text-[#fafafa]/20" />
+        <p className="text-sm text-[#fafafa]/40">No shots yet. Pull your first espresso!</p>
+        <Link href="/estacao" className="rounded-xl bg-[#ffc400] px-4 py-2 text-sm font-semibold text-[#0a0a0a]">
           Go to Dashboard
         </Link>
       </div>
@@ -393,12 +393,12 @@ function ShotsPageContent() {
   // Mobile: show detail full-screen if selected
   if (selectedShot) {
     return (
-      <div className="min-h-screen bg-[#0c0a09]">
+      <div className="min-h-screen bg-[#0a0a0a]">
         {/* Mobile: full screen detail */}
         <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
           <button
             onClick={() => router.push("/shots", { scroll: false })}
-            className="inline-flex items-center gap-1.5 text-sm text-[#f5f0ea]/40 hover:text-[#f5f0ea] transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-sm text-[#fafafa]/40 hover:text-[#fafafa] transition-colors mb-4"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> All Shots
           </button>
@@ -409,7 +409,7 @@ function ShotsPageContent() {
         <div className="hidden md:flex max-w-7xl mx-auto min-h-screen">
           {/* Left: shot list */}
           <div className="w-[340px] shrink-0 border-r border-white/[0.06] overflow-y-auto h-screen sticky top-0 px-4 py-6">
-            <h1 className="text-lg font-bold text-[#f5f0ea] mb-4">Shots</h1>
+            <h1 className="text-lg font-bold text-[#fafafa] mb-4">Shots</h1>
             <div className="space-y-1.5">
               {shots.map((s) => (
                 <ShotListItem key={s.id} shot={s} selected={s.id === selectedId} onSelect={() => handleSelect(s.id)} />
@@ -427,16 +427,16 @@ function ShotsPageContent() {
 
   // No shot selected: show list
   return (
-    <div className="min-h-screen bg-[#0c0a09]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-bold text-[#f5f0ea]">Shots</h1>
-          <span className="text-xs text-[#f5f0ea]/30 font-mono">{shots.length} total</span>
+          <h1 className="text-lg font-bold text-[#fafafa]">Shots</h1>
+          <span className="text-xs text-[#fafafa]/30 font-mono">{shots.length} total</span>
         </div>
         <div className="space-y-6">
           {grouped.map(({ date, shots: dayShots }) => (
             <div key={date}>
-              <p className="text-xs text-[#f5f0ea]/25 uppercase tracking-wider mb-2">{date}</p>
+              <p className="text-xs text-[#fafafa]/25 uppercase tracking-wider mb-2">{date}</p>
               <div className="space-y-1.5">
                 {dayShots.map((s) => (
                   <ShotListItem key={s.id} shot={s} selected={false} onSelect={() => handleSelect(s.id)} />
@@ -453,8 +453,8 @@ function ShotsPageContent() {
 export default function ShotsPage() {
   return (
     <Suspense fallback={
-      <div className="flex justify-center py-20 min-h-screen bg-[#0c0a09]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#e8944a]" />
+      <div className="flex justify-center py-20 min-h-screen bg-[#0a0a0a]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
       </div>
     }>
       <ShotsPageContent />

@@ -55,38 +55,38 @@ function ShareContent() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-[#e8944a]" />
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-[#ffc400]" />
     </div>
   );
 
   if (!profile) return (
-    <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center">
-      <p className="text-[#f5f0ea]/40 text-sm">Profile not found</p>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <p className="text-[#fafafa]/40 text-sm">Profile not found</p>
     </div>
   );
 
-  const accent = profile.display?.accentColor ?? "#e8944a";
+  const accent = profile.display?.accentColor ?? "#ffc400";
   const stats = bestShot ? computeShotStats(bestShot.data) : null;
 
   return (
-    <div className="min-h-screen bg-[#0c0a09]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
         {/* Back */}
         <Link
           href={`/profile?id=${profile.id}`}
-          className="inline-flex items-center gap-1.5 text-sm text-[#f5f0ea]/40 hover:text-[#f5f0ea] transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-[#fafafa]/40 hover:text-[#fafafa] transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Profile
         </Link>
 
         <div>
-          <h1 className="text-2xl font-bold text-[#f5f0ea]">Share Profile</h1>
-          <p className="text-sm text-[#f5f0ea]/35 mt-0.5">The geeky shareable card — everything about this shot</p>
+          <h1 className="text-2xl font-bold text-[#fafafa]">Share Profile</h1>
+          <p className="text-sm text-[#fafafa]/35 mt-0.5">The geeky shareable card — everything about this shot</p>
         </div>
 
         {/* ─── THE SHARE CARD ─────────────────────────────────────── */}
-        <div className="rounded-3xl border-2 border-white/[0.08] bg-[#161210] overflow-hidden shadow-2xl">
+        <div className="rounded-3xl border-2 border-white/[0.08] bg-[#141414] overflow-hidden shadow-2xl">
           {/* Gradient header strip */}
           <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
 
@@ -95,14 +95,14 @@ function ShareContent() {
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-2xl font-bold text-[#f5f0ea]">{profile.name}</h2>
-                  <span className="bg-[#e8944a]/10 border border-[#e8944a]/20 text-[#e8944a] rounded-full text-xs px-3 py-1 font-medium">
+                  <h2 className="text-2xl font-bold text-[#fafafa]">{profile.name}</h2>
+                  <span className="bg-[#ffc400]/10 border border-[#ffc400]/20 text-[#ffc400] rounded-full text-xs px-3 py-1 font-medium">
                     OEPF
                   </span>
                 </div>
-                <p className="text-sm text-[#f5f0ea]/35 font-mono">by {profile.author}</p>
+                <p className="text-sm text-[#fafafa]/35 font-mono">by {profile.author}</p>
                 {profile.display?.shortDescription && (
-                  <p className="text-sm text-[#f5f0ea]/40 italic">&ldquo;{profile.display.shortDescription}&rdquo;</p>
+                  <p className="text-sm text-[#fafafa]/40 italic">&ldquo;{profile.display.shortDescription}&rdquo;</p>
                 )}
               </div>
               <div className="shrink-0 hidden sm:block opacity-80">
@@ -112,17 +112,17 @@ function ShareContent() {
 
             {/* Key specs pills */}
             <div className="flex flex-wrap gap-2">
-              <span className="flex items-center gap-1.5 text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#f5f0ea]/50">
+              <span className="flex items-center gap-1.5 text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#fafafa]/50">
                 <Thermometer className="h-3 w-3" />{profile.temperature}°C
               </span>
-              <span className="flex items-center gap-1.5 text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#f5f0ea]/50">
+              <span className="flex items-center gap-1.5 text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#fafafa]/50">
                 <Weight className="h-3 w-3" />{profile.final_weight}g
               </span>
-              <span className="text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#f5f0ea]/50">
+              <span className="text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#fafafa]/50">
                 {profile.stages.length} stages
               </span>
               {profile.variables.map((v) => (
-                <span key={v.key} className="text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#f5f0ea]/50 font-mono">
+                <span key={v.key} className="text-xs rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[#fafafa]/50 font-mono">
                   {v.name}: {v.value}{v.type === "pressure" ? " bar" : v.type === "weight" ? "g" : ""}
                 </span>
               ))}
@@ -132,10 +132,10 @@ function ShareContent() {
             {bestShot && stats && (
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-semibold text-[#e8944a] uppercase tracking-wider border-b border-[#e8944a]/20 pb-1.5 flex-1">
+                  <p className="text-xs font-semibold text-[#ffc400] uppercase tracking-wider border-b border-[#ffc400]/20 pb-1.5 flex-1">
                     Shot Telemetry
                   </p>
-                  <span className="text-xs text-[#f5f0ea]/30 shrink-0">
+                  <span className="text-xs text-[#fafafa]/30 shrink-0">
                     {format(new Date(bestShot.time * 1000), "MMM d, yyyy")}
                   </span>
                 </div>
@@ -148,16 +148,16 @@ function ShareContent() {
                     { icon: Gauge, v: `${stats.maxPressure.toFixed(1)}b`, l: "Max P" },
                     { icon: Droplets, v: `${stats.maxFlow.toFixed(1)}`, l: "Max Flow" },
                   ].map(({ icon: Icon, v, l }) => (
-                    <div key={l} className="bg-[#0c0a09] rounded-xl p-3 text-center">
-                      <Icon className="h-3 w-3 mx-auto text-[#f5f0ea]/25 mb-1" />
-                      <p className="text-sm font-bold text-[#f5f0ea]">{v}</p>
-                      <p className="text-[10px] text-[#f5f0ea]/30 mt-0.5">{l}</p>
+                    <div key={l} className="bg-[#0a0a0a] rounded-xl p-3 text-center">
+                      <Icon className="h-3 w-3 mx-auto text-[#fafafa]/25 mb-1" />
+                      <p className="text-sm font-bold text-[#fafafa]">{v}</p>
+                      <p className="text-[10px] text-[#fafafa]/30 mt-0.5">{l}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Shot chart */}
-                <div className="rounded-xl bg-[#0c0a09] border border-white/[0.06] p-3">
+                <div className="rounded-xl bg-[#0a0a0a] border border-white/[0.06] p-3">
                   <ShotChart frames={bestShot.data} height={200} />
                 </div>
               </div>
@@ -165,10 +165,10 @@ function ShareContent() {
 
             {/* Stage stepper */}
             <div>
-              <p className="text-xs font-semibold text-[#f5f0ea]/40 uppercase tracking-wider mb-3">Stages</p>
+              <p className="text-xs font-semibold text-[#fafafa]/40 uppercase tracking-wider mb-3">Stages</p>
               <div className="space-y-0">
                 {profile.stages.map((stage, i) => {
-                  const c = STAGE_COLORS[stage.type] ?? { bg: "rgba(232,148,74,0.1)", text: "#e8944a" };
+                  const c = STAGE_COLORS[stage.type] ?? { bg: "rgba(255,196,0,0.1)", text: "#ffc400" };
                   return (
                     <div key={stage.key} className="flex gap-3">
                       <div className="flex flex-col items-center">
@@ -188,15 +188,15 @@ function ShareContent() {
                           >
                             {stage.type}
                           </span>
-                          <span className="text-sm font-medium text-[#f5f0ea]">{stage.name}</span>
-                          <span className="text-xs text-[#f5f0ea]/30 ml-auto">over {stage.dynamics.over}</span>
+                          <span className="text-sm font-medium text-[#fafafa]">{stage.name}</span>
+                          <span className="text-xs text-[#fafafa]/30 ml-auto">over {stage.dynamics.over}</span>
                         </div>
                         {stage.exit_triggers.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {stage.exit_triggers.map((t, ti) => (
                               <span
                                 key={ti}
-                                className="text-[10px] text-[#f5f0ea]/30 border border-white/[0.06] rounded px-1.5 py-0.5"
+                                className="text-[10px] text-[#fafafa]/30 border border-white/[0.06] rounded px-1.5 py-0.5"
                               >
                                 {t.type}: {t.value}
                               </span>
@@ -213,34 +213,34 @@ function ShareContent() {
             {/* Lineage */}
             {profile.previous_authors.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-[#f5f0ea]/40 uppercase tracking-wider flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-[#fafafa]/40 uppercase tracking-wider flex items-center gap-1.5">
                   <GitFork className="h-3 w-3" /> Lineage
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap text-xs">
                   {profile.previous_authors.map((a, i) => (
                     <span key={a.author_id} className="flex items-center gap-1.5">
-                      {i > 0 && <span className="text-[#f5f0ea]/25">→</span>}
-                      <span className="bg-white/[0.06] rounded-full px-2.5 py-0.5 text-[#f5f0ea]/50">{a.name}</span>
+                      {i > 0 && <span className="text-[#fafafa]/25">→</span>}
+                      <span className="bg-white/[0.06] rounded-full px-2.5 py-0.5 text-[#fafafa]/50">{a.name}</span>
                     </span>
                   ))}
-                  <span className="text-[#f5f0ea]/25">→</span>
-                  <span className="bg-[#e8944a]/10 text-[#e8944a] rounded-full px-2.5 py-0.5 font-medium border border-[#e8944a]/20">{profile.author}</span>
+                  <span className="text-[#fafafa]/25">→</span>
+                  <span className="bg-[#ffc400]/10 text-[#ffc400] rounded-full px-2.5 py-0.5 font-medium border border-[#ffc400]/20">{profile.author}</span>
                 </div>
               </div>
             )}
 
             {/* Raw JSON */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-[#f5f0ea]/40 uppercase tracking-wider">Raw JSON</p>
-              <pre className="text-xs bg-[#0c0a09] border border-white/[0.06] rounded-xl p-4 overflow-auto max-h-64 font-mono text-[#f5f0ea]/40 leading-relaxed">
+              <p className="text-xs font-semibold text-[#fafafa]/40 uppercase tracking-wider">Raw JSON</p>
+              <pre className="text-xs bg-[#0a0a0a] border border-white/[0.06] rounded-xl p-4 overflow-auto max-h-64 font-mono text-[#fafafa]/40 leading-relaxed">
                 {JSON.stringify(profile, null, 2)}
               </pre>
             </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-              <span className="text-xs text-[#f5f0ea]/25">Shared via MetBarista</span>
-              <span className="text-xs text-[#f5f0ea]/20 font-mono">{profile.id.slice(0, 8)}</span>
+              <span className="text-xs text-[#fafafa]/25">Shared via Not Nine Bar</span>
+              <span className="text-xs text-[#fafafa]/20 font-mono">{profile.id.slice(0, 8)}</span>
             </div>
           </div>
         </div>
@@ -249,14 +249,14 @@ function ShareContent() {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={copyJson}
-            className="inline-flex items-center gap-2 rounded-full border border-[#e8944a]/20 bg-transparent px-4 py-2 text-sm font-medium text-[#e8944a] hover:bg-[#e8944a]/10 transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border border-[#ffc400]/20 bg-transparent px-4 py-2 text-sm font-medium text-[#ffc400] hover:bg-[#ffc400]/10 transition-colors"
           >
             <Code className="h-4 w-4" />
             {copied ? "Copied!" : "Copy JSON"}
           </button>
           <button
             onClick={copyLink}
-            className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-transparent px-4 py-2 text-sm font-medium text-[#f5f0ea]/60 hover:text-[#f5f0ea] hover:border-white/[0.14] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-transparent px-4 py-2 text-sm font-medium text-[#fafafa]/60 hover:text-[#fafafa] hover:border-white/[0.14] transition-colors"
           >
             <Share2 className="h-4 w-4" />
             {copiedLink ? "Copied!" : "Copy Share Link"}
@@ -265,17 +265,17 @@ function ShareContent() {
             href="https://metprofiles.link"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-transparent px-4 py-2 text-sm font-medium text-[#f5f0ea]/40 hover:text-[#f5f0ea]/70 hover:border-white/[0.14] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-transparent px-4 py-2 text-sm font-medium text-[#fafafa]/40 hover:text-[#fafafa]/70 hover:border-white/[0.14] transition-colors"
           >
             Submit to metprofiles.link ↗
           </a>
         </div>
 
-        <p className="text-xs text-[#f5f0ea]/25">
+        <p className="text-xs text-[#fafafa]/25">
           💡 To share on Discord, copy the profile JSON and post it in the profiles channel, or submit to{" "}
           <a
             href="https://metprofiles.link"
-            className="text-[#e8944a]/60 hover:text-[#e8944a] transition-colors underline"
+            className="text-[#ffc400]/60 hover:text-[#ffc400] transition-colors underline"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -291,8 +291,8 @@ export default function SharePage() {
   useRequireConnection();
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#e8944a]" />
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#ffc400]" />
       </div>
     }>
       <ShareContent />

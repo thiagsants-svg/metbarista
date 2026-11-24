@@ -17,7 +17,7 @@ import { isExtracting as isBrewing } from "@/lib/brew-state";
 interface PhaseInfo { label: string; color: string; pulse: boolean }
 
 const PHASE_MAP: Record<string, PhaseInfo> = {
-  idle:       { label: "Idle",       color: "text-[#f5f0ea]/40", pulse: false },
+  idle:       { label: "Idle",       color: "text-[#fafafa]/40", pulse: false },
   preheating: { label: "Preheating", color: "text-orange-400",   pulse: true  },
   heating:    { label: "Preheating", color: "text-orange-400",   pulse: true  },
   preparing:  { label: "Preparing",  color: "text-yellow-400",   pulse: false },
@@ -32,7 +32,7 @@ const PHASE_MAP: Record<string, PhaseInfo> = {
 const TIMELINE_STEPS = ["Idle", "Preheating", "Ready", "Brewing", "Drawdown", "Purging", "Done"];
 
 function getPhaseInfo(name: string): PhaseInfo {
-  return PHASE_MAP[name.toLowerCase()] ?? { label: name, color: "text-[#e8944a]", pulse: false };
+  return PHASE_MAP[name.toLowerCase()] ?? { label: name, color: "text-[#ffc400]", pulse: false };
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -143,26 +143,26 @@ export default function LivePage() {
   const currentLabel = phaseInfo.label;
 
   return (
-    <div className="min-h-screen bg-[#0c0a09]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <div className="mx-auto max-w-5xl px-6 py-10 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-transparent px-3 py-1.5 text-sm font-medium text-[#f5f0ea]/50 hover:bg-white/[0.05] hover:text-[#f5f0ea] transition-all"
+              href="/estacao"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-transparent px-3 py-1.5 text-sm font-medium text-[#fafafa]/50 hover:bg-white/[0.05] hover:text-[#fafafa] transition-all"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Dashboard
             </Link>
             <div className="relative">
-              <Radio className="h-5 w-5 text-[#e8944a]" />
+              <Radio className="h-5 w-5 text-[#ffc400]" />
               {connected && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
               )}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#f5f0ea]">Live Shot — Focus Mode</h1>
-              <p className="text-xs text-[#f5f0ea]/40">Real-time extraction telemetry</p>
+              <h1 className="text-xl font-bold text-[#fafafa]">Live Shot — Focus Mode</h1>
+              <p className="text-xs text-[#fafafa]/40">Real-time extraction telemetry</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -172,14 +172,14 @@ export default function LivePage() {
                 Connected
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-xs text-[#f5f0ea]/35">
+              <span className="flex items-center gap-1.5 text-xs text-[#fafafa]/35">
                 <WifiOff className="h-3 w-3" />
                 {ip ? "Connecting…" : "No machine"}
               </span>
             )}
             <button
               onClick={clearData}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.10] bg-transparent px-4 py-2 text-sm font-medium text-[#f5f0ea]/60 hover:bg-white/[0.05] hover:text-[#f5f0ea] transition-all"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.10] bg-transparent px-4 py-2 text-sm font-medium text-[#fafafa]/60 hover:bg-white/[0.05] hover:text-[#fafafa] transition-all"
             >
               Clear
             </button>
@@ -189,55 +189,55 @@ export default function LivePage() {
         {/* Shot-specific status grid (during extraction) */}
         {status?.shot && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-4 flex flex-col gap-1">
-              <span className="text-xs text-[#f5f0ea]/35 uppercase tracking-wider">Phase</span>
+            <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-4 flex flex-col gap-1">
+              <span className="text-xs text-[#fafafa]/35 uppercase tracking-wider">Phase</span>
               <span className={`text-2xl font-bold font-mono ${phaseInfo.color}`}>{phaseInfo.label}</span>
             </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-4 flex flex-col gap-1">
-              <span className="text-xs text-[#f5f0ea]/35 uppercase tracking-wider">Pressure</span>
-              <span className="text-2xl font-bold font-mono text-[#f5f0ea]">
+            <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-4 flex flex-col gap-1">
+              <span className="text-xs text-[#fafafa]/35 uppercase tracking-wider">Pressure</span>
+              <span className="text-2xl font-bold font-mono text-[#fafafa]">
                 {status?.shot?.pressure?.toFixed(2) ?? "—"}
-                <span className="text-sm font-normal text-[#f5f0ea]/35"> bar</span>
+                <span className="text-sm font-normal text-[#fafafa]/35"> bar</span>
               </span>
             </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-4 flex flex-col gap-1">
-              <span className="text-xs text-[#f5f0ea]/35 uppercase tracking-wider">Flow</span>
-              <span className="text-2xl font-bold font-mono text-[#f5f0ea]">
+            <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-4 flex flex-col gap-1">
+              <span className="text-xs text-[#fafafa]/35 uppercase tracking-wider">Flow</span>
+              <span className="text-2xl font-bold font-mono text-[#fafafa]">
                 {status?.shot?.flow?.toFixed(2) ?? "—"}
-                <span className="text-sm font-normal text-[#f5f0ea]/35"> ml/s</span>
+                <span className="text-sm font-normal text-[#fafafa]/35"> ml/s</span>
               </span>
             </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-4 flex flex-col gap-1">
-              <span className="text-xs text-[#f5f0ea]/35 uppercase tracking-wider">Weight</span>
-              <span className="text-2xl font-bold font-mono text-[#f5f0ea]">
+            <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-4 flex flex-col gap-1">
+              <span className="text-xs text-[#fafafa]/35 uppercase tracking-wider">Weight</span>
+              <span className="text-2xl font-bold font-mono text-[#fafafa]">
                 {status?.shot?.weight != null && status.shot!.weight > 0
                   ? status.shot!.weight.toFixed(1)
                   : "—"}
-                <span className="text-sm font-normal text-[#f5f0ea]/35"> g</span>
+                <span className="text-sm font-normal text-[#fafafa]/35"> g</span>
               </span>
             </div>
           </div>
         )}
 
         {/* Live chart */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5">
           <div className="flex items-center gap-2 mb-5">
-            <p className="text-sm font-semibold text-[#f5f0ea]">Live Chart</p>
+            <p className="text-sm font-semibold text-[#fafafa]">Live Chart</p>
             {data.length > 0 && (
-              <span className="text-xs text-[#f5f0ea]/35">{data.length} pts</span>
+              <span className="text-xs text-[#fafafa]/35">{data.length} pts</span>
             )}
           </div>
           {data.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-52 gap-3">
               {connected ? (
                 <>
-                  <Loader2 className="h-6 w-6 animate-spin text-[#e8944a]" />
-                  <p className="text-sm text-[#f5f0ea]/40">Waiting for shot to start…</p>
+                  <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
+                  <p className="text-sm text-[#fafafa]/40">Waiting for shot to start…</p>
                 </>
               ) : (
                 <>
-                  <WifiOff className="h-6 w-6 text-[#f5f0ea]/25" />
-                  <p className="text-sm text-[#f5f0ea]/40">
+                  <WifiOff className="h-6 w-6 text-[#fafafa]/25" />
+                  <p className="text-sm text-[#fafafa]/40">
                     {ip ? "Connecting to machine…" : "Connect a machine first"}
                   </p>
                 </>
@@ -250,14 +250,14 @@ export default function LivePage() {
                 <XAxis
                   dataKey="t"
                   tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
-                  tick={{ fontSize: 11, fill: "#f5f0ea", fillOpacity: 0.3 }}
+                  tick={{ fontSize: 11, fill: "#fafafa", fillOpacity: 0.3 }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
                   yAxisId="left"
                   domain={[0, 12]}
-                  tick={{ fontSize: 11, fill: "#f5f0ea", fillOpacity: 0.3 }}
+                  tick={{ fontSize: 11, fill: "#fafafa", fillOpacity: 0.3 }}
                   tickLine={false}
                   axisLine={false}
                   width={28}
@@ -266,7 +266,7 @@ export default function LivePage() {
                   yAxisId="right"
                   orientation="right"
                   domain={[0, "auto"]}
-                  tick={{ fontSize: 11, fill: "#f5f0ea", fillOpacity: 0.3 }}
+                  tick={{ fontSize: 11, fill: "#fafafa", fillOpacity: 0.3 }}
                   tickLine={false}
                   axisLine={false}
                   width={32}
@@ -274,26 +274,26 @@ export default function LivePage() {
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#161210",
+                    backgroundColor: "#141414",
                     border: "1px solid rgba(255,255,255,0.06)",
                     borderRadius: "12px",
-                    color: "#f5f0ea",
+                    color: "#fafafa",
                     fontSize: 12,
                   }}
                   formatter={(v) => (typeof v === "number" ? v.toFixed(2) : v)}
                   labelFormatter={(l) => `${(Number(l) / 1000).toFixed(1)}s`}
                 />
-                <Legend wrapperStyle={{ fontSize: 12, color: "rgba(245,240,234,0.5)" }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: "rgba(250,250,250,0.5)" }} />
                 <Line yAxisId="left" type="monotone" dataKey="pressure" name="Pressure (bar)" stroke="#3b82f6" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line yAxisId="left" type="monotone" dataKey="flow" name="Flow (ml/s)" stroke="#06b6d4" strokeWidth={2} dot={false} isAnimationActive={false} />
-                <Line yAxisId="right" type="monotone" dataKey="weight" name="Weight (g)" stroke="#e8944a" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line yAxisId="right" type="monotone" dataKey="weight" name="Weight (g)" stroke="#ffc400" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
 
         {/* Phase timeline bar */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-4">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-4">
           <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
             {TIMELINE_STEPS.map((step, i) => {
               const isActive = step === currentLabel;
@@ -302,15 +302,15 @@ export default function LivePage() {
                 <div key={step} className="flex items-center gap-1 shrink-0">
                   <div className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
                     isActive
-                      ? "bg-[#e8944a]/20 text-[#e8944a] border border-[#e8944a]/30"
+                      ? "bg-[#ffc400]/20 text-[#ffc400] border border-[#ffc400]/30"
                       : isPast
-                      ? "bg-white/[0.06] text-[#f5f0ea]/50 border border-white/[0.06]"
-                      : "bg-transparent text-[#f5f0ea]/20 border border-transparent"
+                      ? "bg-white/[0.06] text-[#fafafa]/50 border border-white/[0.06]"
+                      : "bg-transparent text-[#fafafa]/20 border border-transparent"
                   }`}>
                     {step}
                   </div>
                   {i < TIMELINE_STEPS.length - 1 && (
-                    <ChevronRight className={`h-3 w-3 shrink-0 ${isPast ? "text-[#f5f0ea]/30" : "text-[#f5f0ea]/10"}`} />
+                    <ChevronRight className={`h-3 w-3 shrink-0 ${isPast ? "text-[#fafafa]/30" : "text-[#fafafa]/10"}`} />
                   )}
                 </div>
               );
@@ -320,12 +320,12 @@ export default function LivePage() {
 
         {/* Last-shot summary banner */}
         {shotSummary && !summaryDismissed && !isBrewing(status) && (
-          <div className="rounded-2xl border border-[#e8944a]/20 bg-[#161210] p-5 space-y-4">
+          <div className="rounded-2xl border border-[#ffc400]/20 bg-[#141414] p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#f5f0ea]">Last Shot Summary</p>
+              <p className="text-sm font-semibold text-[#fafafa]">Last Shot Summary</p>
               <button
                 onClick={() => setSummaryDismissed(true)}
-                className="text-[#f5f0ea]/30 hover:text-[#f5f0ea]/60 transition-colors"
+                className="text-[#fafafa]/30 hover:text-[#fafafa]/60 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -337,21 +337,21 @@ export default function LivePage() {
                 { label: "Avg Flow",      value: `${shotSummary.avgFlow.toFixed(2)} ml/s` },
                 { label: "Final Weight",  value: `${shotSummary.finalWeight.toFixed(1)} g` },
               ].map(({ label, value }) => (
-                <div key={label} className="rounded-xl border border-white/[0.06] bg-[#0c0a09] p-3">
-                  <p className="text-xs text-[#f5f0ea]/35 uppercase tracking-wider">{label}</p>
-                  <p className="text-lg font-bold font-mono text-[#f5f0ea] mt-0.5">{value}</p>
+                <div key={label} className="rounded-xl border border-white/[0.06] bg-[#0a0a0a] p-3">
+                  <p className="text-xs text-[#fafafa]/35 uppercase tracking-wider">{label}</p>
+                  <p className="text-lg font-bold font-mono text-[#fafafa] mt-0.5">{value}</p>
                 </div>
               ))}
             </div>
             {shotSummary.profile && shotSummary.profile !== "Unknown" && (
-              <p className="text-xs text-[#f5f0ea]/35">
-                Profile: <span className="text-[#f5f0ea]/60">{shotSummary.profile}</span>
+              <p className="text-xs text-[#fafafa]/35">
+                Profile: <span className="text-[#fafafa]/60">{shotSummary.profile}</span>
               </p>
             )}
             {!showNoteEditor ? (
               <button
                 onClick={() => setShowNoteEditor(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.10] px-4 py-2 text-sm font-medium text-[#f5f0ea]/60 hover:bg-white/[0.05] hover:text-[#f5f0ea] transition-all"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.10] px-4 py-2 text-sm font-medium text-[#fafafa]/60 hover:bg-white/[0.05] hover:text-[#fafafa] transition-all"
               >
                 Save note
               </button>

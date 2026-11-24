@@ -1,10 +1,10 @@
 "use client";
 
-/** Station top bar: back, loaded profile, machine status pill, theme, backup, full screen */
+/** Station top bar: menu (other pages, machine, credits), loaded profile, status pill, theme, backup, full screen */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Maximize, Minimize, Moon, Sun } from "lucide-react";
+import { Maximize, Minimize, Moon, Sun } from "lucide-react";
+import { StationMenuButton } from "@/components/station/station-menu";
 import { BackupButton } from "@/components/backup-panel";
 import type { ThemeName } from "@/lib/station/format";
 
@@ -31,10 +31,7 @@ export function StationHeader({ title, statusText, pillClass, pulsing, theme, on
 
   return (
     <header className="flex shrink-0 items-center gap-2.5">
-      <Link href="/dashboard" aria-label="Back"
-        className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/60 active:scale-95">
-        <ArrowLeft className="h-5 w-5" />
-      </Link>
+      <StationMenuButton />
       <p className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</p>
       <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${pillClass}`}>
         <span className={`h-2 w-2 rounded-full bg-current ${pulsing ? "animate-pulse" : ""}`} />

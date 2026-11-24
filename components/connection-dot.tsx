@@ -37,14 +37,14 @@ export function ConnectionDot() {
 
   const pill: Record<ConnectionStatus, string> = {
     connected:    "border-[#4ade80]/20 bg-[#4ade80]/[0.08] text-[#4ade80]",
-    connecting:   "border-white/[0.08]  bg-white/[0.04]    text-[#f5f0ea]/50",
-    error:        "border-[#e8944a]/20  bg-[#e8944a]/[0.08] text-[#e8944a]/70 hover:text-[#e8944a]",
-    disconnected: "border-white/[0.08]  bg-white/[0.04]    text-[#f5f0ea]/40 hover:text-[#f5f0ea]/70",
+    connecting:   "border-white/[0.08]  bg-white/[0.04]    text-[#fafafa]/50",
+    error:        "border-[#ffc400]/20  bg-[#ffc400]/[0.08] text-[#ffc400]/70 hover:text-[#ffc400]",
+    disconnected: "border-white/[0.08]  bg-white/[0.04]    text-[#fafafa]/40 hover:text-[#fafafa]/70",
   };
 
   return (
     <div className="flex items-center gap-1">
-      <Link href="/dashboard"
+      <Link href="/estacao"
         className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all shrink-0 ${pill[status]}`}>
 
         {status === "connecting" && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -66,7 +66,7 @@ export function ConnectionDot() {
         <button
           onClick={handleDisconnect}
           title="Disconnect machine"
-          className="h-6 w-6 flex items-center justify-center rounded-full text-[#f5f0ea]/25 hover:text-[#f5f0ea]/60 hover:bg-white/[0.06] transition-all"
+          className="h-6 w-6 flex items-center justify-center rounded-full text-[#fafafa]/25 hover:text-[#fafafa]/60 hover:bg-white/[0.06] transition-all"
         >
           <X className="h-3 w-3" />
         </button>

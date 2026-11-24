@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 
-const PALETTE = ["#e8944a", "#60a5fa", "#a78bfa", "#34d399"] as const;
+const PALETTE = ["#ffc400", "#60a5fa", "#a78bfa", "#34d399"] as const;
 const MAX_SHOTS = 4;
 const MAX_HISTORY = 20;
 
@@ -70,8 +70,8 @@ export default function ComparePage() {
   }, [selectedShots]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0c0a09]">
-      <Loader2 className="h-6 w-6 animate-spin text-[#e8944a]" />
+    <div className="flex items-center justify-center min-h-screen bg-[#0a0a0a]">
+      <Loader2 className="h-6 w-6 animate-spin text-[#ffc400]" />
     </div>
   );
 
@@ -82,15 +82,15 @@ export default function ComparePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0c0a09]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-[#f5f0ea] flex items-center gap-2.5">
-            <GitCompare className="h-5 w-5 text-[#e8944a]" /> Compare Shots
+          <h1 className="text-2xl font-bold text-[#fafafa] flex items-center gap-2.5">
+            <GitCompare className="h-5 w-5 text-[#ffc400]" /> Compare Shots
           </h1>
-          <p className="text-sm text-[#f5f0ea]/40 mt-1">Overlay up to 4 shots to dial in your extraction</p>
+          <p className="text-sm text-[#fafafa]/40 mt-1">Overlay up to 4 shots to dial in your extraction</p>
         </div>
 
         {/* Selected badges */}
@@ -116,16 +116,16 @@ export default function ComparePage() {
         )}
 
         {/* Comparison chart */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5">
           {selectedShots.length < 2 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-              <GitCompare className="h-8 w-8 text-[#f5f0ea]/15" />
-              <p className="text-sm text-[#f5f0ea]/40">Select 2 or more shots to compare</p>
+              <GitCompare className="h-8 w-8 text-[#fafafa]/15" />
+              <p className="text-sm text-[#fafafa]/40">Select 2 or more shots to compare</p>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-semibold text-[#f5f0ea]">Extraction Curves</p>
+                <p className="text-sm font-semibold text-[#fafafa]">Extraction Curves</p>
                 {/* Trace toggles */}
                 <div className="flex items-center gap-1 rounded-lg bg-white/[0.04] border border-white/[0.06] p-0.5">
                   {traceToggles.map(({ key, label, active, onToggle }) => (
@@ -134,8 +134,8 @@ export default function ComparePage() {
                       onClick={onToggle}
                       className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
                         active
-                          ? "bg-[#e8944a]/15 text-[#e8944a]"
-                          : "text-[#f5f0ea]/40 hover:text-[#f5f0ea]/70"
+                          ? "bg-[#ffc400]/15 text-[#ffc400]"
+                          : "text-[#fafafa]/40 hover:text-[#fafafa]/70"
                       }`}
                     >
                       {label}
@@ -150,12 +150,12 @@ export default function ComparePage() {
                   <XAxis
                     dataKey="t"
                     tickFormatter={(v) => `${Number(v).toFixed(0)}s`}
-                    tick={{ fontSize: 11, fill: "rgba(245,240,234,0.3)" }}
+                    tick={{ fontSize: 11, fill: "rgba(250,250,250,0.3)" }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "rgba(245,240,234,0.3)" }}
+                    tick={{ fontSize: 11, fill: "rgba(250,250,250,0.3)" }}
                     tickLine={false}
                     axisLine={false}
                     width={40}
@@ -167,14 +167,14 @@ export default function ComparePage() {
                       typeof v === "number" ? v.toFixed(2) : String(v),
                     ]}
                     contentStyle={{
-                      backgroundColor: "#161210",
+                      backgroundColor: "#141414",
                       border: "1px solid rgba(255,255,255,0.08)",
                       borderRadius: "8px",
                       fontSize: 12,
                     }}
-                    labelStyle={{ color: "rgba(245,240,234,0.6)" }}
+                    labelStyle={{ color: "rgba(250,250,250,0.6)" }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 11, color: "rgba(245,240,234,0.4)" }} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: "rgba(250,250,250,0.4)" }} />
                   {selectedShots.flatMap((shot, i) => {
                     const legend = `${format(new Date(shot.time * 1000), "MMM d")} · ${shot.name.slice(0, 16)}`;
                     const lines = [];
@@ -229,12 +229,12 @@ export default function ComparePage() {
 
         {/* Stats comparison table */}
         {selectedShots.length >= 2 && (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#161210] p-5">
-            <p className="text-sm font-semibold text-[#f5f0ea] mb-4">Stats Comparison</p>
+          <div className="rounded-2xl border border-white/[0.06] bg-[#141414] p-5">
+            <p className="text-sm font-semibold text-[#fafafa] mb-4">Stats Comparison</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06] text-[#f5f0ea]/30 text-xs">
+                  <tr className="border-b border-white/[0.06] text-[#fafafa]/30 text-xs">
                     <th className="text-left py-2 pr-4 font-medium">Shot</th>
                     <th className="text-right py-2 px-3 font-medium">Duration</th>
                     <th className="text-right py-2 px-3 font-medium">Peak Pressure</th>
@@ -254,7 +254,7 @@ export default function ComparePage() {
                       : 0;
                     return (
                       <tr key={shot.id} className="border-b border-white/[0.05] last:border-0">
-                        <td className="py-2.5 pr-4 text-[#f5f0ea]/70">
+                        <td className="py-2.5 pr-4 text-[#fafafa]/70">
                           <span className="inline-flex items-center gap-2">
                             <span
                               className="w-2 h-2 rounded-full shrink-0"
@@ -263,17 +263,17 @@ export default function ComparePage() {
                             {format(new Date(shot.time * 1000), "MMM d, HH:mm")}
                           </span>
                         </td>
-                        <td className="text-right px-3 font-mono text-[#f5f0ea]/60">{stats.durationSec}s</td>
-                        <td className="text-right px-3 font-mono text-[#f5f0ea]/60">
+                        <td className="text-right px-3 font-mono text-[#fafafa]/60">{stats.durationSec}s</td>
+                        <td className="text-right px-3 font-mono text-[#fafafa]/60">
                           {stats.maxPressure.toFixed(1)} bar
                         </td>
-                        <td className="text-right px-3 font-mono text-[#f5f0ea]/60">
+                        <td className="text-right px-3 font-mono text-[#fafafa]/60">
                           {avgFlow.toFixed(2)} ml/s
                         </td>
-                        <td className="text-right px-3 font-mono text-[#f5f0ea]/60">
+                        <td className="text-right px-3 font-mono text-[#fafafa]/60">
                           {stats.finalWeight.toFixed(1)}g
                         </td>
-                        <td className="text-right pl-3 text-[#f5f0ea]/60 max-w-[140px] truncate">
+                        <td className="text-right pl-3 text-[#fafafa]/60 max-w-[140px] truncate">
                           {shot.name}
                         </td>
                       </tr>
@@ -288,15 +288,15 @@ export default function ComparePage() {
         {/* Shot selector */}
         {allShots.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <GitCompare className="h-8 w-8 text-[#f5f0ea]/15" />
-            <p className="text-sm text-[#f5f0ea]/40">Connect your machine to load shot history</p>
+            <GitCompare className="h-8 w-8 text-[#fafafa]/15" />
+            <p className="text-sm text-[#fafafa]/40">Connect your machine to load shot history</p>
           </div>
         ) : (
           <div>
-            <h2 className="text-sm font-semibold text-[#f5f0ea]/50 mb-3">
+            <h2 className="text-sm font-semibold text-[#fafafa]/50 mb-3">
               Select shots
               {selected.length > 0 && (
-                <span className="ml-2 text-[#f5f0ea]/25 font-mono">
+                <span className="ml-2 text-[#fafafa]/25 font-mono">
                   {selected.length}/{MAX_SHOTS}
                 </span>
               )}
@@ -313,8 +313,8 @@ export default function ComparePage() {
                     disabled={!isSelected && selected.length >= MAX_SHOTS}
                     className={`w-full text-left rounded-xl border px-4 py-3 text-sm flex items-center gap-3 transition-all disabled:opacity-30 ${
                       isSelected
-                        ? "text-[#f5f0ea]"
-                        : "border-white/[0.05] bg-[#161210] text-[#f5f0ea]/60 hover:border-white/[0.10] hover:bg-[#1e1b16]"
+                        ? "text-[#fafafa]"
+                        : "border-white/[0.05] bg-[#141414] text-[#fafafa]/60 hover:border-white/[0.10] hover:bg-[#1c1c1c]"
                     }`}
                     style={
                       isSelected
@@ -330,16 +330,16 @@ export default function ComparePage() {
                       style={
                         isSelected
                           ? { backgroundColor: PALETTE[colorIdx], borderColor: PALETTE[colorIdx] }
-                          : { borderColor: "rgba(245,240,234,0.15)", backgroundColor: "transparent" }
+                          : { borderColor: "rgba(250,250,250,0.15)", backgroundColor: "transparent" }
                       }
                     />
                     <span className="flex-1 min-w-0">
                       <span className="block truncate font-medium">{shot.name}</span>
-                      <span className="block text-xs text-[#f5f0ea]/35 mt-0.5">
+                      <span className="block text-xs text-[#fafafa]/35 mt-0.5">
                         {format(new Date(shot.time * 1000), "MMM d, yyyy · HH:mm")}
                       </span>
                     </span>
-                    <span className="text-xs font-mono text-[#f5f0ea]/25 shrink-0">
+                    <span className="text-xs font-mono text-[#fafafa]/25 shrink-0">
                       {stats.durationSec}s · {stats.finalWeight.toFixed(0)}g
                     </span>
                   </button>

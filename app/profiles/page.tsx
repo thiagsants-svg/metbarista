@@ -60,24 +60,24 @@ export default function ProfilesPage() {
     : profiles.filter((p) => inferTypes(p).includes(filter));
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-[#e8944a]" />
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-[#ffc400]" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0c0a09]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
         {/* Header + filters */}
         <div className="space-y-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#f5f0ea]">Profiles</h1>
-            <p className="text-sm text-[#f5f0ea]/40 mt-0.5">
+            <h1 className="text-2xl font-bold text-[#fafafa]">Profiles</h1>
+            <p className="text-sm text-[#fafafa]/40 mt-0.5">
               {profiles.length} profile{profiles.length !== 1 ? "s" : ""} on your machine
             </p>
           </div>
           <Link href="/create"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#e8944a] px-4 py-2 text-sm font-semibold text-[#0c0a09] hover:bg-[#f5a855] transition-all shrink-0">
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc400] px-4 py-2 text-sm font-semibold text-[#0a0a0a] hover:bg-[#ffd23f] transition-all shrink-0">
             <Plus className="h-3.5 w-3.5" /> New Profile
           </Link>
           <div className="flex gap-2 flex-wrap">
@@ -87,8 +87,8 @@ export default function ProfilesPage() {
                 onClick={() => setFilter(f)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer capitalize ${
                   filter === f
-                    ? "bg-[#e8944a]/15 text-[#e8944a] border-[#e8944a]/20"
-                    : "bg-transparent text-[#f5f0ea]/40 border-white/[0.08] hover:text-[#f5f0ea]/70"
+                    ? "bg-[#ffc400]/15 text-[#ffc400] border-[#ffc400]/20"
+                    : "bg-transparent text-[#fafafa]/40 border-white/[0.08] hover:text-[#fafafa]/70"
                 }`}
               >
                 {f}
@@ -99,16 +99,16 @@ export default function ProfilesPage() {
 
         {!profiles.length ? (
           <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center">
-            <div className="rounded-full bg-[#e8944a]/10 p-4">
-              <Layers className="h-8 w-8 text-[#e8944a]" />
+            <div className="rounded-full bg-[#ffc400]/10 p-4">
+              <Layers className="h-8 w-8 text-[#ffc400]" />
             </div>
             <div>
-              <p className="text-[#f5f0ea]/60 text-sm">No profiles found.</p>
-              <p className="text-[#f5f0ea]/30 text-xs mt-0.5">Connect your machine first.</p>
+              <p className="text-[#fafafa]/60 text-sm">No profiles found.</p>
+              <p className="text-[#fafafa]/30 text-xs mt-0.5">Connect your machine first.</p>
             </div>
             <Link
-              href="/dashboard"
-              className="rounded-full border border-[#e8944a]/20 bg-[#e8944a]/10 px-4 py-2 text-sm font-medium text-[#e8944a] hover:bg-[#e8944a]/20 transition-colors"
+              href="/estacao"
+              className="rounded-full border border-[#ffc400]/20 bg-[#ffc400]/10 px-4 py-2 text-sm font-medium text-[#ffc400] hover:bg-[#ffc400]/20 transition-colors"
             >
               Go to Dashboard
             </Link>
@@ -131,8 +131,8 @@ export default function ProfilesPage() {
       {toast && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-xl transition-all z-50 ${
           toast.type === "success"
-            ? "border-[#4ade80]/20 bg-[#0c0a09] text-[#4ade80]"
-            : "border-red-500/20 bg-[#0c0a09] text-red-400"
+            ? "border-[#4ade80]/20 bg-[#0a0a0a] text-[#4ade80]"
+            : "border-red-500/20 bg-[#0a0a0a] text-red-400"
         }`}>
           {toast.msg}
         </div>

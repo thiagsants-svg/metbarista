@@ -1,13 +1,13 @@
 {
-  "name": "MetBarista Station",
-  "short_name": "Station",
-  "description": "The open control plane for Meticulous espresso machines",
+  "name": "Not Nine Bar",
+  "short_name": "Not9Bar",
+  "description": "A station for your Meticulous. Because espresso is not nine bar.",
   "start_url": "./estacao/",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "categories": [
     "food",
     "utilities"

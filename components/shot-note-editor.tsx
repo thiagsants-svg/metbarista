@@ -26,7 +26,7 @@ export function ShotNoteEditor({ timestamp, onSave }: ShotNoteEditorProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-xs text-[#f5f0ea]/40 uppercase tracking-wider mb-2 block">
+        <label className="text-xs text-[#fafafa]/40 uppercase tracking-wider mb-2 block">
           Rating
         </label>
         <div className="flex gap-1">
@@ -41,9 +41,9 @@ export function ShotNoteEditor({ timestamp, onSave }: ShotNoteEditorProps) {
             >
               <Star
                 className="h-6 w-6"
-                fill={(hovered || rating) >= star ? "#e8944a" : "none"}
+                fill={(hovered || rating) >= star ? "#ffc400" : "none"}
                 stroke={
-                  (hovered || rating) >= star ? "#e8944a" : "rgba(245,240,234,0.2)"
+                  (hovered || rating) >= star ? "#ffc400" : "rgba(250,250,250,0.2)"
                 }
               />
             </button>
@@ -52,7 +52,7 @@ export function ShotNoteEditor({ timestamp, onSave }: ShotNoteEditorProps) {
       </div>
 
       <div>
-        <label className="text-xs text-[#f5f0ea]/40 uppercase tracking-wider mb-2 block">
+        <label className="text-xs text-[#fafafa]/40 uppercase tracking-wider mb-2 block">
           Tasting Notes
         </label>
         <textarea
@@ -60,13 +60,13 @@ export function ShotNoteEditor({ timestamp, onSave }: ShotNoteEditorProps) {
           onChange={(e) => setNote(e.target.value)}
           placeholder="Chocolatey finish, slight citrus…"
           rows={3}
-          className="w-full rounded-xl border border-white/[0.06] bg-[#0c0a09] px-3 py-2.5 text-sm text-[#f5f0ea] placeholder:text-[#f5f0ea]/25 focus:outline-none focus:border-white/[0.15] resize-none transition-colors"
+          className="w-full rounded-xl border border-white/[0.06] bg-[#0a0a0a] px-3 py-2.5 text-sm text-[#fafafa] placeholder:text-[#fafafa]/25 focus:outline-none focus:border-white/[0.15] resize-none transition-colors"
         />
       </div>
 
       <button
         onClick={handleSave}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-[#e8944a] px-4 py-2 text-sm font-semibold text-[#0c0a09] hover:bg-[#f0a060] transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc400] px-4 py-2 text-sm font-semibold text-[#0a0a0a] hover:bg-[#ffd23f] transition-colors"
       >
         {saved ? "Saved ✓" : "Save Note"}
       </button>

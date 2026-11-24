@@ -25,16 +25,16 @@ function getImageUrl(imagePath?: string): string | null {
 }
 
 export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
-  const accent = profile.display?.accentColor ?? "#e8944a";
+  const accent = profile.display?.accentColor ?? "#ffc400";
   const stageTypes = [...new Set((profile.stages ?? []).map((s) => s.type))];
   const imageUrl = getImageUrl(profile.display?.image);
 
   const inner = (
-    <div className="group rounded-2xl border border-white/[0.06] bg-[#161210] overflow-hidden hover:border-white/[0.14] hover:bg-[#1e1b16] transition-all cursor-pointer">
+    <div className="group rounded-2xl border border-white/[0.06] bg-[#141414] overflow-hidden hover:border-white/[0.14] hover:bg-[#1c1c1c] transition-all cursor-pointer">
 
       {/* Profile image or accent bar */}
       {imageUrl ? (
-        <div className="relative h-36 overflow-hidden bg-[#0c0a09]">
+        <div className="relative h-36 overflow-hidden bg-[#0a0a0a]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
@@ -42,7 +42,7 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
             className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
           />
           {/* Gradient overlay so text over image is readable */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#161210] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent" />
           {/* Curve preview floated top-right */}
           <div className="absolute top-2 right-2 opacity-70 group-hover:opacity-100 transition-opacity">
             <ProfileCurvePreview profile={profile} width={72} height={28} accentColor={accent} />
@@ -50,30 +50,30 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
         </div>
       ) : (
         /* No official photo → generative fingerprint */
-        <div className="relative h-36 overflow-hidden bg-[#0c0a09]">
+        <div className="relative h-36 overflow-hidden bg-[#0a0a0a]">
           <ProfileFingerprint profile={profile} height={144} accent={accent} />
           {/* subtle dark overlay so card text stays readable */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#161210] via-transparent to-transparent opacity-60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent opacity-60" />
         </div>
       )}
 
       <div className={`px-4 pb-4 space-y-3 ${imageUrl ? "" : "pt-2"}`}>
         {/* Header row */}
         <div className="min-w-0">
-          <h3 className="font-semibold text-sm text-[#f5f0ea] truncate group-hover:text-[#e8944a] transition-colors leading-snug">
+          <h3 className="font-semibold text-sm text-[#fafafa] truncate group-hover:text-[#ffc400] transition-colors leading-snug">
             {profile.name}
           </h3>
-          <p className="text-xs text-[#f5f0ea]/35 mt-0.5">{profile.author}</p>
+          <p className="text-xs text-[#fafafa]/35 mt-0.5">{profile.author}</p>
         </div>
 
         {profile.display?.shortDescription && (
-          <p className="text-xs text-[#f5f0ea]/40 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-[#fafafa]/40 line-clamp-2 leading-relaxed">
             {profile.display.shortDescription}
           </p>
         )}
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-[#f5f0ea]/35">
+        <div className="flex items-center gap-3 text-xs text-[#fafafa]/35">
           <span className="flex items-center gap-1">
             <Thermometer className="h-3 w-3" />{profile.temperature}°C
           </span>
@@ -88,7 +88,7 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
         {/* Stage badges */}
         <div className="flex flex-wrap gap-1.5">
           {stageTypes.map((t) => {
-            const c = STAGE_COLORS[t] ?? { bg: "rgba(255,255,255,0.08)", text: "#f5f0ea" };
+            const c = STAGE_COLORS[t] ?? { bg: "rgba(255,255,255,0.08)", text: "#fafafa" };
             return (
               <span key={t} className="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize"
                 style={{ backgroundColor: c.bg, color: c.text }}>{t}</span>
@@ -99,7 +99,7 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
         {onLoad && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLoad(profile); }}
-            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-1.5 text-xs font-medium text-[#f5f0ea]/50 hover:bg-[#e8944a]/10 hover:border-[#e8944a]/20 hover:text-[#e8944a] transition-all"
+            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-1.5 text-xs font-medium text-[#fafafa]/50 hover:bg-[#ffc400]/10 hover:border-[#ffc400]/20 hover:text-[#ffc400] transition-all"
           >
             Load to Machine ↑
           </button>

@@ -24,13 +24,13 @@ function Slider({ label, value, min, max, step, unit, onChange }: {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-[#f5f0ea]/40">{label}</span>
-        <span className="text-xs font-mono text-[#f5f0ea]/70">{value.toFixed(step < 1 ? 1 : 0)}{unit}</span>
+        <span className="text-xs text-[#fafafa]/40">{label}</span>
+        <span className="text-xs font-mono text-[#fafafa]/70">{value.toFixed(step < 1 ? 1 : 0)}{unit}</span>
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1 rounded-full appearance-none bg-white/[0.08] accent-[#e8944a] cursor-pointer"
+        className="w-full h-1 rounded-full appearance-none bg-white/[0.08] accent-[#ffc400] cursor-pointer"
       />
     </div>
   );
@@ -48,7 +48,7 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
   }
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#161210] overflow-hidden">
+    <div className="rounded-xl border border-white/[0.07] bg-[#141414] overflow-hidden">
       {/* Header row */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
         {/* Type toggle */}
@@ -57,7 +57,7 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
             <button key={t}
               onClick={() => set("type", t)}
               className={`px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors ${
-                stage.type === t ? s.pill : "text-[#f5f0ea]/25 hover:text-[#f5f0ea]/50"
+                stage.type === t ? s.pill : "text-[#fafafa]/25 hover:text-[#fafafa]/50"
               }`}
             >{t}</button>
           ))}
@@ -67,22 +67,22 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
         <input
           value={stage.name}
           onChange={(e) => set("name", e.target.value)}
-          className="flex-1 min-w-0 bg-transparent text-sm text-[#f5f0ea]/80 focus:outline-none placeholder:text-[#f5f0ea]/20"
+          className="flex-1 min-w-0 bg-transparent text-sm text-[#fafafa]/80 focus:outline-none placeholder:text-[#fafafa]/20"
           placeholder="Stage name"
         />
 
         {/* Move / delete */}
         <div className="flex items-center gap-0.5 shrink-0">
           <button onClick={() => onMove(-1)} disabled={index === 0}
-            className="p-1 rounded text-[#f5f0ea]/20 hover:text-[#f5f0ea]/60 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+            className="p-1 rounded text-[#fafafa]/20 hover:text-[#fafafa]/60 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronUp className="h-3.5 w-3.5" />
           </button>
           <button onClick={() => onMove(1)} disabled={index === total - 1}
-            className="p-1 rounded text-[#f5f0ea]/20 hover:text-[#f5f0ea]/60 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+            className="p-1 rounded text-[#fafafa]/20 hover:text-[#fafafa]/60 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           <button onClick={onDelete} disabled={total <= 1}
-            className="p-1 rounded text-[#f5f0ea]/20 hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors ml-1">
+            className="p-1 rounded text-[#fafafa]/20 hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors ml-1">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -97,8 +97,8 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
               onClick={() => set("mode", m)}
               className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-all ${
                 stage.mode === m
-                  ? "bg-[#e8944a]/15 text-[#e8944a]"
-                  : "text-[#f5f0ea]/35 hover:text-[#f5f0ea]/60"
+                  ? "bg-[#ffc400]/15 text-[#ffc400]"
+                  : "text-[#fafafa]/35 hover:text-[#fafafa]/60"
               }`}
             >{m}</button>
           ))}
@@ -125,8 +125,8 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={stage.limitEnabled}
               onChange={(e) => set("limitEnabled", e.target.checked)}
-              className="rounded accent-[#e8944a]" />
-            <span className="text-xs text-[#f5f0ea]/40">
+              className="rounded accent-[#ffc400]" />
+            <span className="text-xs text-[#fafafa]/40">
               {stage.type === "pressure" ? "Flow limit (prevents channelling)" : "Pressure limit (safety cap)"}
             </span>
           </label>
