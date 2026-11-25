@@ -12,7 +12,7 @@ Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)*
 
 | | |
 |---|---|
-| **Station** | Full screen on a tablet, either orientation, no scrolling. Pick a profile, set dose, ratio and temperature on wheels, *slide to heat*. Live curve with the stage the shot is in and what it aims for. The piston's retraction is set from the recipe. During the purge, the piston on screen follows the real one, and the pressure gauge stands out until the pressure is back to rest. The idle screen shows the profile's own dial-in tip above the last shots. |
+| **Station** | Full screen on a tablet, either orientation, no scrolling. Pick a profile, set dose, ratio and temperature on wheels, *slide to heat*. Live curve with the stage the shot is in and what it aims for. The piston's retraction is set from the recipe. During the purge, the piston on screen follows the real one, and a bar follows the pressure down to rest (0.4 bar). The idle screen shows the profile's own dial-in tip above the last shots. |
 | **Grinder** | The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot. Other grinders: type the setting. |
 | **Refractometer** | The DiFluid R2 Extract fills the TDS by itself; extraction yield and a brew control chart (EY × TDS, ratio lines, target box) follow. |
 | **After the shot** | Like / dislike (saved on the machine, the official app shows it), taste on the espresso compass (sour ↔ bitter, weak ↔ strong), TDS, notes, and the plan for the next shot (temperature and ratio; grind as a reminder). The plan waits for you when you pick that coffee again. If the curves show something, it's there too. |
@@ -54,6 +54,67 @@ npm run check    # type check, lint and tests (the deploy runs the same)
 ```
 
 Next.js (static export) on GitHub Pages; pushing to `main` deploys.
+
+## Adapting Not Nine Bar to another machine
+
+Everything machine-facing is written for the Meticulous: its local API, its live socket and its state names. To use your own machine in a fork, keep the Station's screens and replace what feeds them. The quickest way in is to follow one reading.
+
+### One pressure reading, end to end
+
+1. **Socket.** [`lib/machine-socket.ts`](lib/machine-socket.ts): `connectSocket()` opens a socket.io (EIO4) HTTP-polling session at `http://<ip>/socket.io/`. `doPoll()` fetches, `parsePackets()` splits out the `42[event, data]` packets, and each `status` event goes to every listener through `emit.status`.
+2. **Type.** [`lib/types.ts`](lib/types.ts): `LiveStatus.sensors.p` is the pressure in bar.
+3. **Live hook.** [`lib/station/use-machine-live.ts`](lib/station/use-machine-live.ts): the `status` handler in `useMachineLive()` keeps the whole status (`setStatus`). While `isExtracting(s)` is true ([`lib/brew-state.ts`](lib/brew-state.ts)), it also appends a `ShotPoint` with `pressure: s.sensors?.p ?? null`. The collected points reach the chart every 250 ms.
+4. **Screen.** [`app/station/page.tsx`](app/station/page.tsx): `StationPage` reads `status?.sensors` into `sensors`. The pressure then shows in three places:
+    - `<PressureGauge value={sensors?.p}>`, from [`components/pressure-gauge.tsx`](components/pressure-gauge.tsx);
+    - the chart's live legend, `live={{ pressure: sensors?.p, … }}`;
+    - the curve, drawn from `data` by `ShotCharts` and `ShotPlot` in [`components/shot-charts.tsx`](components/shot-charts.tsx).
+
+The smallest port therefore produces a `LiveStatus` for your machine: a `status` event with `name` (in the Meticulous's state names, see [Where the Meticulous-only parts live](#where-the-meticulous-only-parts-live)), `extracting` and `sensors`. Everything from step 3 on stays as it is.
+
+### Readings the Station uses
+
+| Field (`LiveStatus`) | Meaning | Unit | When it's missing today |
+|---|---|---|---|
+| `sensors.p` | Pressure at the group | bar | The number reads "—", but the gauge's needle rests at 0. The curve skips the sample (`connectNulls` draws straight across gaps). During a purge, `(pressureNow ?? 0)` counts it as 0 bar, so the "Depressurizing" bar never shows and the piston panel closes when the purge ends. |
+| `sensors.f` | Flow the machine pushes into the puck | ml/s | The readout and legend show "—", and the curve skips the sample. |
+| `sensors.w` | Scale weight | g | The readout shows "—". Below −1 g while not brewing, it shows "—" with the label "Weight · tap Tare". Chart points use `null` unless the weight is above 0, and the cup drawing shows empty (`weight ?? 0`). |
+| `sensors.g` | Flow into the cup, from the scale | g/s | Estimated by `gravFlow()` in [`lib/station/format.ts`](lib/station/format.ts) from the last ~1.2 s of `w`, clamped at 0. It is `null` with fewer than 2 samples, or under 0.3 s of them, and it is only computed while extracting. |
+| `sensors.t` | Water temperature (the Meticulous reports its tube) | °C | The heating chart gets no samples, so its plot area stays empty. The number reads "—", but the temperature gauge's needle rests at 20 °C, the dial's minimum. |
+| `setpoints.temperature` | Target temperature | °C | The gauge's mark and the heating chart's target line fall back to the last target seen, then to none. |
+| `time` | Shot clock | ms | It is used only if it restarts with the shot. Otherwise the Station times the shot itself. |
+| `name`, `extracting` | Machine state | text, bool | Without `extracting: true`, `isExtracting()` in [`lib/brew-state.ts`](lib/brew-state.ts) is false, so no shot is charted. With it, any `name` outside the Meticulous's non-brewing names counts as brewing: a heating or waiting state with another name would be charted as the shot. |
+
+The group thermometers (`t_bar_up` … `t_external_2`) and the piston position (`m_pos`) come in a separate `sensors` event, typed as `LiveTemperatures`. Missing ones are just left out of the heating chart's legend and lines (`groupTempsFor()`, `HEAT_SENSORS`).
+
+**Machine flow vs. scale flow.** `f` is the water the machine pushes into the puck, in ml/s, as the machine measures it. `g` (shown as "Grav") is how fast the cup gains weight, in g/s, read from the scale. They differ on purpose. Early in a shot the puck soaks up water, so `f` is high while `g` is still 0. Later, `g` shows what actually reaches the cup. The Station uses the machine's own `g` when it sends one (`s.sensors?.g ?? gravFlow(...)` in `useMachineLive()`). A machine without a scale needs neither `w` nor `g`: those readouts then show "—".
+
+### Example: show a boiler's temperature
+
+The Meticulous has no boiler: `sensors.t` is the temperature of its tube. The project reads it in these places:
+
+- `useMachineLive()` turns `s.sensors.t` into the heating curve (`temp`) and into the shot points.
+- `StationPage` passes `sensors?.t` to `TemperatureGauge` (labelled "Temperature"), to `HeatingProgress` and to `RecentShots`.
+- `HEAT_SENSORS` in [`components/shot-charts.tsx`](components/shot-charts.tsx) labels the `temp` series "Tube".
+- [`components/recent-shots.tsx`](components/recent-shots.tsx) labels the same number "Group" on the idle screen.
+
+For a boiler machine:
+
+1. **Fill the value.** In your adapter, put the boiler reading in `sensors.t`, in °C.
+2. **Rename the labels.** Change "Tube" in `HEAT_SENSORS` and "Group" in `RecentShots` to "Boiler".
+3. **Show it on the shot chart, if you want.** `StationPage` passes `showTemps={false}` to `ShotCharts`, because on the Meticulous the sensors read the emptying chamber. A steady boiler may be worth showing.
+
+### Where the Meticulous-only parts live
+
+- **Connection:** [`lib/machine-socket.ts`](lib/machine-socket.ts) handles the socket events `status`, `sensors`, `temperatures`, `heater_status` and `notification`. [`lib/machine-api.ts`](lib/machine-api.ts) wraps the REST API under `/api/v1`. The IP is stored as `metbarista_machine_ip`: see [`lib/connection-store.ts`](lib/connection-store.ts).
+- **Commands:** `ActionType` in [`lib/types.ts`](lib/types.ts) lists the commands (`start`, `continue`, `stop`, `preheat`, `tare`, `purge`, `home`, …), sent by `executeAction()`. Your fork can map these to your machine or hide the buttons. The Tare, Purge, Raise and Preheat buttons sit at the end of `StationPage`.
+- **Heating and preheat:** the Station starts a shot through `startShot()` in `StationPage`. It loads an unsaved profile (`loadProfileInline()`, `buildShotProfile()` in [`lib/recipe.ts`](lib/recipe.ts)), and the machine heats and waits. The preheat countdown comes from `heater_status`.
+- **States:** the Meticulous's state names, such as `"click to start"` and `"pour water and click to continue"`, live in [`lib/brew-state.ts`](lib/brew-state.ts) and in `STATUS_LABELS` in [`lib/station/format.ts`](lib/station/format.ts).
+- **Piston and purge:** these are all Meticulous-only:
+    - the drawing in [`components/station/purge-piston.tsx`](components/station/purge-piston.tsx), fed by `m_pos`;
+    - `RESTING_BAR` and the after-purge `settling` logic in `StationPage`;
+    - the retraction set before each shot, with `retractionFor()` and `updateSettings({ partial_retraction })`.
+- **Piston health:** [`lib/piston.ts`](lib/piston.ts) and [`lib/piston-store.ts`](lib/piston-store.ts) read the motor current from the machine's shot history.
+- **History, profiles, like/dislike and machine messages:** `getHistory()`, `listProfiles()` and `rateShot()` in [`lib/machine-api.ts`](lib/machine-api.ts), and [`lib/station/use-machine-notices.ts`](lib/station/use-machine-notices.ts). The Shots, Stats and Profiles pages read the Meticulous's shot and profile formats (`ShotEntry`, `Profile` in [`lib/types.ts`](lib/types.ts)).
 
 ## Credits and license
 
