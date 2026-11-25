@@ -1,5 +1,6 @@
 "use client";
 
+import { safeColor } from "@/lib/safe-url";
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -28,6 +29,7 @@ function ShareContent() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- no profile asked for: nothing to load
     if (!id) { setLoading(false); return; }
     Promise.all([listProfiles(), getHistory()])
       .then(([profiles, shots]) => {
@@ -67,7 +69,7 @@ function ShareContent() {
     </div>
   );
 
-  const accent = profile.display?.accentColor ?? "#ffc400";
+  const accent = safeColor(profile.display?.accentColor) ?? "#ffc400";
   const stats = bestShot ? computeShotStats(bestShot.data) : null;
 
   return (

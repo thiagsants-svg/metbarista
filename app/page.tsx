@@ -36,15 +36,22 @@ export default function HomePage() {
 
   useEffect(() => {
     // ?ip= in the URL (home screen shortcut): save it and open the Station
-    const urlIp = getIpFromUrlParam();
-    if (urlIp) {
-      saveIp(urlIp.trim());
-      router.replace(STATION);
+    const urlIp = getIpFromUrlParam().trim();
+    // A home-screen shortcut with ?ip=: only a plain address or name, and only once the machine
+    // answers there (a link from anywhere must not repoint the tablet)
+    if (urlIp && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(urlIp)) {
+      testConnection(urlIp)
+        .then(() => { saveIp(urlIp); router.replace(STATION); })
+        .catch(() => setChecking(false));
       return;
     }
     const ip = getSavedIp();
     // "About" from the menu: stay here
-    if (!ip || new URLSearchParams(window.location.search).has("about")) { setChecking(false); return; }
+    const q = new URLSearchParams(window.location.search);
+    // "Change machine" from the menu: the connect dialog opens, with the current IP
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the URL once, after the page loads
+    if (q.has("connect")) setShowConnect(true);
+    if (!ip || q.has("about")) { setChecking(false); return; }
     testConnection(ip)
       .then(() => router.replace(STATION))
       .catch(() => setChecking(false));

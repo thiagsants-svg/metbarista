@@ -10,11 +10,12 @@ import { ChevronRight, X, Check, Info } from "lucide-react";
 import { ProgramPanel } from "@/components/profile-program-view";
 import { getProfileImageUrl } from "@/lib/machine-api";
 import type { Profile } from "@/lib/types";
+import { safeColor } from "@/lib/safe-url";
 
 export function ProfileCover({ profile, className = "" }: { profile: Profile; className?: string }) {
   const path = profile.display?.image;
   const src = path ? getProfileImageUrl(path) : "";
-  const color = profile.display?.accentColor ?? "#ffc400";
+  const color = safeColor(profile.display?.accentColor) ?? "#ffc400";
   return (
     <div
       className={`overflow-hidden ${className}`}
@@ -106,7 +107,7 @@ export function ProfilePicker({
           >
             {profiles.map((p) => {
               const isSel = p.id === selected?.id;
-              const color = p.display?.accentColor ?? "#ffc400";
+              const color = safeColor(p.display?.accentColor) ?? "#ffc400";
               return (
                 <div key={p.id} className="relative min-h-0 min-w-0">
                 <button

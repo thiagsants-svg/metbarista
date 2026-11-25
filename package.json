@@ -11,7 +11,7 @@
     "qa:run": "npx tsx qa/ux-audit.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint:station": "eslint app/station app/estacao components/shot-charts.tsx components/pressure-gauge.tsx components/profile-picker.tsx components/profile-program-view.tsx components/machine-notice.tsx components/wheel-picker.tsx components/slide-to-start.tsx components/shot-rating.tsx components/recent-shots.tsx components/brew-chart.tsx components/backup-panel.tsx components/station components/brand-mark.tsx components/app-shell components/shots app/shots lib/station lib/brand.ts lib/shot-record.ts lib/taste-compass.ts lib/profile-tip.ts components/taste-compass.tsx lib/shot-notes.ts app/coffees components/coffees lib/coffees.ts lib/coffee-photos.ts app/stats components/stats lib/stats.ts lib/piston.ts lib/piston-store.ts lib/shot-facts.ts lib/stage-summary.ts app/usage lib/usage.ts components/usage-strip.tsx lib/recipe.ts lib/coffee-history.ts lib/motto80.ts lib/difluid.ts lib/brew-control.ts lib/backup.ts lib/next-plan.ts lib/profile-program.ts lib/brew-state.ts lib/machine-socket.ts lib/__tests__",
+    "lint:station": "eslint app components lib",
     "check": "npm run typecheck && npm run lint:station && npm test"
   },
   "dependencies": {
@@ -20,12 +20,10 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.8.0",
-    "next": "16.2.3",
+    "next": "16.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "shadcn": "^4.2.0",
-    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0"
   },
@@ -36,8 +34,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
+    "eslint-config-next": "16.4.6",
     "playwright": "^1.59.1",
+    "shadcn": "^4.23.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"

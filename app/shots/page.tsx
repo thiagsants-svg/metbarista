@@ -10,13 +10,13 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { getHistory, getShotRating } from "@/lib/machine-api";
+import { getHistory, getHistoryLight, getShotRating, searchHistory } from "@/lib/machine-api";
 import { useRequireConnection } from "@/lib/connection-store";
 import { shotSummary } from "@/lib/coffee-history";
-import { analyzeShot } from "@/lib/shot-analysis";
+import { isThrowaway } from "@/lib/throwaway";
 import { getShotNote } from "@/lib/shot-notes";
 import { parseShotNote } from "@/lib/shot-record";
-import { asciiName } from "@/lib/recipe";
+import { sameCoffee } from "@/lib/recipe";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { ShotRow, type ShotRowData } from "@/components/shots/shot-row";
 import { CoffeeOverview } from "@/components/shots/coffee-overview";
@@ -25,7 +25,6 @@ import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike";
 const PAGE = 30;
-const sameCoffee = (a: string, b: string) => asciiName(a).toLowerCase() === asciiName(b).toLowerCase();
 
 /** Under this in the cup it's a stopped or choked try, not a shot to compare */
 const TOO_LITTLE_G = 12;
@@ -46,7 +45,7 @@ function sparkOf(shot: ShotEntry): ShotRowData["spark"] {
 function buildRows(shots: ShotEntry[]): ShotRowData[] {
   const rows = shots.map((shot) => {
     const sum = shotSummary(shot);
-    const throwaway = analyzeShot(shot).throwaway;
+    const throwaway = isThrowaway(shot);
     const tiny = !throwaway && sum.weight < TOO_LITTLE_G;
     return {
       id: shot.id, sum, notes: parseShotNote(getShotNote(shot.time)?.note),
@@ -99,13 +98,38 @@ function ShotsContent() {
   /** Bumped when notes are saved here, to re-read them */
   const [version, setVersion] = useState(0);
 
+  // The newest page once; older pages are added by "Show older shots"
   useEffect(() => {
     let alive = true;
-    getHistory(limit)
+    getHistory(PAGE)
       .then((h) => { if (alive) { setShots(h); setError(null); } })
       .catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
     return () => { alive = false; };
-  }, [limit]);
+  }, []);
+
+  /**
+   * The next older page only: the light list says which shots come next, then one
+   * search reads just their curves (the shots already on screen aren't read again)
+   */
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  async function loadOlder() {
+    if (!shots?.length || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const have = new Set(shots.map((s) => s.id));
+      const next = (await getHistoryLight(shots.length + PAGE)).filter((s) => !have.has(s.id)).slice(0, PAGE);
+      if (next.length) {
+        const from = Math.min(...next.map((s) => s.time)) - 1;
+        const to = Math.max(...next.map((s) => s.time)) + 1;
+        const got = (await searchHistory(from, to, PAGE + 10)).filter((s) => !have.has(s.id));
+        setShots((cur) => [...(cur ?? []), ...got].sort((a, b) => b.time - a.time));
+      }
+      setLimit((l) => l + PAGE);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setLoadingOlder(false);
+  }
 
   // version re-reads this device's notes after an edit
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,9 +231,9 @@ function ShotsContent() {
       )}
 
       {shots && shots.length >= limit && (
-        <button type="button" onClick={() => setLimit((l) => l + PAGE)}
-          className="h-11 w-full rounded-md border border-[var(--ink)]/25 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
-          Show older shots
+        <button type="button" onClick={loadOlder} disabled={loadingOlder}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-[var(--ink)]/25 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.98] disabled:opacity-60">
+          {loadingOlder && <Loader2 className="h-4 w-4 animate-spin" />} Show older shots
         </button>
       )}
     </div>
@@ -222,7 +246,7 @@ function ShotsContent() {
         {error ? (
           <div className="py-16 text-center">
             <p className="text-base text-[var(--ink)]/75">Couldn&apos;t read the machine&apos;s history: {error}</p>
-            <button onClick={() => { setError(null); setShots(null); setLimit((l) => l); getHistory(limit).then(setShots).catch((e) => setError(String(e))); }}
+            <button onClick={() => { setError(null); setShots(null); setLimit((l) => l); getHistory(PAGE).then(setShots).catch((e) => setError(String(e))); }}
               className="mt-4 h-11 rounded-md border border-[var(--ink)]/25 px-5 text-sm font-semibold">Try again</button>
           </div>
         ) : !shots ? (

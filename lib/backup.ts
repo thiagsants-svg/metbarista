@@ -71,8 +71,16 @@ export function readBackup(text: string): Backup {
 
 /** Replaces this tablet's Station data with the backup's (Bluetooth permissions stay) */
 export function restoreBackup(store: Store, backup: Backup): void {
-  for (const k of keys(store)) store.removeItem(k);
-  for (const [k, v] of Object.entries(backup.data)) store.setItem(k, v);
+  // What's here now, to put back if a write fails halfway (storage full)
+  const before = keys(store).map((k) => [k, store.getItem(k)] as const);
+  try {
+    for (const [k] of before) store.removeItem(k);
+    for (const [k, v] of Object.entries(backup.data)) store.setItem(k, v);
+  } catch (e) {
+    for (const k of keys(store)) store.removeItem(k);
+    for (const [k, v] of before) if (v != null) store.setItem(k, v);
+    throw new Error(`The backup couldn't be restored (${e instanceof Error ? e.message : e}); this tablet's data was kept.`);
+  }
 }
 
 const count = (json: string | undefined): number => {

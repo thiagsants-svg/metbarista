@@ -12,7 +12,9 @@ import { getProfileImageUrl, type MachineNotification } from "@/lib/machine-api"
 
 function imageSrc(image: string | null | undefined): string | null {
   if (!image) return null;
-  if (image.startsWith("data:") || image.startsWith("http")) return image;
+  // Pictures embedded in the message, or served by the machine; never another site
+  if (image.startsWith("data:image/")) return image;
+  if (/^https?:/i.test(image)) return getProfileImageUrl(image.replace(/^https?:\/\/[^/]+/i, "")) || null;
   return getProfileImageUrl(image.startsWith("/") ? image : `/${image}`) || null;
 }
 

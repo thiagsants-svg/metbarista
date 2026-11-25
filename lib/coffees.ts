@@ -9,7 +9,7 @@
  * bag (off the list until it's thawed; then it's in use, with the thaw date).
  */
 
-import { asciiName, recentBeans } from "./recipe";
+import { recentBeans } from "./recipe";
 
 const RECENT_BEANS_KEY = "metbarista_recent_beans";
 
@@ -47,7 +47,9 @@ export interface Coffee {
 
 const KEY = "metbarista_coffees";
 
-export const coffeeKey = (name: string) => asciiName(name.trim()).toLowerCase();
+// The same identity everywhere (lib/recipe.ts)
+export { coffeeKey } from "./recipe";
+import { coffeeKey } from "./recipe";
 
 function readAll(): Record<string, Coffee> {
   try { return JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, Coffee>; } catch { return {}; }

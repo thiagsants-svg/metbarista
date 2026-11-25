@@ -12,14 +12,16 @@ import type { HeatPoint, ShotPoint } from "@/components/shot-charts";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, type MachineNotification } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
-import { isExtracting, isHeating, isIdle, isPurging, isWaitingForWater } from "@/lib/brew-state";
-import { gravFlow, groupTempsFor } from "@/lib/station/format";
+import { isClickToStart, isExtracting, isHeating, isIdle, isPurging, isWaitingForWater } from "@/lib/brew-state";
+import { explainError, gravFlow, groupTempsFor } from "@/lib/station/format";
 import { readingsOf } from "@/lib/station/readings";
 import type { ActionType, LiveStatus, LiveTemperatures } from "@/lib/types";
 
 export function useMachineLive({
-  onNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef,
+  onNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef, onAutoBrewUsed,
 }: {
+  /** Auto brew just tapped Brew: it's for one shot, so the page turns it off */
+  onAutoBrewUsed?: () => void;
   /** Machine message pushed over the socket (kept from the first render: use refs and setters only) */
   onNotice: (n: MachineNotification) => void;
   setError: (msg: string | null) => void;
@@ -89,7 +91,7 @@ export function useMachineLive({
           preShotRef.current = false;
           if (isIdle(s)) heatStartRef.current = null;
         } else if (!preShotRef.current && (isHeating(s) || isWaitingForWater(s)
-            || (s.name ?? "").toLowerCase() === "click to start")) {
+            || isClickToStart(s))) {
           preShotRef.current = true;
           autoFiredRef.current = false;
           dataRef.current = [];
@@ -101,9 +103,13 @@ export function useMachineLive({
         setPreShot(preShotRef.current);
 
         // Auto brew: tap Brew once when the machine is ready, if the user asked for it
+        // Only for a shot this page started (not one started on the dial), and only once
         if (autoBrewRef.current && preShotRef.current && !autoFiredRef.current
-            && (s.name ?? "").toLowerCase() === "click to start") {
+            && now - startedAtRef.current < 15 * 60_000
+            && isClickToStart(s)) {
           autoFiredRef.current = true;
+          autoBrewRef.current = false;
+          onAutoBrewUsed?.();
           setBusy("continue");
           executeAction("continue")
             .then(refreshNow)
@@ -161,7 +167,7 @@ export function useMachineLive({
         }
       },
     };
-    connectSocket(handlers).catch((e) => { setConnected(false); setError(String(e)); });
+    connectSocket(handlers).catch((e) => { setConnected(false); setError(explainError(e, "Connection")); });
     return () => { disconnectSocket(handlers); };
   // Runs once: everything it calls is a ref or a state setter
   // eslint-disable-next-line react-hooks/exhaustive-deps

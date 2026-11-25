@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Coffee, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
-import { clearIp, getSavedIp } from "@/lib/connection-store";
+import { getSavedIp } from "@/lib/connection-store";
 import { APP_NAME } from "@/lib/brand";
 import type { MachineInfo } from "@/lib/types";
 
@@ -52,8 +52,8 @@ function StationMenu({ onClose }: { onClose: () => void }) {
   }, [ip]);
 
   function changeMachine() {
-    clearIp();
-    router.replace("/");
+    // The saved IP stays until a new one answers (the connect dialog saves only on success)
+    router.replace("/?about&connect");
   }
 
   const row = (label: string, value: string | undefined) => (

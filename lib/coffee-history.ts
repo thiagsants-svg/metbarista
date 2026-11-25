@@ -1,5 +1,5 @@
 /**
- * Last shot of a given coffee: recipe, time, grind and MetBarista's score,
+ * Last shot of a given coffee: recipe, time and grind,
  * read from the machine's shot history.
  *
  * Each shot started from the Station carries "Coffee: … · Grind: …" in its
@@ -8,10 +8,9 @@
  */
 
 import { activeTargets } from "./shot-facts";
-import { analyzeShot } from "./shot-analysis";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
-import { asciiName, baseName, parseShotNotes, parseTds, recentBeans, SHOT_NAME_RE, type Recipe } from "./recipe";
+import { asciiName, baseName, sameCoffee, parseShotNotes, parseTds, recentBeans, SHOT_NAME_RE, type Recipe } from "./recipe";
 import type { Profile, ShotEntry } from "./types";
 
 const LOG_KEY = "metbarista_shot_log";
@@ -102,8 +101,13 @@ function notesFor(shot: ShotEntry, log: LogEntry[]): { coffee?: string; grind?: 
 }
 
 /** Same coffee? Ignores case and accents ("Etiópia" in the list, "Etiopia" in a shot name). */
-function sameCoffee(a: string | undefined, b: string): boolean {
-  return !!a && asciiName(a).toLowerCase() === asciiName(b).toLowerCase();
+// sameCoffee: lib/recipe.ts
+
+/** A shot's grind as shown: "140 µm" on the Motto 80, "grind 2.5" on a dial; null when unknown */
+export function shotGrindLabel(s: CoffeeLastShot): string | null {
+  if (s.patch.grindUm != null) return `${s.patch.grindUm} µm`;
+  if (s.patch.grindSetting != null) return `grind ${s.patch.grindSetting}`;
+  return null;
 }
 
 /**
@@ -140,8 +144,6 @@ export interface CoffeeLastShot {
   patch: Partial<Recipe>;
   weight: number;
   seconds: number;
-  /** MetBarista's shot score (0–100), null for flushes or when it can't score */
-  score: number | null;
   /** Your stars from Tasting Notes (saved on this device), if any */
   stars: number | null;
   /** Refractometer reading and extraction yield, from the shot's notes (this device) */
@@ -217,11 +219,10 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
   if (baseId && profiles.some((p) => p.id === baseId)) patch.baseProfileId = baseId;
 
   const stats = computeShotStats(shot.data ?? []);
-  const analysis = analyzeShot(shot);
   return {
     // Shots keep plain ASCII ("Etiopia"): show it as written in the coffee list ("Etiópia")
     coffee: notes.coffee
-      ? recentBeans().find((b) => asciiName(b).toLowerCase() === asciiName(notes.coffee!).toLowerCase()) ?? notes.coffee
+      ? recentBeans().find((b) => sameCoffee(b, notes.coffee)) ?? notes.coffee
       : "",
     when: shot.time * 1000,
     profileName: baseName(shot.name ?? ""),
@@ -232,7 +233,6 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     ...parseTds(getShotNote(shot.time)?.note),
     dbKey: shot.db_key,
     shotId: shot.id,
-    score: analysis.throwaway || analysis.applicableCount === 0 ? null : analysis.overallScore,
   };
 }
 
@@ -265,6 +265,15 @@ export function findLastShotForCoffee(coffee: string, history: ShotEntry[], prof
  * a coffee: the machine's latest shots. A coffee whose shots are all beyond the
  * history read falls back to its recorded last shot.
  */
+/** The shots recentShotsForCoffee() would show: the only ones whose curves need reading */
+export function pickRecentShots(coffee: string | undefined, history: ShotEntry[], count = 4): ShotEntry[] {
+  const log = readLog();
+  const want = coffee?.trim();
+  return [...history].sort((a, b) => b.time - a.time)
+    .filter((s) => !want || sameCoffee(notesFor(s, log).coffee, want))
+    .slice(0, count);
+}
+
 export function recentShotsForCoffee(coffee: string | undefined, history: ShotEntry[], profiles: Profile[], count = 4): CoffeeLastShot[] {
   const log = readLog();
   const want = coffee?.trim();

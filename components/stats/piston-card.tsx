@@ -15,8 +15,7 @@ import {
   saveIntervals, shotTimes, updateReadings, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
 } from "@/lib/piston-store";
 
-const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const fmtDayYear = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+import { dayShort as fmtDay, dayYear as fmtDayYear } from "@/lib/format-date";
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

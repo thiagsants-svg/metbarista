@@ -2,6 +2,7 @@
 
 /** One shot in the Shots list, in the Station's style: the numbers that matter at a glance */
 
+import { dayTime, timeHM } from "@/lib/format-date";
 import { Frown, Smile } from "lucide-react";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
 import type { ShotNoteParts } from "@/lib/shot-record";
@@ -35,13 +36,13 @@ function Spark({ p, w }: { p: number[]; w: number[] }) {
   );
 }
 
-export const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+// One clock for the whole app (it rounds first: 59.6 s is "1:00", not "0:60")
+export { fmtClock } from "@/lib/station/format";
+import { fmtClock } from "@/lib/station/format";
 
-export function grindText(s: CoffeeLastShot): string | null {
-  if (s.patch.grindUm != null) return `${s.patch.grindUm} µm`;
-  if (s.patch.grindSetting != null) return `grind ${s.patch.grindSetting}`;
-  return null;
-}
+// The shot's grind label (one helper for the whole app)
+export { shotGrindLabel as grindText } from "@/lib/coffee-history";
+import { shotGrindLabel as grindText } from "@/lib/coffee-history";
 
 export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = false }: {
   row: ShotRowData;
@@ -54,7 +55,6 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = 
 }) {
   const { sum: s, notes, grindDelta: d } = row;
   const p = s.patch;
-  const when = new Date(s.when);
   const grind = grindText(s);
   return (
     <button type="button" onClick={onSelect} aria-current={selected}
@@ -63,8 +63,7 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = 
       <span className={`flex min-w-0 flex-1 flex-col gap-0.5 ${row.flush ? "opacity-60" : ""}`}>
       <span className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
         <span className={`${timeOnly ? "w-12" : "w-24"} shrink-0 text-sm tabular-nums text-[var(--ink)]/75`}>
-          {!timeOnly && <>{when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" · "}</>}
-          {when.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+          {timeOnly ? timeHM(s.when) : dayTime(s.when)}
         </span>
         <span className="flex w-6 shrink-0 self-center justify-center"
           aria-label={face === "like" ? "Liked" : face === "dislike" ? "Didn't like" : "Not rated"}>

@@ -45,7 +45,8 @@ export function ProfileCurvePreview({
 
     if (allPoints.length < 2) return null;
 
-    const maxX = allPoints[allPoints.length - 1].x;
+    // Never 0: a profile whose points all sit at t = 0 drew "NaN" paths
+    const maxX = Math.max(1, allPoints[allPoints.length - 1].x);
     const maxY = Math.max(...allPoints.map((p) => p.y), 1);
 
     const px = (x: number) => (x / maxX) * width;

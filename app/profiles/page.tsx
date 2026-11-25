@@ -23,6 +23,7 @@ export default function ProfilesPage() {
   const [toast, setToast] = useState<Toast>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- no machine saved: nothing to load
     if (!getSavedIp()) { setLoading(false); return; }
     listProfiles()
       .then(setProfiles)
@@ -30,6 +31,10 @@ export default function ProfilesPage() {
   }, []);
 
   async function handleLoad(profile: Profile) {
+    // Loading starts the profile (the machine heats): never on a stray tap
+    if (!window.confirm(`Load "${profile.name}" on the machine?
+
+Loading a profile starts it: the machine heats and waits for you.`)) return;
     setLoadingId(profile.id);
     try {
       await loadProfileById(profile.id);

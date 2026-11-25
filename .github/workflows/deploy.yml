@@ -5,10 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# Nothing by default; each job asks for what it needs
+permissions: {}
 
 concurrency:
   group: pages
@@ -17,12 +15,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Installs and builds third-party code: read-only, no publishing rights
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -32,7 +33,7 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Lint (Station files)
+      - name: Lint (all app, component and lib files)
         run: npm run lint:station
 
       - name: Tests (machine-facing logic)
@@ -45,7 +46,6 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-          NEXT_PUBLIC_FEEDBACK_TOKEN: ${{ secrets.NEXT_PUBLIC_FEEDBACK_TOKEN }}
           NEXT_PUBLIC_CF_ANALYTICS_TOKEN: ${{ secrets.NEXT_PUBLIC_CF_ANALYTICS_TOKEN }}
 
       - uses: actions/upload-pages-artifact@v3
@@ -58,6 +58,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    # Only this job publishes
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4

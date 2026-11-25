@@ -95,7 +95,7 @@ export function ShotCharts({
   const header = [
     { label: "Pressure", value: fmt(live.pressure), unit: "bar", color: COLORS.pressure },
     { label: "Flow", value: fmt(live.flow), unit: "ml/s", color: COLORS.flow },
-    { label: "Grav", value: fmt(live.grav), unit: "g/s", color: COLORS.grav },
+    { label: "In cup", value: fmt(live.grav), unit: "g/s", color: COLORS.grav },
     // Weight and temperature have their own big readouts above the chart
     { label: "Weight", value: "", unit: "", color: COLORS.weight },
   ];

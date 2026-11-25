@@ -46,6 +46,21 @@ export function isWaitingForUser(s: LiveStatus | null | undefined): boolean {
   return /click to/i.test(s?.name ?? "") && !isIdle(s);
 }
 
+/** "Click to start": heated and waiting for the Brew tap (push to brew) */
+export function isClickToStart(s: LiveStatus | null | undefined): boolean {
+  return statusName(s) === "click to start";
+}
+
+/** "Click to purge": the shot is over and the machine waits for the Purge tap */
+export function isPurgeWait(s: LiveStatus | null | undefined): boolean {
+  return isWaitingForUser(s) && /purge/i.test(s?.name ?? "");
+}
+
+/** Raising the piston back to the top ("home"), after a purge or on Raise piston */
+export function isHoming(s: LiveStatus | null | undefined): boolean {
+  return /home/i.test(s?.name ?? "");
+}
+
 export function isHeating(s: LiveStatus | null | undefined): boolean {
   // Exact statuses: a profile stage named "Heat …" during a shot is not heating
   return ["heating", "preheating"].includes(statusName(s));

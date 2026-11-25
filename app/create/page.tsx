@@ -3,14 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRequireConnection } from "@/lib/connection-store";
-import { Coffee, Plus } from "lucide-react";
+import { Coffee } from "lucide-react";
 import {
-  TEMPLATES, DEFAULT_BASICS, newStage,
-  simulateStages, stagesToOEPF,
-  type ProfileBasics, type StageConfig, type Template,
-} from "@/lib/profile-builder";
-import { StageCard } from "@/components/stage-card";
-import { saveProfile, loadProfileInline } from "@/lib/machine-api";
+  TEMPLATES, DEFAULT_BASICS, simulateStages, type ProfileBasics, type StageConfig, type Template } from "@/lib/profile-builder";
 import { BuildStep } from "./build-step";
 import { SaveStep } from "./save-step";
 

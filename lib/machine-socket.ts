@@ -65,21 +65,13 @@ let retryAt = 0;
 let onVisibility: (() => void) | null = null;
 
 /** Parse socket.io EIO4 polling body into [event, data] pairs; flags a dead session. */
-function parsePackets(raw: string): { events: Array<[string, unknown]>; sessionGone: boolean } {
+export function parsePackets(raw: string): { events: Array<[string, unknown]>; sessionGone: boolean; ping: boolean } {
   const events: Array<[string, unknown]> = [];
   let sessionGone = false;
+  // A ping to answer: the caller sends the pong (this stays pure, so it can be tested)
+  let ping = false;
   for (const pkt of raw.split("\x1e")) {
-    if (pkt === "2") {
-      // ping — send pong asynchronously (fire and forget)
-      if (activeSid && activeBase) {
-        fetch(`${activeBase}&sid=${activeSid}`, localNetworkRequestInit({
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: "3",
-        })).catch(() => {});
-      }
-      continue;
-    }
+    if (pkt === "2") { ping = true; continue; }
     // "0{...}" = the server opened a new session (ours expired); "1" = close
     if (pkt.startsWith("0{") || pkt === "1" || pkt.startsWith("41")) { sessionGone = true; continue; }
     if (!pkt.startsWith("42")) continue; // only message packets
@@ -88,7 +80,17 @@ function parsePackets(raw: string): { events: Array<[string, unknown]>; sessionG
       if (Array.isArray(arr) && arr.length >= 2) events.push([arr[0] as string, arr[1]]);
     } catch { /* skip malformed */ }
   }
-  return { events, sessionGone };
+  return { events, sessionGone, ping };
+}
+
+/** Answers the server's ping (fire and forget) */
+function pong(): void {
+  if (!activeSid || !activeBase) return;
+  fetch(`${activeBase}&sid=${activeSid}`, localNetworkRequestInit({
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: "3",
+  })).catch(() => {});
 }
 
 /**
@@ -141,7 +143,8 @@ async function doPoll(): Promise<void> {
     if (!res.ok) { await reopen(); return; }
     const raw = await res.text();
     if (gen !== generation) return;
-    const { events, sessionGone } = parsePackets(raw);
+    const { events, sessionGone, ping } = parsePackets(raw);
+    if (ping) pong();
     if (sessionGone) { await reopen(); return; }
     if (events.length) lastEventAt = Date.now();
     for (const [event, data] of events) {
@@ -216,14 +219,7 @@ export function disconnectSocket(handlers?: Handlers): void {
   activeBase = null;
 }
 
-export function isSocketConnected(): boolean {
-  return activeSid !== null;
-}
-
 /** Force an immediate poll — call after actions to get instant feedback */
 export function refreshNow(): void {
   doPoll();
 }
-
-// Not used with polling but kept for API compat
-export function sendAction(_action: string): void { /* no-op */ }

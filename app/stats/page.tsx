@@ -44,7 +44,7 @@ function toLite(shot: ShotEntry, face: Face | undefined): ShotLite {
   };
 }
 
-const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+import { dayShort as fmtDay } from "@/lib/format-date";
 
 export default function StatsPage() {
   useRequireConnection();

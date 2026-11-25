@@ -1,9 +1,9 @@
 "use client";
 
+import { machineImageUrl, safeColor } from "@/lib/safe-url";
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ProfileCurvePreview } from "@/components/charts/profile-curve-preview";
 import { ProfileFingerprint } from "@/components/charts/profile-fingerprint";
 import { Loader2, ArrowLeft, Thermometer, Weight, User, GitFork, Code } from "lucide-react";
 import { listProfiles, getHistory, loadProfileById, computeShotStats } from "@/lib/machine-api";
@@ -30,6 +30,7 @@ function ProfileDetailContent() {
   const [loadMsg, setLoadMsg] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- no profile asked for: nothing to load
     if (!id) { setLoading(false); return; }
     Promise.all([listProfiles(), getHistory()])
       .then(([profiles, shots]) => {
@@ -45,6 +46,10 @@ function ProfileDetailContent() {
 
   async function handleLoad() {
     if (!profile) return;
+    // Loading starts the profile (the machine heats): never on a stray tap
+    if (!window.confirm(`Load "${profile.name}" on the machine?
+
+Loading a profile starts it: the machine heats and waits for you.`)) return;
     try {
       await loadProfileById(profile.id);
       setLoadMsg({ type: "success", msg: "✓ Profile loaded to machine!" });
@@ -70,9 +75,9 @@ function ProfileDetailContent() {
     </div>
   );
 
-  const accent = profile.display?.accentColor ?? "#ffc400";
+  const accent = safeColor(profile.display?.accentColor) ?? "#ffc400";
   const ip = getSavedIp();
-  const imageUrl = profile.display?.image && ip ? `http://${ip}${profile.display.image}` : null;
+  const imageUrl = profile.display?.image && ip ? machineImageUrl(`http://${ip}`, profile.display.image) : null;
 
   return (
     <div style={style} className="bg-[var(--paper)] text-[var(--ink)]">

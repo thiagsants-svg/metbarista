@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { CHANNELS, latestPerChannel, markCompanyUpdateSeen, type Channel } from "@/lib/firmware";
 
 const DISCORD_INVITE = "https://discord.gg/w48ha2h3";
 const PROXY = "https://metbarista-feed-proxy.metbarista.workers.dev/?url=";
@@ -62,9 +63,27 @@ async function fetchFeed(url: string): Promise<FeedItem[]> {
 
 // ─── Feed section component ────────────────────────────────────────────────────
 
-function FeedSection({ label, url, icon: Icon, color }: {
+/** The newest firmware of each channel, from Meticulous's GitHub (the changelog below can lag) */
+function LatestFirmware() {
+  const [latest, setLatest] = useState<Record<Channel, string | null> | null>(null);
+  useEffect(() => { latestPerChannel().then(setLatest).catch(() => {}); }, []);
+  if (!latest || !CHANNELS.some((c) => latest[c])) return null;
+  return (
+    <p className="rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] px-4 py-2.5 text-sm text-[var(--ink)]/85">
+      <b>Newest on GitHub:</b>{" "}
+      {CHANNELS.filter((c) => latest[c]).map((c, i) => (
+        <span key={c}>{i > 0 && " · "}{c} <span className="font-mono tabular-nums">{latest[c]}</span></span>
+      ))}
+      <span className="block text-xs text-[var(--ink)]/60">Released builds, ahead of the changelog. Each machine gets them over a few days.</span>
+    </p>
+  );
+}
+
+function FeedSection({ label, url, icon: Icon, color, onItems }: {
   label: string; url: string;
   icon: React.ElementType; color: string;
+  /** The items, once loaded */
+  onItems?: (items: FeedItem[]) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +93,14 @@ function FeedSection({ label, url, icon: Icon, color }: {
     setLoading(true);
     setError(false);
     fetchFeed(url)
-      .then(setItems)
+      .then((list) => { setItems(list); onItems?.(list); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Loads the feed once; load() sets its own loading state
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, []);
 
   return (
     <div className="space-y-3">
@@ -156,14 +177,18 @@ export default function CommunityPage() {
           <p className="mb-4 text-sm text-[var(--ink)]/70">Meticulous news, live from meticuloushome.com: firmware and company updates</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <FeedSection
-              label="Firmware Changelog"
-              url="https://meticuloushome.com/blogs/meticulous-espresso-changelog.atom"
-              icon={Zap}
-              color="var(--accent)"
-            />
+            <div className="space-y-3">
+              <LatestFirmware />
+              <FeedSection
+                label="Firmware Changelog"
+                url="https://meticuloushome.com/blogs/meticulous-espresso-changelog.atom"
+                icon={Zap}
+                color="var(--accent)"
+              />
+            </div>
             <FeedSection
               label="Company Updates"
+              onItems={(list) => { if (list[0]) markCompanyUpdateSeen(list[0].title); }}
               url="https://meticuloushome.com/blogs/updates.atom"
               icon={Radio}
               color="#60a5fa"

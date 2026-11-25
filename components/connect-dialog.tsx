@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Wifi, CheckCircle, AlertCircle, Coffee, Router, Monitor, Smartphone, ChevronDown, ChevronUp } from "lucide-react";
 import { testConnection } from "@/lib/machine-api";
-import { saveIp } from "@/lib/connection-store";
+import { getSavedIp, saveIp } from "@/lib/connection-store";
+import { cleanIp } from "@/components/station/offline-card";
+import { FindMachineButton } from "@/components/find-machine-button";
 
 interface ConnectDialogProps {
   open: boolean;
@@ -31,22 +33,24 @@ const HOW_TO_FIND = [
 ];
 
 export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProps) {
-  const [ip, setIp] = useState("");
+  // Starts from the saved IP (changing machine): it is replaced only once the new one answers
+  const [ip, setIp] = useState(() => getSavedIp());
   const [status, setStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
   const [machineName, setMachineName] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [showHelp, setShowHelp] = useState(false);
 
   async function handleConnect() {
-    if (!ip.trim()) return;
+    const next = cleanIp(ip);
+    if (!next) return;
     setStatus("testing");
     setErrorMsg("");
     try {
-      const info = await testConnection(ip.trim());
+      const info = await testConnection(next);
       setMachineName(info.name);
       setStatus("ok");
-      saveIp(ip.trim());
-      setTimeout(() => onConnected(ip.trim()), 600);
+      saveIp(next);
+      setTimeout(() => onConnected(next), 600);
     } catch {
       setStatus("error");
       setErrorMsg(
@@ -85,10 +89,12 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
           </div>
         </div>
 
-        {/* IP input */}
+        {/* Search the network first; the IP field below for typing it */}
         <div className="px-6 py-4 space-y-3">
+          <FindMachineButton lastIp={getSavedIp()}
+            onFound={(m) => { setIp(m.ip); setMachineName(m.name); setStatus("ok"); saveIp(m.ip); setTimeout(() => onConnected(m.ip), 600); }} />
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[#fafafa]/50">Machine IP address</label>
+            <label className="text-xs font-medium text-[#fafafa]/50">Or type the machine&apos;s IP address</label>
             <input
               placeholder="192.168.1.42"
               value={ip}

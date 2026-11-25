@@ -63,7 +63,7 @@ export function SlideToStart({
           setDragging(false);
           setX(0);
           // Where the finger was let go (not the last drawn position: a fast swipe skips frames)
-          if (d && e.clientX - d.startX >= d.max * 0.9) onConfirm();
+          if (d && d.max > 0 && e.clientX - d.startX >= d.max * 0.9) onConfirm();
         }}
         onPointerCancel={() => { drag.current = null; setDragging(false); setX(0); }}
         className={`absolute left-1 top-1/2 flex aspect-square h-[min(calc(100%-8px),76px)] cursor-grab items-center justify-center rounded-md bg-[var(--ink)] text-[var(--primary)] shadow-md ${

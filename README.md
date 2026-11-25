@@ -37,7 +37,7 @@ Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)*
 
 The only way around it on iOS would be an app of its own, outside the browser.
 
-**Privacy:** your data stays in your browser. The site counts, anonymously, how many devices open it each day (and how many use the Station with a machine): a +1 on the project's own counter (a Cloudflare Worker, [cloudflare/count-worker.js](cloudflare/count-worker.js)), nothing else. Daily numbers: [not9bar.com/usage](https://not9bar.com/usage).
+**Privacy:** your data stays in your browser. The site counts, anonymously, how many devices open it each day (and how many use the Station with a machine): a +1 on the project's own counter (a Cloudflare Worker, [cloudflare/count-worker.js](cloudflare/count-worker.js)). The site also loads Cloudflare Web Analytics, which tells Cloudflare the page visited, the referrer and the browser, without cookies. The Community page reads Meticulous's news through MetBarista's feed proxy (a Cloudflare Worker run by MetBarista's author), which sees the visitor's IP address. Daily numbers: [not9bar.com/usage](https://not9bar.com/usage).
 
 ## Use it
 
@@ -87,7 +87,7 @@ The smallest port therefore produces a `LiveStatus` for your machine: a `status`
 
 The group thermometers (`t_bar_up` … `t_external_2`) and the piston position (`m_pos`) come in a separate `sensors` event, typed as `LiveTemperatures`. Missing ones are just left out of the heating chart's legend and lines (`groupTempsFor()`, `HEAT_SENSORS`).
 
-**Machine flow vs. scale flow.** `f` is the water the machine pushes into the puck, in ml/s, as the machine measures it. `g` (shown as "Grav") is how fast the cup gains weight, in g/s, read from the scale. They differ on purpose. Early in a shot the puck soaks up water, so `f` is high while `g` is still 0. Later, `g` shows what actually reaches the cup. The Station uses the machine's own `g` when it sends one (`r.grav ?? gravFlow(...)` in `useMachineLive()`). A machine without a scale needs neither `w` nor `g`: those readouts then show "—".
+**Machine flow vs. scale flow.** `f` is the water the machine pushes into the puck, in ml/s, as the machine measures it. `g` (shown as "In cup") is how fast the cup gains weight, in g/s, read from the scale. They differ on purpose. Early in a shot the puck soaks up water, so `f` is high while `g` is still 0. Later, `g` shows what actually reaches the cup. The Station uses the machine's own `g` when it sends one (`r.grav ?? gravFlow(...)` in `useMachineLive()`). A machine without a scale needs neither `w` nor `g`: those readouts then show "—".
 
 ### Example: show a boiler's temperature
 
@@ -95,7 +95,7 @@ The Meticulous has no boiler: `sensors.t` is the temperature of its tube. `readi
 
 - `useMachineLive()` turns `temp` into the heating curve and into the shot points.
 - `StationPage` passes `sensors.temp` to `TemperatureGauge` (labelled "Temperature"), to `HeatingProgress` and to `RecentShots`.
-- Its name on screen is `TEMP_LABEL` ("Tube") in [`lib/station/readings.ts`](lib/station/readings.ts), used by `HEAT_SENSORS` in [`components/shot-charts.tsx`](components/shot-charts.tsx) and by the idle screen in [`components/recent-shots.tsx`](components/recent-shots.tsx).
+- Its name on screen is `TEMP_LABEL` ("Water temp") in [`lib/station/readings.ts`](lib/station/readings.ts), used by `HEAT_SENSORS` in [`components/shot-charts.tsx`](components/shot-charts.tsx) and by the idle screen in [`components/recent-shots.tsx`](components/recent-shots.tsx).
 
 For a boiler machine:
 

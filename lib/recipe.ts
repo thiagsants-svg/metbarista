@@ -145,7 +145,8 @@ export function overCapacity(r: Pick<Recipe, "dose" | "ratio">): boolean {
  * (~1.25 × dose: 100 ml used to give ~75 g with 20 g), plus 10 ml of margin.
  * Less water for short shots = less air in the chamber (no "pop" at the end).
  */
-export function retractionFor(r: Pick<Recipe, "dose" | "ratio">): number {
+export function retractionFor(r0: Pick<Recipe, "dose" | "ratio">): number {
+  const r = { ...r0, ...checkedRecipe({ ...r0, temperature: LIMITS.temperature.min }) };
   const ml = Math.ceil(Math.min(MAX_FINAL_WEIGHT, r.dose * r.ratio) + 1.25 * r.dose + 10);
   return Math.min(RETRACTION_MAX_ML, Math.max(RETRACTION_MIN_ML, ml));
 }
@@ -182,6 +183,19 @@ export const LIMITS = {
   temperature: { min: 70, max: 100, step: 0.5 },
   ratio: { min: 1, max: 10, step: 0.1 },
 } as const;
+
+/**
+ * Dose, ratio and temperature inside the machine-safe limits. Refuses (throws)
+ * when one isn't a number at all, so nothing half-empty is sent to the machine.
+ */
+export function checkedRecipe(r: Pick<Recipe, "dose" | "ratio" | "temperature">): Pick<Recipe, "dose" | "ratio" | "temperature"> {
+  const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+  if (!ok(r.dose) || !ok(r.ratio) || !ok(r.temperature)) {
+    throw new Error("the recipe has an invalid dose, ratio or temperature: set it again on the wheels");
+  }
+  const clamp = (v: number, l: { min: number; max: number }) => Math.min(l.max, Math.max(l.min, v));
+  return { dose: clamp(r.dose, LIMITS.dose), ratio: clamp(r.ratio, LIMITS.ratio), temperature: clamp(r.temperature, LIMITS.temperature) };
+}
 
 /** The ratios on the wheel (the user's shortcuts). */
 export const RATIO_PRESETS = [1, 1.5, 1.8, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -252,6 +266,14 @@ export function asciiName(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim();
 }
 
+/** A coffee's identity: "Etiópia " and "etiopia" are the same coffee */
+export const coffeeKey = (name: string) => asciiName(name).toLowerCase();
+
+/** Same coffee? Ignores case and accents (shots keep plain ASCII names) */
+export function sameCoffee(a: string | null | undefined, b: string | null | undefined): boolean {
+  return !!a && !!b && coffeeKey(a) === coffeeKey(b);
+}
+
 /** " - Etiopia Guji 150um" (or " - Guji grind 2.5" on other grinders): coffee and grind in the shot's name */
 function nameTag(r: Partial<Recipe>): string {
   const coffee = r.coffee ? asciiName(r.coffee) : "";
@@ -270,7 +292,9 @@ export function baseName(name: string): string {
 }
 
 /** Copy of the base profile with this shot's temperature and yield. */
-export function buildShotProfile(base: Profile, r: Recipe): Profile {
+export function buildShotProfile(base: Profile, r0: Recipe): Profile {
+  // Whatever the recipe came from (wheels, a plan, a backup), only sane numbers reach the machine
+  const r = { ...r0, ...checkedRecipe(r0) };
   const copy: Profile = structuredClone(base);
   copy.temperature = r.temperature;
   copy.final_weight = Math.min(MAX_FINAL_WEIGHT, beverageWeight(r));

@@ -4,6 +4,7 @@ import type { Profile } from "@/lib/types";
 import { ProfileCurvePreview } from "./charts/profile-curve-preview";
 import { ProfileFingerprint } from "./charts/profile-fingerprint";
 import { getSavedIp } from "@/lib/connection-store";
+import { machineImageUrl, safeColor } from "@/lib/safe-url";
 
 interface ProfileCardProps {
   profile: Profile;
@@ -21,11 +22,11 @@ function getImageUrl(imagePath?: string): string | null {
   if (!imagePath) return null;
   const ip = getSavedIp();
   if (!ip) return null;
-  return `http://${ip}${imagePath}`;
+  return machineImageUrl(`http://${ip}`, imagePath);
 }
 
 export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
-  const accent = profile.display?.accentColor ?? "#ffc400";
+  const accent = safeColor(profile.display?.accentColor) ?? "#ffc400";
   const stageTypes = [...new Set((profile.stages ?? []).map((s) => s.type))];
   const imageUrl = getImageUrl(profile.display?.image);
 

@@ -1,7 +1,7 @@
 /** Station: colors, labels and number formats (no state) */
 
-import { isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
-import type { LiveStatus, LiveTemperatures } from "@/lib/types";
+import { isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater } from "../brew-state";
+import type { LiveStatus, LiveTemperatures } from "../types";
 
 /**
  * Color themes, applied as CSS variables on the Station root: light (the
@@ -70,6 +70,23 @@ export function statusLabel(s: LiveStatus | null, connected: boolean): string {
   if (!s) return "Waiting for machine…";
   if (isExtracting(s)) return s.name ? `Brewing · ${s.name}` : "Brewing";
   return STATUS_LABELS[(s.name ?? "").toLowerCase()] ?? s.name ?? "—";
+}
+
+/** The command ids, as the buttons say them */
+const ACTION_WORDS: Record<string, string> = {
+  start: "Start", continue: "Brew", stop: "Stop", tare: "Tare", purge: "Purge", home: "Raise piston", preheat: "Preheat",
+};
+export const actionWord = (action: string) => ACTION_WORDS[action] ?? action;
+
+/** An error, in words that say what to do: "<what>: the machine didn't answer…" */
+export function explainError(e: unknown, what: string): string {
+  const m = e instanceof Error ? e.message : String(e);
+  if (/abort|timeout|timed out/i.test(m)) return `${what}: the machine didn't answer in time. Is it on, and on the same Wi-Fi?`;
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(m)) {
+    return `${what}: can't reach the machine. Check that it's on, its IP, and Chrome's local network permission.`;
+  }
+  if (/HTTP 5\d\d/.test(m)) return `${what}: the machine refused it (${m}). Try again in a moment.`;
+  return `${what}: ${m}`;
 }
 
 export function fmtClock(sec: number): string {

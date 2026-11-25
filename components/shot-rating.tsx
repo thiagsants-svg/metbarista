@@ -93,6 +93,8 @@ export function ShotRating({
     ...(grind ? { grind, ...(grindWas ? { grindWas } : {}) } : {}),
   };
   const lines = plan ? planLines(shotRecipe, plan) : [];
+  /** Something entered: a tap outside the card must not throw it away (wet hands slip) */
+  const touched = !!face || !!note.trim() || !!point || !!tdsShown.trim() || !!grind;
 
   const faceBtn = (f: Face, label: string, Icon: typeof Smile) => {
     const on = face === f;
@@ -129,7 +131,7 @@ export function ShotRating({
   );
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center gap-3 bg-black/40 p-3 portrait:flex-col" style={{ top }} onClick={onSkip}>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center gap-3 bg-black/40 p-3 portrait:flex-col" style={{ top }} onClick={() => { if (!touched) onSkip(); }}>
       {aside && (
         <div className="flex shrink-0 overflow-hidden rounded-xl bg-[var(--paper)] text-[var(--ink)] shadow-xl portrait:h-32 portrait:w-full portrait:max-w-lg md:portrait:max-w-3xl landscape:h-[min(26rem,100%)] landscape:w-56"
           onClick={(e) => e.stopPropagation()}>

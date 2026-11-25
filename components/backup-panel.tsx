@@ -60,7 +60,11 @@ function BackupPanel({ lastAt, onSaved, onClose }: {
     try {
       const now = new Date();
       // Bag photos too (they live outside localStorage)
-      const backup = { ...makeBackup(localStorage, now), photos: await allPhotos().catch(() => []) };
+      // Bag photos too (they live outside localStorage). If they can't be read, the file goes
+      // without them (and says so), rather than with an empty list that would wipe them on restore
+      const photos = await allPhotos().catch(() => null);
+      const backup = { ...makeBackup(localStorage, now), ...(photos ? { photos } : {}) };
+      if (!photos) setError("The bag photos couldn't be read: this backup has everything else.");
       const file = new File([JSON.stringify(backup, null, 1)], backupFileName(now), { type: "application/json" });
       let done = false;
       if (navigator.canShare?.({ files: [file] })) {
@@ -99,7 +103,12 @@ function BackupPanel({ lastAt, onSaved, onClose }: {
 
   function restore() {
     if (!pending) return;
-    restoreBackup(localStorage, pending);
+    try {
+      restoreBackup(localStorage, pending);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
     // Older backups have no photos: keep this device's
     const photos = pending.photos;
     (photos ? replaceAllPhotos(photos).catch(() => {}) : Promise.resolve()).then(() => location.reload());

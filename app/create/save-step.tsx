@@ -25,13 +25,20 @@ export function SaveStep({ basics, stages, onBack, onDone }: Props) {
   const [state, setState] = useState<SaveState>("idle");
   const [errMsg, setErrMsg] = useState("");
   const [copied, setCopied] = useState(false);
-  const [loadAfterSave, setLoadAfterSave] = useState(true);
+  const [loadAfterSave, setLoadAfterSave] = useState(false);
 
   const profile = stagesToOEPF(basics, stages);
   const totalSec = stages.reduce((n, s) => n + s.duration, 0);
   const hasMachine = Boolean(getSavedIp());
 
   async function handleSave() {
+    // Saving writes a new profile on the machine (and loading it makes it heat): ask first
+    const ask = loadAfterSave
+      ? `Save "${profile.name}" on the machine and load it?
+
+Loading starts it: the machine heats and waits for you.`
+      : `Save "${profile.name}" on the machine?`;
+    if (!window.confirm(ask)) return;
     setState("saving");
     try {
       await saveProfile(profile);

@@ -4,7 +4,8 @@
  * CORS is fully open (Access-Control-Allow-Origin: *) so this works from any origin.
  */
 
-import { machineBase } from "./machine-ip";
+import { machineBase, saveHostname } from "./machine-ip";
+import { machineImageUrl } from "./safe-url";
 import type {
   MachineInfo,
   MachineSettings,
@@ -48,7 +49,8 @@ async function apiFetch<T>(path: string, options?: RequestInit, timeoutMs = DEFA
       }
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-    return res.json() as Promise<T>;
+    // Awaited here, so the timeout also covers the body (a stalled download is aborted)
+    return (await res.json()) as T;
   } finally {
     clearTimeout(timer);
   }
@@ -123,18 +125,11 @@ export async function saveProfile(profile: Profile): Promise<void> {
   });
 }
 
-export async function deleteProfile(id: string): Promise<void> {
-  await apiFetch<unknown>(`/profile/delete/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
-}
 
 // Returns the URL for a profile image (served by the machine)
 export function getProfileImageUrl(imagePath: string): string {
-  const base = getBaseUrl();
-  if (!base || !imagePath) return "";
-  // imagePath is like "/api/v1/profile/image/abc123.png"
-  return `${base}${imagePath}`;
+  // imagePath is like "/api/v1/profile/image/abc123.png"; only ever an image on the machine itself
+  return machineImageUrl(getBaseUrl(), imagePath) ?? "";
 }
 
 // ── History ──────────────────────────────────────────────────
@@ -172,6 +167,54 @@ export async function searchHistory(startSec: number, endSec: number, maxResults
   }, 90_000);
   return res.history ?? [];
 }
+/**
+ * Puts the curves back on shots read without them (getHistoryLight): one small
+ * search per shot, around its time. A shot that can't be read keeps no curve.
+ */
+export async function fillCurves(shots: ShotEntry[]): Promise<ShotEntry[]> {
+  return Promise.all(shots.map(async (s) => {
+    if (s.data?.length) return s;
+    try {
+      const found = await searchHistory(s.time - 2, s.time + 2, 5);
+      return found.find((f) => f.id === s.id) ?? found.find((f) => f.db_key === s.db_key) ?? s;
+    } catch {
+      return s;
+    }
+  }));
+}
+
+/**
+ * The machine's newest shots without curves, with the curves filled in only for
+ * the ones `pick` chooses (the few the screen shows): ~200 KB instead of ~18 MB.
+ */
+export async function getHistoryPicked(maxResults: number, pick: (light: ShotEntry[]) => ShotEntry[]): Promise<ShotEntry[]> {
+  const light = await getHistoryLight(maxResults);
+  const full = await fillCurves(pick(light));
+  return light.map((s) => full.find((f) => f.id === s.id) ?? s);
+}
+
+/**
+ * Every shot's time (seconds), newest first, kept on this device and topped up
+ * with the newest shots only. Read in full the first time, or when too many
+ * shots are new to join the two lists.
+ */
+export async function getShotTimes(): Promise<number[]> {
+  const KEY = "not9bar_shot_times_v1";
+  let cached: number[] = [];
+  try { cached = JSON.parse(localStorage.getItem(KEY) ?? "[]") as number[]; } catch { cached = []; }
+  let times: number[];
+  if (cached.length) {
+    const fresh = (await getHistoryLight(50)).map((s) => s.time);
+    const newest = cached[0];
+    const added = fresh.filter((t) => t > newest);
+    times = added.length < fresh.length ? [...added, ...cached] : (await getHistoryLight(100_000)).map((s) => s.time);
+  } else {
+    times = (await getHistoryLight(100_000)).map((s) => s.time);
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(times)); } catch { /* a cache only */ }
+  return times;
+}
+
 // ── Actions ──────────────────────────────────────────────────
 
 export async function executeAction(action: ActionType): Promise<void> {
@@ -220,7 +263,10 @@ export async function testConnection(ip: string): Promise<MachineInfo> {
       signal: controller.signal,
     }));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json() as Promise<MachineInfo>;
+    const info = (await res.json()) as MachineInfo;
+    // Its network name, to find it by name next time (instant) before searching the network
+    saveHostname(info.hostname);
+    return info;
   } finally {
     clearTimeout(timer);
   }

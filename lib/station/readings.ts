@@ -22,10 +22,10 @@ export interface Readings {
 }
 
 /**
- * The name of `temp` on screen. The Meticulous reports the temperature of its
- * tube; a machine with a boiler would say "Boiler".
+ * The name of `temp` on screen. The Meticulous reports the temperature of the
+ * water in its tube; a machine with a boiler would say "Boiler".
  */
-export const TEMP_LABEL = "Tube";
+export const TEMP_LABEL = "Water temp";
 
 const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 

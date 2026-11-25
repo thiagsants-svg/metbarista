@@ -6,6 +6,9 @@
  * shrinks to one line; the full chart comes back while heating.
  */
 
+import { dayTime } from "@/lib/format-date";
+import { sameCoffee } from "@/lib/recipe";
+import { shotGrindLabel } from "@/lib/coffee-history";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Frown, Smile, Wrench } from "lucide-react";
@@ -13,25 +16,17 @@ import type { MaintenanceCount } from "@/lib/piston-store";
 import { ShotPlot } from "@/components/shot-charts";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
 import { planLines, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
-import { asciiName } from "@/lib/recipe";
 import { formatRatio } from "@/lib/recipe";
 import { TEMP_LABEL } from "@/lib/station/readings";
 
-function fmtClock(s: number): string {
-  const m = Math.floor(s / 60);
-  return `${m}:${String(Math.round(s % 60)).padStart(2, "0")}`;
-}
+// One clock for the whole app (it rounds first: 59.6 s is "1:00", not "0:60")
+import { fmtClock } from "@/lib/station/format";
 
 /** Grind of a shot as a number to compare (µm on the Motto 80, dial setting otherwise) */
 function grindValue(s: CoffeeLastShot): number | undefined {
   return s.patch.grindUm ?? s.patch.grindSetting;
 }
 
-function grindLabel(s: CoffeeLastShot): string {
-  if (s.patch.grindUm != null) return `${s.patch.grindUm} µm`;
-  if (s.patch.grindSetting != null) return `grind ${s.patch.grindSetting}`;
-  return "—";
-}
 
 const keyOf = (s: CoffeeLastShot) => `${s.dbKey ?? s.when}`;
 
@@ -55,7 +50,7 @@ export function RecentShots({
   /** The profile's tip: two lines, all of it on a tap */
   const [tipOpen, setTipOpen] = useState(false);
   const name = coffee?.trim();
-  const planHere = plan && name && asciiName(plan.coffee).toLowerCase() === asciiName(name).toLowerCase() ? plan : null;
+  const planHere = plan && sameCoffee(plan.coffee, name) ? plan : null;
   const lastRecipe = shots?.[0]?.patch;
 
   return (
@@ -137,9 +132,7 @@ export function RecentShots({
                 <button type="button" onClick={() => setOpen(isOpen ? null : k)} aria-expanded={isOpen}
                   className="flex w-full flex-wrap items-baseline gap-x-5 gap-y-0.5 py-2.5 text-left active:bg-[var(--ink)]/[0.04]">
                   <span className="w-24 shrink-0 text-sm tabular-nums text-[var(--ink)]/75">
-                    {new Date(s.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    {" · "}
-                    {new Date(s.when).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    {dayTime(s.when)}
                   </span>
                   <span className="flex w-7 shrink-0 self-center justify-center" aria-label={s.face === "like" ? "Liked" : s.face === "dislike" ? "Didn't like" : "Not rated"}>
                     {s.face === "like" && <Smile className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.75} />}
@@ -150,7 +143,7 @@ export function RecentShots({
                   </span>
                   <span className="text-xl font-extrabold tabular-nums">{fmtClock(s.seconds)}</span>
                   <span className="text-xl font-extrabold tabular-nums">
-                    {grindLabel(s)}
+                    {shotGrindLabel(s) ?? "—"}
                     {delta != null && delta !== 0 && (
                       <span className="ml-1 text-sm font-semibold text-[var(--accent)]">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}{s.patch.grindUm != null ? " µm" : ""}</span>
                     )}
