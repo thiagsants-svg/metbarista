@@ -83,7 +83,8 @@ export function Gauge({
           const b = polar(cx, cy, r + 9, angle(target));
           return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--accent)" strokeWidth={3} strokeLinecap="round" />;
         })()}
-        <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="var(--ink)" strokeWidth={2.5} strokeLinecap="round" />
+        {/* No reading: no needle (resting on the minimum it would read as a real 0) */}
+        {raw != null && <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="var(--ink)" strokeWidth={2.5} strokeLinecap="round" />}
         <circle cx={cx} cy={cy} r={4} fill="var(--ink)" />
       </svg>
     </div>

@@ -4,6 +4,7 @@
  * CORS is fully open (Access-Control-Allow-Origin: *) so this works from any origin.
  */
 
+import { machineBase } from "./machine-ip";
 import type {
   MachineInfo,
   MachineSettings,
@@ -26,9 +27,7 @@ const DEFAULT_HISTORY_RESULT_LIMIT = 20;
 // ── Helpers ──────────────────────────────────────────────────
 
 function getBaseUrl(): string {
-  if (typeof window === "undefined") return "";
-  const ip = localStorage.getItem("metbarista_machine_ip");
-  return ip ? `http://${ip}` : "";
+  return machineBase();
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
@@ -217,7 +216,7 @@ export async function testConnection(ip: string): Promise<MachineInfo> {
     LOCAL_NETWORK_PERMISSION_TIMEOUT_MS,
   );
   try {
-    const res = await fetch(`http://${ip}/api/v1/machine`, localNetworkRequestInit({
+    const res = await fetch(`${machineBase(ip)}/api/v1/machine`, localNetworkRequestInit({
       signal: controller.signal,
     }));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

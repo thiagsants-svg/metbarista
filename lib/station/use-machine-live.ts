@@ -14,6 +14,7 @@ import { executeAction, type MachineNotification } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
 import { isExtracting, isHeating, isIdle, isPurging, isWaitingForWater } from "@/lib/brew-state";
 import { gravFlow, groupTempsFor } from "@/lib/station/format";
+import { readingsOf } from "@/lib/station/readings";
 import type { ActionType, LiveStatus, LiveTemperatures } from "@/lib/types";
 
 export function useMachineLive({
@@ -77,7 +78,9 @@ export function useMachineLive({
         setConnected(true);
         if (s.setpoints?.temperature != null) setSetTemp(s.setpoints.temperature);
         const now = Date.now();
-        const w = s.sensors?.w;
+        // The readings, from wherever this machine puts them (see readings.ts)
+        const r = readingsOf(s);
+        const w = r.weight;
         if (w != null) {
           weightSamplesRef.current = [...weightSamplesRef.current, { t: now, w }].filter((x) => now - x.t <= 3000);
         }
@@ -109,8 +112,8 @@ export function useMachineLive({
         }
 
         // Every thermometer, one point per second
-        if (s.sensors?.t != null) {
-          const temp = s.sensors.t;
+        if (r.temp != null) {
+          const temp = r.temp;
           const reading = { temp, ...groupTempsFor(groupTempsRef.current) };
           // Curve for the whole pre-shot session (heating view)
           if (preShotRef.current) {
@@ -122,7 +125,7 @@ export function useMachineLive({
         }
 
         // Machine's own gravimetric flow; estimate it only if absent
-        const g = isExtracting(s) ? (s.sensors?.g ?? gravFlow(weightSamplesRef.current)) : null;
+        const g = isExtracting(s) ? (r.grav ?? gravFlow(weightSamplesRef.current)) : null;
         setGrav(g);
 
         if (isExtracting(s)) {
@@ -141,11 +144,11 @@ export function useMachineLive({
             ...dataRef.current.slice(-3000),
             {
               t,
-              pressure: s.sensors?.p ?? null,
-              flow: s.sensors?.f ?? null,
+              pressure: r.pressure ?? null,
+              flow: r.flow ?? null,
               grav: g,
               weight: w != null && w > 0 ? w : null,
-              temp: s.sensors?.t ?? null,
+              temp: r.temp ?? null,
               ...groupTempsFor(groupTempsRef.current),
               stage: s.name ?? null,
               ...activeTargets(s.setpoints),

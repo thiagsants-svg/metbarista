@@ -12,6 +12,7 @@
  */
 
 import { memo, useState } from "react";
+import { TEMP_LABEL } from "@/lib/station/readings";
 import {
   Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, XAxis, YAxis,
 } from "recharts";
@@ -319,7 +320,7 @@ export interface HeatPoint {
 
 /** Group sensors, named like the machine's own Sensors page. */
 export const HEAT_SENSORS: { key: keyof HeatPoint; label: string; color: string }[] = [
-  { key: "temp", label: "Tube", color: "var(--h0)" },
+  { key: "temp", label: TEMP_LABEL, color: "var(--h0)" },
   { key: "barUp", label: "Bar up", color: "var(--h1)" },
   { key: "barMidUp", label: "Bar mid-up", color: "var(--h2)" },
   { key: "barMidDown", label: "Bar mid-down", color: "var(--h3)" },

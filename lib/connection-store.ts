@@ -8,22 +8,10 @@ import { useRouter } from "next/navigation";
 import { testConnection } from "./machine-api";
 import type { ConnectionStatus, MachineInfo } from "./types";
 
-const IP_KEY = "metbarista_machine_ip";
+import { clearIp, getSavedIp, saveIp } from "./machine-ip";
 
-export function getSavedIp(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(IP_KEY) ?? "";
-}
-
-export function saveIp(ip: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(IP_KEY, ip);
-}
-
-export function clearIp(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(IP_KEY);
-}
+// The machine's address lives in machine-ip.ts; kept here for the pages that import it from this file
+export { clearIp, getSavedIp, saveIp };
 
 /** Reads the `?ip=` query param from the current URL (client-side only). */
 export function getIpFromUrlParam(): string {

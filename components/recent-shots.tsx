@@ -15,6 +15,7 @@ import type { CoffeeLastShot } from "@/lib/coffee-history";
 import { planLines, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
 import { asciiName } from "@/lib/recipe";
 import { formatRatio } from "@/lib/recipe";
+import { TEMP_LABEL } from "@/lib/station/readings";
 
 function fmtClock(s: number): string {
   const m = Math.floor(s / 60);
@@ -61,7 +62,7 @@ export function RecentShots({
     <div className="flex h-full w-full flex-col text-left text-[var(--ink)]">
       {/* Temperature, one line */}
       <div className="flex shrink-0 items-baseline gap-2 border-b border-[var(--ink)]/20 pb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Group</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">{TEMP_LABEL}</span>
         <span className="text-2xl font-extrabold tabular-nums">{temp != null ? temp.toFixed(1) : "—"}</span>
         <span className="text-sm text-[var(--ink)]/70">°C{target != null ? ` · target ${target} °C` : ""}</span>
       </div>

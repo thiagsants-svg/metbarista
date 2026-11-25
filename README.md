@@ -61,51 +61,51 @@ Everything machine-facing is written for the Meticulous: its local API, its live
 
 ### One pressure reading, end to end
 
-1. **Socket.** [`lib/machine-socket.ts`](lib/machine-socket.ts): `connectSocket()` opens a socket.io (EIO4) HTTP-polling session at `http://<ip>/socket.io/`. `doPoll()` fetches, `parsePackets()` splits out the `42[event, data]` packets, and each `status` event goes to every listener through `emit.status`.
+1. **Socket.** [`lib/machine-socket.ts`](lib/machine-socket.ts): `connectSocket()` opens a socket.io (EIO4) HTTP-polling session at `<machineBase()>/socket.io/`. `doPoll()` fetches, `parsePackets()` splits out the `42[event, data]` packets, and each `status` event goes to every listener through `emit.status`.
 2. **Type.** [`lib/types.ts`](lib/types.ts): `LiveStatus.sensors.p` is the pressure in bar.
-3. **Live hook.** [`lib/station/use-machine-live.ts`](lib/station/use-machine-live.ts): the `status` handler in `useMachineLive()` keeps the whole status (`setStatus`). While `isExtracting(s)` is true ([`lib/brew-state.ts`](lib/brew-state.ts)), it also appends a `ShotPoint` with `pressure: s.sensors?.p ?? null`. The collected points reach the chart every 250 ms.
-4. **Screen.** [`app/station/page.tsx`](app/station/page.tsx): `StationPage` reads `status?.sensors` into `sensors`. The pressure then shows in three places:
-    - `<PressureGauge value={sensors?.p}>`, from [`components/pressure-gauge.tsx`](components/pressure-gauge.tsx);
-    - the chart's live legend, `live={{ pressure: sensors?.p, … }}`;
+3. **Readings.** [`lib/station/readings.ts`](lib/station/readings.ts): `readingsOf(status)` turns `sensors.p` into `pressure` (and `f`, `w`, `g`, `t` into `flow`, `weight`, `grav`, `temp`). A missing or non-numeric value becomes `undefined`. This is the only place the live status's sensor fields are read (saved shots in the history have their own frame format).
+4. **Live hook.** [`lib/station/use-machine-live.ts`](lib/station/use-machine-live.ts): the `status` handler in `useMachineLive()` keeps the whole status (`setStatus`). While `isExtracting(s)` is true ([`lib/brew-state.ts`](lib/brew-state.ts)), it also appends a `ShotPoint` with `pressure: r.pressure ?? null`, where `r = readingsOf(s)`. The collected points reach the chart every 250 ms.
+5. **Screen.** [`app/station/page.tsx`](app/station/page.tsx): `StationPage` sets `sensors = readingsOf(status)`. The pressure then shows in three places:
+    - `<PressureGauge value={sensors.pressure}>`, from [`components/pressure-gauge.tsx`](components/pressure-gauge.tsx);
+    - the chart's live legend, `live={{ pressure: sensors.pressure, … }}`;
     - the curve, drawn from `data` by `ShotCharts` and `ShotPlot` in [`components/shot-charts.tsx`](components/shot-charts.tsx).
 
-The smallest port therefore produces a `LiveStatus` for your machine: a `status` event with `name` (in the Meticulous's state names, see [Where the Meticulous-only parts live](#where-the-meticulous-only-parts-live)), `extracting` and `sensors`. Everything from step 3 on stays as it is.
+The smallest port therefore produces a `LiveStatus` for your machine: a `status` event with `name` (in the Meticulous's state names, see [Where the Meticulous-only parts live](#where-the-meticulous-only-parts-live)), `extracting` and `sensors`. If your machine names its sensors differently, change only `readingsOf()`. Everything from step 4 on stays as it is.
 
 ### Readings the Station uses
 
 | Field (`LiveStatus`) | Meaning | Unit | When it's missing today |
 |---|---|---|---|
-| `sensors.p` | Pressure at the group | bar | The number reads "—", but the gauge's needle rests at 0. The curve skips the sample (`connectNulls` draws straight across gaps). During a purge, `(pressureNow ?? 0)` counts it as 0 bar, so the "Depressurizing" bar never shows and the piston panel closes when the purge ends. |
+| `sensors.p` | Pressure at the group | bar | The number reads "—" and the gauge shows no needle. The curve skips the sample (`connectNulls` draws straight across gaps). During a purge, `(pressureNow ?? 0)` counts it as 0 bar, so the "Depressurizing" bar never shows and the piston panel closes when the purge ends. |
 | `sensors.f` | Flow the machine pushes into the puck | ml/s | The readout and legend show "—", and the curve skips the sample. |
 | `sensors.w` | Scale weight | g | The readout shows "—". Below −1 g while not brewing, it shows "—" with the label "Weight · tap Tare". Chart points use `null` unless the weight is above 0, and the cup drawing shows empty (`weight ?? 0`). |
 | `sensors.g` | Flow into the cup, from the scale | g/s | Estimated by `gravFlow()` in [`lib/station/format.ts`](lib/station/format.ts) from the last ~1.2 s of `w`, clamped at 0. It is `null` with fewer than 2 samples, or under 0.3 s of them, and it is only computed while extracting. |
-| `sensors.t` | Water temperature (the Meticulous reports its tube) | °C | The heating chart gets no samples, so its plot area stays empty. The number reads "—", but the temperature gauge's needle rests at 20 °C, the dial's minimum. |
+| `sensors.t` | Water temperature (the Meticulous reports its tube) | °C | The heating chart gets no samples, so its plot area stays empty. The number reads "—" and the temperature gauge shows no needle. |
 | `setpoints.temperature` | Target temperature | °C | The gauge's mark and the heating chart's target line fall back to the last target seen, then to none. |
 | `time` | Shot clock | ms | It is used only if it restarts with the shot. Otherwise the Station times the shot itself. |
 | `name`, `extracting` | Machine state | text, bool | Without `extracting: true`, `isExtracting()` in [`lib/brew-state.ts`](lib/brew-state.ts) is false, so no shot is charted. With it, any `name` outside the Meticulous's non-brewing names counts as brewing: a heating or waiting state with another name would be charted as the shot. |
 
 The group thermometers (`t_bar_up` … `t_external_2`) and the piston position (`m_pos`) come in a separate `sensors` event, typed as `LiveTemperatures`. Missing ones are just left out of the heating chart's legend and lines (`groupTempsFor()`, `HEAT_SENSORS`).
 
-**Machine flow vs. scale flow.** `f` is the water the machine pushes into the puck, in ml/s, as the machine measures it. `g` (shown as "Grav") is how fast the cup gains weight, in g/s, read from the scale. They differ on purpose. Early in a shot the puck soaks up water, so `f` is high while `g` is still 0. Later, `g` shows what actually reaches the cup. The Station uses the machine's own `g` when it sends one (`s.sensors?.g ?? gravFlow(...)` in `useMachineLive()`). A machine without a scale needs neither `w` nor `g`: those readouts then show "—".
+**Machine flow vs. scale flow.** `f` is the water the machine pushes into the puck, in ml/s, as the machine measures it. `g` (shown as "Grav") is how fast the cup gains weight, in g/s, read from the scale. They differ on purpose. Early in a shot the puck soaks up water, so `f` is high while `g` is still 0. Later, `g` shows what actually reaches the cup. The Station uses the machine's own `g` when it sends one (`r.grav ?? gravFlow(...)` in `useMachineLive()`). A machine without a scale needs neither `w` nor `g`: those readouts then show "—".
 
 ### Example: show a boiler's temperature
 
-The Meticulous has no boiler: `sensors.t` is the temperature of its tube. The project reads it in these places:
+The Meticulous has no boiler: `sensors.t` is the temperature of its tube. `readingsOf()` reads it as `temp`, and from there:
 
-- `useMachineLive()` turns `s.sensors.t` into the heating curve (`temp`) and into the shot points.
-- `StationPage` passes `sensors?.t` to `TemperatureGauge` (labelled "Temperature"), to `HeatingProgress` and to `RecentShots`.
-- `HEAT_SENSORS` in [`components/shot-charts.tsx`](components/shot-charts.tsx) labels the `temp` series "Tube".
-- [`components/recent-shots.tsx`](components/recent-shots.tsx) labels the same number "Group" on the idle screen.
+- `useMachineLive()` turns `temp` into the heating curve and into the shot points.
+- `StationPage` passes `sensors.temp` to `TemperatureGauge` (labelled "Temperature"), to `HeatingProgress` and to `RecentShots`.
+- Its name on screen is `TEMP_LABEL` ("Tube") in [`lib/station/readings.ts`](lib/station/readings.ts), used by `HEAT_SENSORS` in [`components/shot-charts.tsx`](components/shot-charts.tsx) and by the idle screen in [`components/recent-shots.tsx`](components/recent-shots.tsx).
 
 For a boiler machine:
 
-1. **Fill the value.** In your adapter, put the boiler reading in `sensors.t`, in °C.
-2. **Rename the labels.** Change "Tube" in `HEAT_SENSORS` and "Group" in `RecentShots` to "Boiler".
+1. **Fill the value.** In `readingsOf()`, set `temp` from your boiler reading, in °C.
+2. **Rename the label.** Set `TEMP_LABEL` to "Boiler".
 3. **Show it on the shot chart, if you want.** `StationPage` passes `showTemps={false}` to `ShotCharts`, because on the Meticulous the sensors read the emptying chamber. A steady boiler may be worth showing.
 
 ### Where the Meticulous-only parts live
 
-- **Connection:** [`lib/machine-socket.ts`](lib/machine-socket.ts) handles the socket events `status`, `sensors`, `temperatures`, `heater_status` and `notification`. [`lib/machine-api.ts`](lib/machine-api.ts) wraps the REST API under `/api/v1`. The IP is stored as `metbarista_machine_ip`: see [`lib/connection-store.ts`](lib/connection-store.ts).
+- **Connection:** [`lib/machine-socket.ts`](lib/machine-socket.ts) handles the socket events `status`, `sensors`, `temperatures`, `heater_status` and `notification`. [`lib/machine-api.ts`](lib/machine-api.ts) wraps the REST API under `/api/v1`. Both start from `machineBase()` in [`lib/machine-ip.ts`](lib/machine-ip.ts), which builds `http://<ip>` from the IP saved in this browser: change it there for another port, https or a hostname.
 - **Commands:** `ActionType` in [`lib/types.ts`](lib/types.ts) lists the commands (`start`, `continue`, `stop`, `preheat`, `tare`, `purge`, `home`, …), sent by `executeAction()`. Your fork can map these to your machine or hide the buttons. The Tare, Purge, Raise and Preheat buttons sit at the end of `StationPage`.
 - **Heating and preheat:** the Station starts a shot through `startShot()` in `StationPage`. It loads an unsaved profile (`loadProfileInline()`, `buildShotProfile()` in [`lib/recipe.ts`](lib/recipe.ts)), and the machine heats and waits. The preheat countdown comes from `heater_status`.
 - **States:** the Meticulous's state names, such as `"click to start"` and `"pour water and click to continue"`, live in [`lib/brew-state.ts`](lib/brew-state.ts) and in `STATUS_LABELS` in [`lib/station/format.ts`](lib/station/format.ts).

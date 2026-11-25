@@ -32,6 +32,7 @@ import { StationHeader } from "@/components/station/station-header";
 import { EspressoGlass } from "@/components/station/espresso-glass";
 import { PISTON_TRAVEL_MM, PurgePiston, RESTING_BAR, pistonAtBottom } from "@/components/station/purge-piston";
 import { InstallHint } from "@/components/station/install-hint";
+import { readingsOf, type Readings } from "@/lib/station/readings";
 import { demoShot } from "@/lib/demo-shot";
 import { profileTips } from "@/lib/profile-tip";
 import { listMaintenance, loadIntervals, maintenanceCounts, type MaintenanceCount } from "@/lib/piston-store";
@@ -104,7 +105,7 @@ export default function StationPage() {
   // The piston panel shows the pressure coming down to rest (~0.4 bar on the machine): the cue to take
   // the portafilter off. It stays after the purge if the pressure is still up, until it rests (or the
   // machine moves on: heating, a shot)
-  const pressureNow = demoPurge !== null ? demoPressure : status?.sensors?.p ?? null;
+  const pressureNow = demoPurge !== null ? demoPressure : readingsOf(status).pressure ?? null;
   const [settling, setSettling] = useState(false);
   const wasPurgingRef = useRef(false);
   useEffect(() => {
@@ -330,9 +331,9 @@ export default function StationPage() {
   const idle = isIdle(status);
   const preheating = preheatLeft > 0;
   // In demo mode the readouts show the simulated shot's final values
-  const sensors = demoEnd
-    ? { ...status?.sensors, w: demoEnd.weight ?? undefined, t: demoEnd.temp ?? undefined, p: demoEnd.pressure ?? 0, f: 0 }
-    : status?.sensors;
+  const sensors: Readings = demoEnd
+    ? { pressure: demoEnd.pressure ?? 0, flow: 0, weight: demoEnd.weight ?? undefined, temp: demoEnd.temp ?? undefined }
+    : readingsOf(status);
   const tempTarget = status?.setpoints?.temperature ?? null;
   const online = connected && !!status;
   /** During heating and the shot, Stop is the control that matters: give it the big slot */
@@ -384,7 +385,7 @@ export default function StationPage() {
 
   /** The cup filling with the scale's weight, up to the target line */
   const glass = (
-    <EspressoGlass weight={data[data.length - 1]?.weight} scale={sensors?.w} target={targetWeight}
+    <EspressoGlass weight={data[data.length - 1]?.weight} scale={sensors.weight} target={targetWeight}
       flow={data[data.length - 1]?.grav} brewing={brewing || demoPour !== null} />
   );
 
@@ -434,17 +435,17 @@ export default function StationPage() {
         {/* Readouts */}
         <div ref={readoutsRef} className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="var(--ink)" />
-          <Readout label={sensors?.w != null && sensors.w < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
-            value={sensors?.w != null && sensors.w < -1 && !brewing ? "—" : fmt(sensors?.w)}
+          <Readout label={sensors.weight != null && sensors.weight < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
+            value={sensors.weight != null && sensors.weight < -1 && !brewing ? "—" : fmt(sensors.weight)}
             unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
-          <Readout label="Flow" value={fmt(sensors?.f)} unit="ml/s" color={COLORS.flow} />
+          <Readout label="Flow" value={fmt(sensors.flow)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
           {tempView ? (
             <TemperatureGauge
-              value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t}
+              value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors.temp}
               target={tempTarget ?? setTemp} />
           ) : (
-            <PressureGauge value={sensors?.p} color={COLORS.pressure} />
+            <PressureGauge value={sensors.pressure} color={COLORS.pressure} />
           )}
         </div>
 
@@ -483,7 +484,7 @@ export default function StationPage() {
               return <StageNow current={st.current} next={st.next} index={st.index} total={st.total} />;
             })()}
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
-            live={{ pressure: sensors?.p, flow: sensors?.f, grav, weight: sensors?.w, temp: sensors?.t }}
+            live={{ pressure: sensors.pressure, flow: sensors.flow, grav, weight: sensors.weight, temp: sensors.temp }}
             placeholder={
               tempView ? (
                 <HeatingProgress
@@ -495,7 +496,7 @@ export default function StationPage() {
                     : "Prep the puck and cup"}
                   samples={heatSamples}
                   target={tempTarget ?? setTemp}
-                  current={heatSamples[heatSamples.length - 1]?.temp ?? sensors?.t ?? null}
+                  current={heatSamples[heatSamples.length - 1]?.temp ?? sensors.temp ?? null}
                 />
               ) : needsWater ? (
                 <p className="text-2xl font-semibold text-[var(--water)]">Pour the water, then tap “Water added”</p>
@@ -504,7 +505,7 @@ export default function StationPage() {
               ) : (
                 // Idle: the last shots of the coffee, and the temperature in one line
                 <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
-                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} plan={nextPlan}
+                  coffee={recipe.coffee} shots={recentShots} temp={sensors.temp} plan={nextPlan}
                   profileTip={baseProfile ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null}
                   maintenanceDue={maintenanceDue} />
               )

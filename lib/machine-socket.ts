@@ -17,6 +17,7 @@
  */
 
 import type { LiveStatus, LiveTemperatures } from "./types";
+import { machineBase } from "./machine-ip";
 import {
   LOCAL_NETWORK_PERMISSION_TIMEOUT_MS,
   localNetworkRequestInit,
@@ -62,11 +63,6 @@ let polling = false;
 /** After a failed reopen, wait before the next try (machine off or unreachable) */
 let retryAt = 0;
 let onVisibility: (() => void) | null = null;
-
-function getMachineIp(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("metbarista_machine_ip");
-}
 
 /** Parse socket.io EIO4 polling body into [event, data] pairs; flags a dead session. */
 function parsePackets(raw: string): { events: Array<[string, unknown]>; sessionGone: boolean } {
@@ -174,10 +170,10 @@ export async function connectSocket(handlers: Handlers): Promise<void> {
   stopped = false;
   const gen = ++generation;
 
-  const ip = getMachineIp();
-  if (!ip) throw new Error("Machine IP not configured");
+  const machine = machineBase();
+  if (!machine) throw new Error("Machine IP not configured");
 
-  const base = `http://${ip}/socket.io/?EIO=4&transport=polling`;
+  const base = `${machine}/socket.io/?EIO=4&transport=polling`;
   activeBase = base;
 
   // If the machine can't be reached now, the poll loop below keeps retrying
