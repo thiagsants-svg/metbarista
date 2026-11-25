@@ -5,7 +5,8 @@
  * strength (TDS %) up. The target box splits the chart into zones (under /
  * ideal / over extraction, weak / ideal / strong), grey lines are ratios
  * (TDS = EY / ratio), the big dot is this shot and the faded dots, joined
- * oldest to newest, are this coffee's earlier shots with a reading.
+ * oldest to newest, are this coffee's earlier shots with a reading. Without a
+ * shot (no TDS yet) it's drawn empty, with the ratio the shot will sit on.
  */
 
 import type { BrewTarget } from "@/lib/brew-control";
@@ -19,8 +20,14 @@ const PAD = { l: 30, r: 62, t: 22, b: 30 };
 const PW = W - PAD.l - PAD.r, PH = H - PAD.t - PAD.b;
 
 /** past: newest first (as the shot list) */
-export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?: BrewPoint[]; target: BrewTarget }) {
-  const all = [shot, ...past];
+export function BrewChart({ shot, past = [], target, ratio }: {
+  shot: BrewPoint | null;
+  past?: BrewPoint[];
+  target: BrewTarget;
+  /** Without a shot: the ratio line to draw darker (where the shot will sit) */
+  ratio?: number;
+}) {
+  const all = shot ? [shot, ...past] : past;
   const x0 = Math.floor(Math.min(14, ...all.map((p) => p.ey - 1)));
   const x1 = Math.ceil(Math.max(26, ...all.map((p) => p.ey + 1)));
   const y0 = Math.max(0, Math.floor(Math.min(target.tds[0] - 3, ...all.map((p) => p.tds - 1))));
@@ -30,9 +37,9 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
   const xTicks = range(Math.ceil(x0 / 2) * 2, x1, 2);
   const yTicks = range(Math.ceil(y0 / 2) * 2, y1, 2);
 
-  // The ratio line closest to this shot gets drawn darker
-  const shotRatio = shot.ey / shot.tds;
-  const nearR = RATIOS.reduce((b, r) => (Math.abs(r - shotRatio) < Math.abs(b - shotRatio) ? r : b));
+  // The ratio line closest to this shot (or to the ratio given) gets drawn darker
+  const shotRatio = shot ? shot.ey / shot.tds : ratio;
+  const nearR = shotRatio == null ? null : RATIOS.reduce((b, r) => (Math.abs(r - shotRatio) < Math.abs(b - shotRatio) ? r : b));
 
   // Ratio lines that cross the plot; label where each leaves it (top or right edge)
   const lines = RATIOS.flatMap((r) => {
@@ -46,12 +53,12 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
 
   const bx0 = sx(target.ey[0]), bx1 = sx(target.ey[1]);
   const by0 = sy(target.tds[1]), by1 = sy(target.tds[0]);
-  const trail = [...past].reverse().concat(shot);
+  const trail = shot ? [...past].reverse().concat(shot) : [...past].reverse();
   const zone = { fontSize: 10, fontWeight: 600, fill: "var(--ink)", fillOpacity: 0.5, letterSpacing: 0.6 } as const;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img"
-      aria-label={`Brew chart: TDS ${shot.tds.toFixed(2)}%, EY ${shot.ey.toFixed(1)}%, target ${target.name}`}>
+      aria-label={shot ? `Brew chart: TDS ${shot.tds.toFixed(2)}%, EY ${shot.ey.toFixed(1)}%, target ${target.name}` : `Brew chart, no TDS yet: target ${target.name}`}>
       <defs>
         <clipPath id="brew-plot"><rect x={PAD.l} y={PAD.t} width={PW} height={PH} /></clipPath>
       </defs>
@@ -94,8 +101,10 @@ export function BrewChart({ shot, past = [], target }: { shot: BrewPoint; past?:
           <circle key={i} cx={sx(p.ey)} cy={sy(p.tds)} r={4.5} fill="var(--paper)" stroke="var(--ink)" strokeOpacity={0.55} strokeWidth={1.5} />
         ))}
         {/* This shot */}
-        <circle cx={sx(shot.ey)} cy={sy(shot.tds)} r={12} fill="var(--accent)" fillOpacity={0.18} />
-        <circle cx={sx(shot.ey)} cy={sy(shot.tds)} r={6.5} fill="var(--accent)" stroke="var(--paper)" strokeWidth={2} />
+        {shot && <>
+          <circle cx={sx(shot.ey)} cy={sy(shot.tds)} r={12} fill="var(--accent)" fillOpacity={0.18} />
+          <circle cx={sx(shot.ey)} cy={sy(shot.tds)} r={6.5} fill="var(--accent)" stroke="var(--paper)" strokeWidth={2} />
+        </>}
       </g>
 
       {lines.map(({ r, end, top }) => (

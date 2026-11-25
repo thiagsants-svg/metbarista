@@ -56,7 +56,7 @@ export function StageCard({ stage, index, total, onChange, onDelete, onMove }: P
           {(["pressure", "flow"] as StageType[]).map((t) => (
             <button key={t}
               onClick={() => set("type", t)}
-              className={`px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold capitalize transition-colors ${
                 stage.type === t ? s.pill : "text-[#fafafa]/25 hover:text-[#fafafa]/50"
               }`}
             >{t}</button>

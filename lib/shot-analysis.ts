@@ -12,6 +12,7 @@
  */
 
 import type { ShotEntry, ShotFrame, Profile, ProfileStage } from "./types";
+import { cupWeight } from "./cup-weight";
 
 // ── Version ──────────────────────────────────────────────────
 export const ANALYSIS_VERSION = 4;
@@ -160,7 +161,7 @@ function scoreYield(frames: ShotFrame[], profile?: Profile): ShotMetric {
     return { key, label, score: 0, status: "poor", value: "No weight data", applicable: false, category: cat };
   }
 
-  const finalWeight = Math.max(...weights);
+  const finalWeight = cupWeight(frames);
   const target = profile.final_weight;
   const error = Math.abs(finalWeight - target) / target;
 
@@ -202,7 +203,7 @@ function scoreRatio(frames: ShotFrame[], profile?: Profile): ShotMetric {
   // We need both dose and yield to compute ratio
   const dose = profile?.variables?.find((v) => v.type === "weight" || v.key === "dose")?.value;
   const weights = frames.map((f) => f.shot.weight).filter((w) => !isNaN(w) && w > 0);
-  const finalWeight = weights.length > 0 ? Math.max(...weights) : 0;
+  const finalWeight = weights.length > 0 ? cupWeight(frames) : 0;
 
   if (!dose || dose <= 0 || finalWeight <= 0) {
     return { key, label, score: 0, status: "poor", value: "No dose/yield data", applicable: false, category: cat };

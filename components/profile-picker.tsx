@@ -76,7 +76,7 @@ export function ProfilePicker({
           ? <ProfileCover profile={selected} className="h-14 w-14 shrink-0 rounded-lg" />
           : <div className="h-14 w-14 shrink-0 rounded-lg bg-[var(--ink)]/[0.05]" />}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-[var(--ink)]/40">Profile</p>
+          <p className="text-xs uppercase tracking-wider text-[var(--ink)]/40">Profile</p>
           <p className="truncate text-lg font-semibold text-[var(--ink)]">
             {selected?.name ?? (profiles.length ? "Choose a profile" : "Loading profiles…")}
           </p>

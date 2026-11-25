@@ -96,7 +96,7 @@ export function ConnectDialog({ open, onConnected, onCancel }: ConnectDialogProp
               onKeyDown={(e) => e.key === "Enter" && handleConnect()}
               className="w-full rounded-xl border border-white/[0.08] bg-white/[0.05] px-3 py-2.5 text-sm font-mono text-[#fafafa] placeholder:text-[#fafafa]/25 focus:outline-none focus:border-[#ffc400]/40"
             />
-            <p className="text-[11px] text-[#fafafa]/25">
+            <p className="text-xs text-[#fafafa]/25">
               Usually starts with <span className="font-mono text-[#fafafa]/40">192.168.</span> — port is optional
             </p>
           </div>

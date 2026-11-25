@@ -1,18 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { applyPlan, grindLabel, grindOptions, grindTarget, planLines } from "../next-plan";
+import { applyPlan, grindLabel, grindNow, grindTarget, planLines } from "../next-plan";
 
 const motto = { dose: 20, ratio: 2.5, temperature: 94, grinder: "Motto 80", grindUm: 135, feed: 65, rpm: 1000 };
 const dial = { dose: 18, ratio: 2, temperature: 93, grinder: "Niche Zero", grindSetting: 2.5 };
 
-describe("grind suggestions (reminder only)", () => {
-  it("sour suggests finer, bitter coarser, balanced nothing", () => {
-    expect(grindOptions("sour", motto)).toEqual([-5, -10]);
-    expect(grindOptions("bitter", motto)).toEqual([5, 10]);
-    expect(grindOptions("balanced", motto)).toEqual([]);
+describe("grind (reminder only)", () => {
+  it("finer or coarser than the shot's grind, no amount", () => {
+    expect(grindNow(motto)).toBe("135 µm");
+    expect(grindNow(dial)).toBe("2.5");
+    expect(grindNow({ dose: 18 })).toBeNull();
+    expect(planLines(motto, { taste: "sour", grind: "finer" })).toEqual(["Grind finer than 135 µm"]);
+    expect(planLines(dial, { taste: "bitter", grind: "coarser" })).toEqual(["Grind coarser than 2.5"]);
+    expect(planLines({ dose: 18 }, { taste: "bitter", grind: "coarser" })).toEqual(["Grind coarser"]);
+    // The grind saved with the plan wins: it's the shot that was tasted
+    expect(planLines(motto, { taste: "sour", grind: "finer", grindWas: "140 µm" })).toEqual(["Grind finer than 140 µm"]);
   });
 
-  it("dial grinders move in half steps", () => {
-    expect(grindOptions("sour", dial)).toEqual([-0.5, -1]);
+  it("older plans with a set change still read", () => {
     expect(grindLabel(-0.5, dial)).toBe("0.5 finer");
     expect(grindTarget(dial, -0.5)).toBe("grind 2");
   });

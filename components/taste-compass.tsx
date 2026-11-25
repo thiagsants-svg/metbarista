@@ -38,7 +38,7 @@ export function TasteCompass({ value, onChange, size = 200 }: {
     });
   };
 
-  const axis = "pointer-events-none absolute text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)]/65";
+  const axis = "pointer-events-none absolute text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/65";
   const reading = value ? compassText(compassTaste(value), compassBody(value)) : null;
 
   return (
@@ -59,7 +59,7 @@ export function TasteCompass({ value, onChange, size = 200 }: {
           <div className="absolute inset-0"
             style={{ background: "linear-gradient(135deg, rgb(250 204 21 / 0.42), rgb(16 185 129 / 0.32) 50%, rgb(239 68 68 / 0.38))" }} />
           {WORDS.map(([w, x, y]) => (
-            <span key={w} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[11px] text-[var(--ink)]/55"
+            <span key={w} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-xs text-[var(--ink)]/55"
               style={{ left: `${((x + 1) / 2) * 100}%`, top: `${((1 - y) / 2) * 100}%` }}>{w}</span>
           ))}
           <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--ink)]/15" />

@@ -69,7 +69,7 @@ export function RecipePanel({
               className={`flex h-16 landscape:h-12 w-full min-w-0 flex-col items-center justify-center rounded-md border active:scale-[0.98] disabled:opacity-60 ${
                 wheel === t.key ? "border-[var(--ink)] bg-[var(--ink)]/[0.06]" : "border-[var(--ink)]/20"}`}>
               {/* Over the machine's capacity: the ratio tile says how far the shot can go */}
-              <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+              <span className={`text-xs font-semibold uppercase tracking-wider ${
                 t.key === "ratio" && overCapacity(recipe) ? "text-[var(--stop)]" : "text-[var(--ink)]/70"}`}>{t.label}</span>
               <span className="whitespace-nowrap text-2xl landscape:text-xl font-extrabold tabular-nums leading-tight">
                 {t.val}<span className="ml-1 text-xs font-medium text-[var(--ink)]/70">{t.unit}</span>
@@ -93,7 +93,9 @@ export function RecipePanel({
       {/* Beans and grinder: sent with the shot, so they show in shot history */}
       <div className={`grid gap-2 ${motto ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"}`}>
         <div className="relative flex min-w-0 gap-1.5">
-        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Coffee (beans)" list="recent-beans"
+        <label className="flex h-14 landscape:h-12 min-w-0 flex-col justify-center rounded-md border border-[var(--ink)]/20 px-2.5 flex-1">
+        <span className="text-xs font-semibold uppercase leading-none tracking-wider text-[var(--ink)]/70">Coffee</span>
+        <input value={recipe.coffee ?? ""} disabled={!editable} placeholder="Type or pick the beans" list="recent-beans"
           // Whole name selected: typing replaces it at once (no backspacing)
           onFocus={(e) => { setBeans(activeBeans()); e.currentTarget.select(); }}
           onChange={(e) => {
@@ -103,12 +105,13 @@ export function RecipePanel({
             const hit = beans.find((b) => b.toLowerCase() === v.trim().toLowerCase());
             if (hit) onPickCoffee(hit);
           }} aria-label="Coffee"
-          className="h-11 landscape:h-9 min-w-0 flex-1 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+          className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)]/45 disabled:opacity-60 truncate" />
+        </label>
         <datalist id="recent-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
         {/* All recent coffees, most recently used first */}
         <button type="button" disabled={!editable} aria-label="Recent coffees" title="Recent coffees"
           onClick={() => { setBeans(activeBeans()); setBeansOpen((o) => !o); }}
-          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 shrink-0 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
+          className={`flex h-14 w-11 landscape:h-12 shrink-0 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
             beansOpen ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20 text-[var(--ink)]/80"}`}>
           <ChevronDown className={`h-5 w-5 transition-transform ${beansOpen ? "rotate-180" : ""}`} />
         </button>
@@ -133,6 +136,8 @@ export function RecipePanel({
           </>
         )}
         </div>
+        <label className="flex h-14 landscape:h-12 min-w-0 flex-col justify-center rounded-md border border-[var(--ink)]/20 px-2.5">
+        <span className="text-xs font-semibold uppercase leading-none tracking-wider text-[var(--ink)]/70">Grinder</span>
         <input value={recipe.grinder ?? GRINDER_DEFAULTS.grinder} disabled={!editable} placeholder="Grinder"
           list="recent-grinders" onFocus={() => setGrinders(recentGrinders())}
           onChange={(e) => {
@@ -144,13 +149,14 @@ export function RecipePanel({
             const switching = isMotto80(recipe.grinder) !== isMotto80(v);
             onChange(hit ? { ...clear, ...hit } : switching ? { ...clear, grinder: v } : { grinder: v });
           }} aria-label="Grinder"
-          className="h-11 landscape:h-9 min-w-0 rounded-md border border-[var(--ink)]/20 bg-transparent px-2.5 text-base text-[var(--ink)] tabular-nums placeholder:text-[var(--ink)]/50 disabled:opacity-60" />
+          className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)]/45 disabled:opacity-60 truncate" />
+        </label>
         <datalist id="recent-grinders">{grinders.map((g) => <option key={g.grinder} value={g.grinder} />)}</datalist>
         {/* Bluetooth link to the Motto 80 (read only): on = fields follow the grinder; off frees it for the BOOKOO app */}
         {motto && <button type="button" onClick={onToggleGrinder}
           aria-label={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
           title={grinderLink === "on" ? "Disconnect grinder" : grinderLink === "lost" ? "Reconnect grinder" : "Connect grinder"}
-          className={`flex h-11 w-11 landscape:h-9 landscape:w-9 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
+          className={`flex h-14 w-11 landscape:h-12 items-center justify-center rounded-md border active:scale-95 disabled:opacity-30 ${
             grinderLink === "on"
               ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
               : grinderLink === "lost"
@@ -164,18 +170,20 @@ export function RecipePanel({
       <div className={`grid gap-2 ${motto ? "grid-cols-3" : "grid-cols-2"}`}>
         {(motto
           ? ([
-            ["grindUm", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
-            ["feed", "feed", 10, 65, GRINDER_DEFAULTS.feed],
-            ["rpm", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
+            ["grindUm", "Grind", "µm", 50, 1500, GRINDER_DEFAULTS.grindUm],
+            ["feed", "Feed", "", 10, 65, GRINDER_DEFAULTS.feed],
+            ["rpm", "Speed", "rpm", 500, 1500, GRINDER_DEFAULTS.rpm],
           ] as const)
           : ([
-            ["grindSetting", "grind", 0, 10000, null],
-            ["rpm", "rpm (optional)", 0, 5000, null],
+            ["grindSetting", "Grind", "", 0, 10000, null],
+            ["rpm", "Speed (optional)", "rpm", 0, 5000, null],
           ] as const)
-        ).map(([key, unit, min, max, def]) => (
-          <label key={key} className="flex h-11 landscape:h-9 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5">
+        ).map(([key, name, unit, min, max, def]) => (
+          <label key={key} className="flex h-14 landscape:h-12 min-w-0 flex-col justify-center rounded-md border border-[var(--ink)]/20 px-2.5">
+            <span className="text-xs font-semibold uppercase leading-none tracking-wider text-[var(--ink)]/70">{name}</span>
+            <span className="flex items-baseline gap-1">
             <input type="number" inputMode="decimal" step="any" min={min} max={max} disabled={!editable}
-              value={recipe[key] ?? ""} placeholder={def != null ? String(def) : "—"} aria-label={unit}
+              value={recipe[key] ?? ""} placeholder={def != null ? String(def) : "—"} aria-label={name}
               onChange={(e) => {
                 // Not clamped while typing (typing 150 passes through 1 and 15)
                 const v = e.target.value === "" ? undefined : Number(e.target.value);
@@ -185,16 +193,18 @@ export function RecipePanel({
                 const v = recipe[key];
                 if (v != null) onChange({ [key]: Math.min(max, Math.max(min, v)) } as Partial<Recipe>);
               }}
-              className="w-full min-w-0 bg-transparent text-base font-semibold text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)]/40 disabled:opacity-60" />
-            <span className="shrink-0 text-xs text-[var(--ink)]/70">{unit}</span>
+              // The default (what the shot uses when left empty) reads as a value, not as a hint
+              className="w-full min-w-0 bg-transparent text-lg font-extrabold leading-tight text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink)] disabled:opacity-60" />
+            {unit && <span className="shrink-0 text-xs text-[var(--ink)]/70">{unit}</span>}
+            </span>
           </label>
         ))}
       </div>
       <div className="landscape:text-xs">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-        <label className="flex h-8 cursor-pointer items-center gap-2.5 px-1 text-sm text-[var(--ink)]/75">
+        <label className="flex min-h-11 landscape:min-h-9 cursor-pointer items-center gap-3 px-1 text-sm text-[var(--ink)]/75">
           <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-            className="h-5 w-5 shrink-0 accent-[var(--ink)]" />
+            className="h-6 w-6 shrink-0 accent-[var(--ink)]" />
           <span className="truncate">Auto brew at target temperature</span>
         </label>
       </div>

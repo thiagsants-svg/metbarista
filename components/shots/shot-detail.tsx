@@ -71,7 +71,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
     <article className="space-y-5">
       <header className="flex items-start gap-3">
         <button type="button" onClick={onBack} aria-label="All shots"
-          className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95 lg:hidden">
+          className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95 lg:hidden">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0">
@@ -208,30 +208,38 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
         ))}
       </div>
 
-      <div className="mt-3"><TasteCompass value={point} onChange={setPoint} size={180} /></div>
-
-      <div className="mt-3 flex items-center gap-3">
-        <label className="flex h-12 w-40 shrink-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">TDS</span>
-          <input type="text" inputMode="decimal" value={tdsInput} placeholder="—" aria-label="TDS (%)"
-            onChange={(e) => setTdsInput(e.target.value.replace(/[^\d.,]/g, ""))}
-            className="w-full min-w-0 bg-transparent text-right text-lg font-bold tabular-nums outline-none placeholder:text-[var(--ink)]/40" />
-          <span className="text-sm text-[var(--ink)]/70">%</span>
-        </label>
-        <p className="text-sm text-[var(--ink)]/75">
-          {ey != null ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b></> : "Refractometer reading, if any"}
-        </p>
-      </div>
-
-      {/* The brew chart follows the TDS as you type it (saved or not) */}
-      {tds != null && ey != null && (
-        <div className="mt-3">
-          <BrewChart shot={{ tds, ey }} past={pastBrews} target={targetFor(row.sum.patch.ratio)} />
+      {/* The same two cards as the Station's rating: the taste on the compass, the extraction on the
+          brew chart (drawn before there's a TDS; it follows the TDS as you type it, saved or not) */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <section className="flex flex-col rounded-lg border border-[var(--ink)]/15 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Taste</p>
+          <div className="flex flex-1 items-center justify-center">
+            <TasteCompass value={point} onChange={setPoint} size={200} />
+          </div>
+        </section>
+        <section className="flex min-w-0 flex-col rounded-lg border border-[var(--ink)]/15 p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
+            <p className="min-w-0 truncate text-sm text-[var(--ink)]/75">
+              {ey != null ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b></> : "Optional"}
+            </p>
+          </div>
+          <label className="mt-2 flex h-12 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">TDS</span>
+            <input type="text" inputMode="decimal" value={tdsInput} placeholder="—" aria-label="TDS (%)"
+              onChange={(e) => setTdsInput(e.target.value.replace(/[^\d.,]/g, ""))}
+              className="w-full min-w-0 bg-transparent text-right text-lg font-bold tabular-nums outline-none placeholder:text-[var(--ink)]/40" />
+            <span className="text-sm text-[var(--ink)]/70">%</span>
+          </label>
+          <div className="mt-2 flex flex-1 items-center">
+            <BrewChart shot={tds != null && ey != null ? { tds, ey } : null} past={pastBrews} target={targetFor(row.sum.patch.ratio)}
+              ratio={row.sum.patch.dose ? row.sum.weight / row.sum.patch.dose : row.sum.patch.ratio} />
+          </div>
           {pastBrews.length > 0 && (
-            <p className="text-xs text-[var(--ink)]/60">Big dot: this shot · open dots: earlier shots of this coffee</p>
+            <p className="text-xs text-[var(--ink)]/60">Open dots: earlier shots of this coffee, joined in order</p>
           )}
-        </div>
-      )}
+        </section>
+      </div>
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2}
         placeholder="Tasting notes: chocolate, a bit sour…"

@@ -9,10 +9,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Wrench, X } from "lucide-react";
-import { beforeAfter, summarise, weekly, type LiftReading } from "@/lib/piston";
+import { beforeAfter, DUE_RISE, outlook, SOON_RISE, summarise, weekly, type LiftReading } from "@/lib/piston";
 import {
-  addMaintenance, cachedReadings, daySec, deleteMaintenance, listMaintenance, updateReadings,
-  MAINTENANCE_LABEL, type Maintenance, type MaintenanceKind,
+  addMaintenance, cachedReadings, daySec, deleteMaintenance, listMaintenance, loadIntervals, maintenanceCounts,
+  saveIntervals, shotTimes, updateReadings, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
 } from "@/lib/piston-store";
 
 const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -33,6 +33,7 @@ export function PistonCard() {
   const [adding, setAdding] = useState(false);
   const [day, setDay] = useState(today);
   const [kind, setKind] = useState<MaintenanceKind>("grease");
+  const [intervals, setIntervals] = useState<Intervals>(() => (typeof window === "undefined" ? { grease: 100, descale: 200 } : loadIntervals()));
 
   // Measure the shots not measured yet (all of them the first time)
   useEffect(() => {
@@ -49,6 +50,21 @@ export function PistonCard() {
   const sum = useMemo(() => summarise(readings), [readings]);
   const last = log.at(-1);
   const since = useMemo(() => (last ? beforeAfter(readings, daySec(last.day)) : null), [readings, last]);
+  // Since the last maintenance (or the first shot): pace, levels and when it gets due
+  const out = useMemo(() => outlook(readings, last ? daySec(last.day) : null), [readings, last]);
+  // Every shot read, measured or not (read again as the readings come in)
+  const times = useMemo(() => (typeof window === "undefined" || !readings.length ? [] : shotTimes()), [readings]);
+  const counts = useMemo(() => maintenanceCounts(times, log, intervals), [times, log, intervals]);
+  const setEvery = (k: keyof Intervals, v: number) => {
+    const next = { ...intervals, [k]: Math.max(10, Math.min(2000, v)) };
+    setIntervals(next);
+    saveIntervals(next);
+  };
+  const STATUS = {
+    ok: { text: "OK", cls: "bg-[var(--good)]/15 text-[var(--good)]" },
+    soon: { text: "Maintenance soon", cls: "bg-[var(--warn)]/15 text-[var(--warn)]" },
+    due: { text: "Maintenance due", cls: "bg-[var(--bad)]/15 text-[var(--bad)]" },
+  } as const;
 
   const section = "mt-6 text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70";
   const tile = (label: string, value: string, sub?: string) => (
@@ -63,7 +79,7 @@ export function PistonCard() {
   const x0 = weeks[0]?.start ?? 0;
   const x1 = Math.max(x0 + 1, weeks.at(-1)?.start ?? 1);
   const lo = Math.min(...weeks.map((w) => w.amps));
-  const hi = Math.max(...weeks.map((w) => w.amps));
+  const hi = Math.max(...weeks.map((w) => w.amps), out?.soon ?? 0);
   const y0 = Math.floor((lo - 0.1) * 10) / 10;
   const y1 = Math.ceil((hi + 0.1) * 10) / 10;
   const sx = (ms: number) => PAD.l + ((ms - x0) / (x1 - x0)) * (W - PAD.l - PAD.r);
@@ -121,6 +137,12 @@ export function PistonCard() {
                     </g>
                   );
                 })}
+                {out && ([["soon", out.soon], ["due", out.due]] as const).map(([label, a]) => a <= y1 && (
+                  <g key={label}>
+                    <line x1={PAD.l} x2={W - PAD.r} y1={sy(a)} y2={sy(a)} stroke={label === "due" ? "var(--bad)" : "var(--warn)"} strokeDasharray="6 4" strokeWidth={1.5} />
+                    <text x={W - PAD.r - 2} y={sy(a) - 4} textAnchor="end" fontSize={11} fill={label === "due" ? "var(--bad)" : "var(--warn)"}>{label}</text>
+                  </g>
+                ))}
                 <polyline fill="none" stroke="var(--primary)" strokeWidth={2.5} strokeLinejoin="round"
                   points={weeks.map((w) => `${sx(w.start)},${sy(w.amps)}`).join(" ")} />
                 {weeks.map((w) => (
@@ -144,9 +166,57 @@ export function PistonCard() {
                 : <>Logged {MAINTENANCE_LABEL[last.kind].toLowerCase()} on {fmtDay(daySec(last.day) * 1000)}: the change shows after a few shots.</>}
             </p>
           )}
+
+          {out && (
+            <div className="mt-3 rounded-md border border-[var(--ink)]/15 px-3 py-2">
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${STATUS[out.status].cls}`}>{STATUS[out.status].text}</span>
+                <span className="text-base tabular-nums">
+                  Since {last ? `the ${MAINTENANCE_LABEL[last.kind].toLowerCase()} on ${fmtDay(out.from * 1000)}` : `the first shot (${fmtDay(out.from * 1000)})`}:{" "}
+                  <b>{out.base.toFixed(2)} → {out.now.toFixed(2)} A</b> <span className="text-[var(--ink)]/75">({pct(out.change)})</span>
+                </span>
+              </p>
+              <p className="mt-1 text-sm tabular-nums text-[var(--ink)]/80">
+                {out.perMonth == null
+                  ? "The pace shows after two weeks of shots."
+                  : <>Rising <b>{pct(out.perMonth)}</b> a month.{" "}
+                    {out.dueIn ? <>At this pace it reaches the due level in <b>~{out.dueIn.days} days</b> (~{out.dueIn.shots} shots).</>
+                      : out.status === "due" ? "It's past the due level." : "It isn't rising, so no date."}</>}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-[var(--ink)]/65">
+                Soon at {out.soon.toFixed(2)} A (+{Math.round(SOON_RISE * 100)}%), due at {out.due.toFixed(2)} A (+{Math.round(DUE_RISE * 100)}%), over the level right after the last maintenance. Your machine sets the right levels: compare once you&apos;ve seen a whole cycle.
+              </p>
+            </div>
+          )}
         </>
       ) : !progress && !error && (
         <p className="mt-2 text-sm text-[var(--ink)]/70">Not enough shots measured yet.</p>
+      )}
+
+      {/* Shots since the last grease and descale, against intervals you set */}
+      {times.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          {counts.map((c) => (
+            <div key={c.kind} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className={`w-20 font-semibold ${c.due ? "text-[var(--bad)]" : ""}`}>{c.kind === "grease" ? "Grease" : "Descale"}</span>
+              <span className="tabular-nums">
+                <b className={`text-lg ${c.due ? "text-[var(--bad)]" : ""}`}>{c.shots}</b> shots since {c.lastDay ? fmtDay(daySec(c.lastDay) * 1000) : "the first shot (never logged)"}
+              </span>
+              <span className="ml-auto flex items-center gap-1 tabular-nums text-[var(--ink)]/75">
+                every
+                <button type="button" onClick={() => setEvery(c.kind, c.every - 10)} aria-label={`Fewer shots between each ${c.kind}`}
+                  className="h-8 w-8 rounded-full border border-[var(--ink)]/25 font-bold active:scale-95">−</button>
+                <b className="w-10 text-center text-[var(--ink)]">{c.every}</b>
+                <button type="button" onClick={() => setEvery(c.kind, c.every + 10)} aria-label={`More shots between each ${c.kind}`}
+                  className="h-8 w-8 rounded-full border border-[var(--ink)]/25 font-bold active:scale-95">+</button>
+              </span>
+            </div>
+          ))}
+          <p className="text-xs text-[var(--ink)]/60">
+            Starting intervals: set your own. It only counts shots; when in doubt, follow{" "}
+            <a href="https://meticuloushome.com/pages/maintenance-and-repairs" target="_blank" rel="noreferrer" className="underline underline-offset-2">Meticulous&apos;s maintenance advice</a>.
+          </p>
+        </div>
       )}
 
       {/* Maintenance log */}
@@ -191,7 +261,9 @@ export function PistonCard() {
       <p className="mt-3 text-xs text-[var(--ink)]/60">
         Method from{" "}
         <a href="https://github.com/hessius/ha-meticulous" target="_blank" rel="noreferrer" className="underline underline-offset-2">ha-meticulous</a>
-        {" "}by hessius (MIT). Machines differ: compare yours with itself over time, not with a fixed number.
+        {" "}by hessius (MIT); pace, levels, forecast and counter after{" "}
+        <a href="https://github.com/cjborchert/ha-meticulous-cards" target="_blank" rel="noreferrer" className="underline underline-offset-2">ha-meticulous-cards</a>
+        {" "}by cjborchert (MIT). Machines differ: compare yours with itself over time, not with a fixed number.
       </p>
     </section>
   );

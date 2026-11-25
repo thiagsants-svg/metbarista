@@ -18,6 +18,7 @@ import {
   LOCAL_NETWORK_PERMISSION_TIMEOUT_MS,
   localNetworkRequestInit,
 } from "./local-network";
+import { cupWeight } from "./cup-weight";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_HISTORY_RESULT_LIMIT = 20;
@@ -259,7 +260,8 @@ export function computeShotStats(frames: ShotFrame[]): ShotStats {
     durationSec: Math.round(durationMs / 1000),
     maxPressure: pressures.length ? Math.max(...pressures) : 0,
     maxFlow: flows.length ? Math.max(...flows) : 0,
-    finalWeight: weights.length ? Math.max(...weights) : 0,
+    // What reached the cup: the last drops in, a lifted or swapped cup out
+    finalWeight: weights.length ? cupWeight(frames) : 0,
     avgTemp: temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : 0,
     phases,
     dataPoints: frames.length,

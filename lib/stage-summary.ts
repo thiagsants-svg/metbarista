@@ -8,6 +8,7 @@
  */
 
 import type { ExitTrigger, Profile, ShotFrame } from "./types";
+import { cupWeight } from "./cup-weight";
 
 /** Stages that fill or soak the puck */
 export const PREP_STAGE = /fill|bloom|soak|infus|wet|satur|landing|preinf/i;
@@ -68,7 +69,7 @@ export function stageSummary(frames: ShotFrame[], profile?: Profile): StageSumma
   const shotEnd = runs.at(-1)!.f.at(-1)!.time;
   const finalWeight = num(profile?.final_weight);
   // What reached the cup, the last drops included (the machine stops a little early, expecting them)
-  const cup = Math.max(0, ...frames.map((x) => num(x.shot?.weight) ?? 0));
+  const cup = cupWeight(frames);
 
   const stages: StageRow[] = runs.map((run, i) => {
     const st = profile?.stages?.find((s) => s.name === run.name);

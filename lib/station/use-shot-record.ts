@@ -21,6 +21,7 @@ import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 import { shotFacts, type ShotFact } from "@/lib/shot-facts";
+import { cupWeight } from "@/lib/cup-weight";
 import type { Body } from "@/lib/taste-compass";
 
 export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, data, linkRef, setError }: {
@@ -50,6 +51,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
   const shotFoundRef = useRef<Promise<ShotEntry | null> | null>(null);
   /** What the curves of the shot that just ended show (null until it's saved) */
   const [lastFacts, setLastFacts] = useState<ShotFact[] | null>(null);
+  /** What reached the cup in the shot that just ended, the last drops included (null until it's saved) */
+  const [lastCup, setLastCup] = useState<number | null>(null);
 
   /** Shows the last shots on the idle screen, then their faces from the machine */
   function showRecent(list: CoffeeLastShot[]) {
@@ -73,8 +76,14 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       savePlan(saved);
       setNextPlan(saved);
     }
-    // The taste also goes in the shot's notes (Shots page)
-    const shotWeight = data[data.length - 1]?.weight ?? 0;
+    // The shot is found by its number once the machine saves it (see waitForShot)
+    const shot = await (shotFoundRef.current ??= waitForShot());
+    if (!shot) {
+      setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
+      return;
+    }
+    // The taste also goes in the shot's notes (Shots page); EY on what reached the cup
+    const shotWeight = cupWeight(shot.data ?? []) || (data[data.length - 1]?.weight ?? 0);
     const note = composeShotNote({
       taste: plan?.taste,
       body,
@@ -82,12 +91,6 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       ey: tds != null ? extractionYield(tds, shotWeight, recipe.dose) ?? undefined : undefined,
       text: rawNote,
     });
-    // The shot is found by its number once the machine saves it (see waitForShot)
-    const shot = await (shotFoundRef.current ??= waitForShot());
-    if (!shot) {
-      setError("Couldn't save the rating: the shot isn't in the machine's history yet. Add it on the Shots page.");
-      return;
-    }
     if (note) saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, note);
     // The plan also stays with the shot (the Shots page shows what was decided after it)
     if (plan) saveShotPlan(shot.time, plan);
@@ -149,6 +152,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
       shotStartedAtRef.current = Date.now();
       shotFoundRef.current = null;
       setLastFacts(null);
+      setLastCup(null);
       keyBeforeShotRef.current = null;
       getHistory(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
       // A frozen single dose of this coffee went into the shot
@@ -164,7 +168,12 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     rateDueRef.current = true;
     // Not cancelled on re-render: the record must happen once the machine has saved the shot
     shotFoundRef.current = waitForShot();
-    shotFoundRef.current.then((s) => { if (s) setLastFacts(shotFacts(s.data ?? [], s.profile?.stages ?? [])); }).catch(() => { /* no facts */ });
+    shotFoundRef.current.then((s) => {
+      if (!s) return;
+      setLastFacts(shotFacts(s.data ?? [], s.profile?.stages ?? []));
+      const cup = cupWeight(s.data ?? []);
+      if (cup > 0) setLastCup(cup);
+    }).catch(() => { /* no facts */ });
   // showRecent only uses state setters
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brewing, demo, profiles, recipe.grinder]);
@@ -180,5 +189,5 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     setRateOpen(true);
   }, [purgeAsked]);
 
-  return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts };
+  return { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts, lastCup };
 }

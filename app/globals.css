@@ -114,3 +114,12 @@
     to { transform: translateY(26px); opacity: 0; }
   }
 }
+
+/* Station: stripes running along the pressure bar while it depressurizes */
+@theme {
+  --animate-bar-stripes: bar-stripes 0.9s linear infinite;
+  @keyframes bar-stripes {
+    from { background-position: 0 0; }
+    to { background-position: 20px 0; }
+  }
+}

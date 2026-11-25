@@ -34,7 +34,7 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
 
       {/* Profile image or accent bar */}
       {imageUrl ? (
-        <div className="relative h-36 overflow-hidden bg-[var(--paper)]">
+        <div className="relative h-20 overflow-hidden bg-[var(--paper)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
@@ -50,30 +50,31 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
         </div>
       ) : (
         /* No official photo → generative fingerprint */
-        <div className="relative h-36 overflow-hidden bg-[var(--paper)]">
-          <ProfileFingerprint profile={profile} height={144} accent={accent} />
+        <div className="relative h-20 overflow-hidden bg-[var(--paper)]">
+          <ProfileFingerprint profile={profile} height={80} accent={accent} />
           {/* subtle dark overlay so card text stays readable */}
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--paper)] via-transparent to-transparent opacity-60" />
         </div>
       )}
 
-      <div className={`px-4 pb-4 space-y-3 ${imageUrl ? "" : "pt-2"}`}>
+      {/* Shorter card, bigger words: more profiles per screen, and readable */}
+      <div className={`px-3 pb-3 space-y-2 ${imageUrl ? "" : "pt-2"}`}>
         {/* Header row */}
         <div className="min-w-0">
-          <h3 className="font-semibold text-sm text-[var(--ink)] truncate group-hover:text-[var(--accent)] transition-colors leading-snug">
+          <h3 className="font-semibold text-base text-[var(--ink)] truncate group-hover:text-[var(--accent)] transition-colors leading-snug">
             {profile.name}
           </h3>
-          <p className="text-xs text-[var(--ink)]/60 mt-0.5">{profile.author}</p>
+          <p className="text-sm text-[var(--ink)]/65">{profile.author}</p>
         </div>
 
         {profile.display?.shortDescription && (
-          <p className="text-xs text-[var(--ink)]/70 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-[var(--ink)]/75 line-clamp-2 leading-snug">
             {profile.display.shortDescription}
           </p>
         )}
 
-        {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-[var(--ink)]/60">
+        {/* Numbers and stage kinds on one row */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--ink)]/70">
           <span className="flex items-center gap-1">
             <Thermometer className="h-3 w-3" />{profile.temperature}°C
           </span>
@@ -83,23 +84,18 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
           <span className="flex items-center gap-1">
             <Layers className="h-3 w-3" />{profile.stages?.length ?? 0} stages
           </span>
-        </div>
-
-        {/* Stage badges */}
-        <div className="flex flex-wrap gap-1.5">
-          {stageTypes.map((t) => {
-            const c = STAGE_COLORS[t] ?? { bg: "rgba(255,255,255,0.08)", text: "#fafafa" };
-            return (
-              <span key={t} className="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize"
-                style={{ backgroundColor: c.bg, color: c.text }}>{t}</span>
-            );
-          })}
+          {/* The kind's color as a dot, the word in ink (light blue words were hard to read on paper) */}
+          {stageTypes.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 text-xs font-semibold capitalize text-[var(--ink)]/80">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (STAGE_COLORS[t] ?? { text: "#888" }).text }} />{t}
+            </span>
+          ))}
         </div>
 
         {onLoad && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLoad(profile); }}
-            className="w-full rounded-lg border border-[var(--ink)]/15 bg-[var(--ink)]/[0.05] py-1.5 text-xs font-medium text-[var(--ink)]/70 hover:bg-[var(--primary)]/10 hover:border-[var(--accent)]/40 hover:text-[var(--accent)] transition-all"
+            className="h-11 w-full rounded-lg border border-[var(--ink)]/15 bg-[var(--ink)]/[0.05] text-sm font-semibold text-[var(--ink)]/70 hover:bg-[var(--primary)]/10 hover:border-[var(--accent)]/40 hover:text-[var(--accent)] transition-all"
           >
             Load to Machine ↑
           </button>

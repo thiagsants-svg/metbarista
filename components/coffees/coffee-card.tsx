@@ -8,8 +8,13 @@ import { listPhotos } from "@/lib/coffee-photos";
 import { findLastShotForCoffee } from "@/lib/coffee-history";
 import { daysAgo, STATUS_LABEL, type Coffee } from "@/lib/coffees";
 
-export function CoffeeCard({ coffee, refresh, onOpen }: {
+/** What the machine's shots say about a coffee (read on the Coffees page) */
+export interface MachineCoffee { shots: number; when: number; grind: string | null }
+
+export function CoffeeCard({ coffee, refresh, onOpen, machine }: {
   coffee: Coffee;
+  /** From the machine's shots: counts on any device, not only where the shots were made */
+  machine?: MachineCoffee;
   /** Changes when photos may have changed */
   refresh: number;
   onOpen: () => void;
@@ -22,7 +27,11 @@ export function CoffeeCard({ coffee, refresh, onOpen }: {
   }, [coffee.key, refresh]);
   // This device's record of the coffee's last shot (no machine call)
   const last = findLastShotForCoffee(coffee.name, [], []);
-  const grind = last?.patch.grindUm != null ? `${last.patch.grindUm} µm` : last?.patch.grindSetting != null ? `grind ${last.patch.grindSetting}` : null;
+  const localGrind = last?.patch.grindUm != null ? `${last.patch.grindUm} µm` : last?.patch.grindSetting != null ? `grind ${last.patch.grindSetting}` : null;
+  // The newer of the two records
+  const useMachine = !!machine && (!last || machine.when >= last.when);
+  const lastWhen = useMachine ? machine!.when : last?.when;
+  const grind = useMachine ? machine!.grind : localGrind;
 
   return (
     <button type="button" onClick={onOpen}
@@ -48,9 +57,9 @@ export function CoffeeCard({ coffee, refresh, onOpen }: {
         {coffee.status === "open" && coffee.thawedAt && (
           <p className="truncate text-xs font-semibold text-[var(--accent)]">Thawed {daysAgo(coffee.thawedAt)}</p>
         )}
-        <p className="mt-1 truncate text-xs tabular-nums text-[var(--ink)]/60">
-          {last
-            ? `Last shot ${new Date(last.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${grind ? ` · ${grind}` : ""}`
+        <p className="mt-1 truncate text-sm tabular-nums text-[var(--ink)]/70">
+          {lastWhen
+            ? `${machine ? `${machine.shots} shot${machine.shots === 1 ? "" : "s"} · ` : ""}last ${new Date(lastWhen).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${grind ? ` · ${grind}` : ""}`
             : "No shots yet"}
         </p>
       </div>

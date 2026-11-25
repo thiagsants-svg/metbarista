@@ -119,10 +119,10 @@ export default function StatsPage() {
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {tile("Shots", String(stats.shots))}
               {tile("Coffee used", `${Math.round(stats.grams)} g`, stats.dosed < stats.shots
-                ? `from the ${stats.dosed} shots with a dose (Station)`
+                ? `only the ${stats.dosed} of ${stats.shots} shots with a dose (Station)`
                 : stats.grams >= 250 ? `≈ ${(stats.grams / 250).toFixed(1)} bags of 250 g` : undefined)}
               {tile("Liked", stats.rated ? `${Math.round((stats.liked / stats.rated) * 100)}%` : "—",
-                stats.rated ? `${stats.liked} of ${stats.rated} rated` : "no shots rated")}
+                stats.rated ? `${stats.liked} liked of ${stats.rated} rated · ${stats.shots - stats.rated} not rated` : "no shots rated")}
               {tile("Average EY", stats.ey ? `${stats.ey.avg.toFixed(1)}%` : "—",
                 stats.ey ? `${stats.ey.n} reading${stats.ey.n === 1 ? "" : "s"}` : "no TDS readings")}
             </div>
@@ -133,7 +133,7 @@ export default function StatsPage() {
               {stats.buckets.map((b) => (
                 <div key={b.start} className="flex h-full min-w-0 flex-1 flex-col justify-end"
                   title={`${fmtDay(b.start)}: ${b.shots} shot${b.shots === 1 ? "" : "s"}, ${Math.round(b.grams)} g`}>
-                  {b.shots > 0 && <span className="text-center text-[10px] tabular-nums text-[var(--ink)]/70">{b.shots}</span>}
+                  {b.shots > 0 && <span className="text-center text-xs tabular-nums text-[var(--ink)]/70">{b.shots}</span>}
                   <div className="rounded-t-sm bg-[var(--primary)]" style={{ height: `${(b.shots / maxBar) * 85}%` }} />
                 </div>
               ))}

@@ -14,7 +14,9 @@ import { BackupButton } from "@/components/backup-panel";
 import { BrandMark } from "@/components/brand-mark";
 import type { StatusPill, ThemeName } from "@/lib/station/format";
 
-export const headerButton = "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95";
+export const headerButton = "flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5 text-[var(--ink)]/75 active:scale-95";
+/** The word beside a header icon: from tablet width (on phones the icon alone) */
+export const headerWord = "hidden text-sm font-semibold md:inline";
 
 export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleTheme, extra }: {
   title: string;
@@ -47,6 +49,7 @@ export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleThem
         : <span className={pillClass}>{pillBody}</span>}
       <button aria-label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={onToggleTheme} className={headerButton}>
         {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        <span className={headerWord}>{theme === "dark" ? "Light" : "Dark"}</span>
       </button>
       {extra}
     </header>
@@ -72,6 +75,7 @@ function FullscreenButton() {
         else document.documentElement.requestFullscreen().catch(() => {});
       }}>
       {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+      <span className={headerWord}>{fullscreen ? "Exit" : "Full screen"}</span>
     </button>
   );
 }

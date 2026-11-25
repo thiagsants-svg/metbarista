@@ -64,7 +64,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             const here = path.startsWith(href);
             return (
               <Link key={href} href={href} aria-current={here ? "page" : undefined}
-                className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+                className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-xs font-semibold ${
                   here ? "text-[var(--ink)]" : "text-[var(--ink)]/60"}`}>
                 {here && <span className="absolute top-0 h-1 w-10 rounded-b bg-[var(--primary)]" />}
                 <Icon className="h-5 w-5" />

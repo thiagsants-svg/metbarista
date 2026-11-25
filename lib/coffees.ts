@@ -61,11 +61,12 @@ function writeAll(all: Record<string, Coffee>): void {
  * Every coffee: the ones saved here and the ones only brewed on the Station,
  * in the order you last brewed them (never brewed ones last, newest first).
  */
-export function listCoffees(): Coffee[] {
+export function listCoffees(brewed: string[] = []): Coffee[] {
   const saved = readAll();
   const out: Coffee[] = [];
   const seen = new Set<string>();
-  for (const name of recentBeans()) {
+  // Brewed here first, then the coffees the machine's shots carry (brewed on another device)
+  for (const name of [...recentBeans(), ...brewed]) {
     const key = coffeeKey(name);
     if (!key || seen.has(key)) continue;
     seen.add(key);

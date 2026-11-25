@@ -68,6 +68,44 @@ export async function updateReadings(
 
 // ── Maintenance log ──────────────────────────────────────────
 
+/** Every shot read so far (unix seconds), measured or not: to count shots since a maintenance */
+export function shotTimes(): number[] {
+  return Object.values(readCache()).map(([t]) => t).sort((a, b) => a - b);
+}
+
+// ── Maintenance counter (idea from ha-meticulous-cards by cjborchert, MIT) ──
+
+const INTERVALS_KEY = "metbarista_maintenance_intervals";
+/** Shots between greasing and between descaling: starting values, set your own */
+export const DEFAULT_INTERVALS = { grease: 100, descale: 200 };
+export type Intervals = typeof DEFAULT_INTERVALS;
+
+export function loadIntervals(): Intervals {
+  try { return { ...DEFAULT_INTERVALS, ...JSON.parse(localStorage.getItem(INTERVALS_KEY) ?? "{}") }; } catch { return DEFAULT_INTERVALS; }
+}
+export function saveIntervals(v: Intervals): void {
+  try { localStorage.setItem(INTERVALS_KEY, JSON.stringify(v)); } catch { /* storage full */ }
+}
+
+export interface MaintenanceCount {
+  kind: "grease" | "descale";
+  /** The last one logged (YYYY-MM-DD), or null: counted from the first shot */
+  lastDay: string | null;
+  shots: number;
+  every: number;
+  due: boolean;
+}
+
+/** Shots since the last grease and the last descale, against their intervals */
+export function maintenanceCounts(times: number[], log: Maintenance[], intervals: Intervals): MaintenanceCount[] {
+  return (["grease", "descale"] as const).map((kind) => {
+    const lastDay = log.filter((m) => m.kind === kind).map((m) => m.day).sort().at(-1) ?? null;
+    const from = lastDay ? daySec(lastDay) : -Infinity;
+    const shots = times.filter((t) => t >= from).length;
+    return { kind, lastDay, shots, every: intervals[kind], due: shots >= intervals[kind] };
+  });
+}
+
 export type MaintenanceKind = "grease" | "descale" | "other";
 export const MAINTENANCE_LABEL: Record<MaintenanceKind, string> = {
   grease: "Greased the piston",

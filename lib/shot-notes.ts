@@ -9,7 +9,7 @@ import type { NextPlan } from "./next-plan";
 const STORAGE_KEY = "metbarista_shot_notes";
 
 /** What was decided after tasting a shot */
-export type ShotPlan = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grindDelta">;
+export type ShotPlan = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grind" | "grindWas" | "grindDelta">;
 
 type NoteRecord = { rating: number; note: string; savedAt: number; plan?: ShotPlan };
 type NotesStore = Record<number, NoteRecord>;

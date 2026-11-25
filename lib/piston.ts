@@ -113,3 +113,75 @@ export function beforeAfter(readings: LiftReading[], fromSec: number, span = 15)
   if (after.length < 3 || before.length < 3) return null;
   return { before: median(before.map((r) => r.a)), after: median(after.map((r) => r.a)), n: after.length };
 }
+
+// ── Trend and forecast (idea from ha-meticulous-cards by cjborchert, MIT; our own code) ──
+
+/** Over the level right after the last maintenance: plan it, then do it */
+export const SOON_RISE = 0.3;
+export const DUE_RISE = 0.5;
+const DAY_S = 86_400;
+
+export interface PistonOutlook {
+  /** Where the stretch starts: the last maintenance, or the first shot on record */
+  from: number;
+  /** The level right after it (median of its first shots), A */
+  base: number;
+  /** The level now: median of the last 7 days, or of the last 10 shots, A */
+  now: number;
+  /** now vs base, % */
+  change: number;
+  /** How fast it rises, % of base per month; null with too few shots */
+  perMonth: number | null;
+  soon: number;
+  due: number;
+  status: "ok" | "soon" | "due";
+  /** Days and shots until the due level at this pace; null when it isn't rising */
+  dueIn: { days: number; shots: number } | null;
+}
+
+/** Slope (A per day) that a few odd shots can't swing: the median of the pairwise slopes */
+function medianSlope(points: { d: number; a: number }[]): number {
+  const slopes: number[] = [];
+  const step = Math.max(1, Math.floor(points.length / 150));
+  const pts = points.filter((_, i) => i % step === 0);
+  for (let i = 0; i < pts.length; i++)
+    for (let j = i + 1; j < pts.length; j++)
+      if (pts[j].d - pts[i].d > 0.5) slopes.push((pts[j].a - pts[i].a) / (pts[j].d - pts[i].d));
+  return slopes.length ? median(slopes) : 0;
+}
+
+/**
+ * The stretch since the last maintenance (or since the first shot on record):
+ * the level then and now, how fast it rises, and when it reaches the due level.
+ */
+export function outlook(readings: LiftReading[], lastMaintenanceSec: number | null, nowSec = Date.now() / 1000): PistonOutlook | null {
+  const all = [...readings].sort((a, b) => a.t - b.t);
+  const from = lastMaintenanceSec ?? all[0]?.t;
+  if (from == null) return null;
+  const cycle = all.filter((r) => r.t >= from);
+  if (cycle.length < 5 || cycle.at(-1)!.t - cycle[0].t < 3 * DAY_S) return null;
+  // A pace needs a couple of weeks: over a few days a handful of odd shots would set it
+  const paced = cycle.at(-1)!.t - cycle[0].t >= 14 * DAY_S;
+
+  const base = median(cycle.slice(0, Math.min(10, Math.ceil(cycle.length / 4))).map((r) => r.a));
+  const week = cycle.filter((r) => r.t >= nowSec - 7 * DAY_S);
+  const now = median((week.length >= 3 ? week : cycle.slice(-10)).map((r) => r.a));
+  const slope = paced ? medianSlope(cycle.map((r) => ({ d: (r.t - from) / DAY_S, a: r.a }))) : 0;
+  const soon = base * (1 + SOON_RISE), due = base * (1 + DUE_RISE);
+
+  // Shots a day: the last 30 days of shots measured
+  const month = all.filter((r) => r.t >= nowSec - 30 * DAY_S).length;
+  let dueIn: PistonOutlook["dueIn"] = null;
+  if (paced && slope > 0 && now < due) {
+    const days = (due - now) / slope;
+    dueIn = { days: Math.round(days), shots: Math.round((days * month) / 30) };
+  }
+  return {
+    from, base, now,
+    change: ((now - base) / base) * 100,
+    perMonth: paced ? (slope * 30 / base) * 100 : null,
+    soon, due,
+    status: now >= due ? "due" : now >= soon ? "soon" : "ok",
+    dueIn,
+  };
+}

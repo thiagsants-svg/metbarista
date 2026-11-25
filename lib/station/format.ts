@@ -16,6 +16,8 @@ export const THEMES = {
     "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#8a6200",
     "--h0": "#8a6200", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
     "--h5": "#1d4ed8", "--h6": "#7aa2f7",
+    // Status text and tints: OK, soon, due (dark enough to read on paper)
+    "--good": "#047857", "--warn": "#92400e", "--bad": "#9a3412",
   },
   dark: {
     "--paper": "#0a0a0a", "--ink": "#fafafa", "--accent": "#ffc400",
@@ -23,6 +25,8 @@ export const THEMES = {
     "--heat": "#ff8a00", "--water": "#38bdf8", "--weight": "#38bdf8", "--grav": "#ff8a00", "--temp": "#f43f5e",
     "--h0": "#ff8a00", "--h1": "#ffe066", "--h2": "#ffc400", "--h3": "#f43f5e", "--h4": "#c084fc",
     "--h5": "#38bdf8", "--h6": "#2dd4bf",
+    // Light enough to read on black
+    "--good": "#34d399", "--warn": "#fbbf24", "--bad": "#fb923c",
   },
 } as const;
 export type ThemeName = keyof typeof THEMES;

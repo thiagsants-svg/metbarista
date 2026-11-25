@@ -16,6 +16,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { getSavedIp, saveIp, getIpFromUrlParam } from "@/lib/connection-store";
 import { testConnection } from "@/lib/machine-api";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { ShotDemo } from "@/components/home/shot-demo";
 
 const STATION = "/station";
 
@@ -107,6 +108,16 @@ export default function HomePage() {
       </section>
 
       <UsageStrip />
+
+      {/* What it looks like: the Station's live chart on a tablet, playing the demo shot on a loop */}
+      <section className="border-t border-[var(--ink)]/15">
+        <figure className="mx-auto max-w-4xl px-6 py-12">
+          <ShotDemo />
+          <figcaption className="mt-3 text-center text-sm text-[var(--ink)]/70">
+            The Station&apos;s live chart during a shot: pressure, flow and the cup filling, stage by stage (a demo shot).
+          </figcaption>
+        </figure>
+      </section>
 
       {/* What it does */}
       <section className="border-t border-[var(--ink)]/15">

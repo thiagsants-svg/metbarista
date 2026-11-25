@@ -6,11 +6,14 @@
  * finished when the bag is empty (they leave the Station's list).
  */
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { getSavedIp } from "@/lib/connection-store";
+import { getHistoryLight } from "@/lib/machine-api";
+import { shotSummary } from "@/lib/coffee-history";
 import { Plus } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
-import { listCoffees, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
-import { CoffeeCard } from "@/components/coffees/coffee-card";
+import { coffeeKey, listCoffees, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
+import { CoffeeCard, type MachineCoffee } from "@/components/coffees/coffee-card";
 import { CoffeeSheet } from "@/components/coffees/coffee-sheet";
 
 // The shelf lives in this device's storage: read it after the page loads
@@ -25,7 +28,32 @@ export default function CoffeesPage() {
   const [tab, setTab] = useState<CoffeeStatus>("open");
   const [open, setOpen] = useState<Coffee | "new" | null>(null);
 
-  const coffees = ready ? listCoffees() : [];
+  /** Coffees named in the machine's shots, newest first: the shelf fills on any device (read only) */
+  const [brewed, setBrewed] = useState<string[]>([]);
+  /** Per coffee: how many shots, the last one and its grind */
+  const [fromMachine, setFromMachine] = useState<Record<string, MachineCoffee>>({});
+  useEffect(() => {
+    if (!getSavedIp()) return;
+    let alive = true;
+    getHistoryLight(300)
+      .then((h) => {
+        if (!alive) return;
+        const sums = h.map((s) => shotSummary(s)).filter((s) => !!s.coffee);
+        const by: Record<string, MachineCoffee> = {};
+        for (const s of sums) {
+          const k = coffeeKey(s.coffee);
+          const grind = s.patch.grindUm != null ? `${s.patch.grindUm} µm` : s.patch.grindSetting != null ? `grind ${s.patch.grindSetting}` : null;
+          if (!by[k]) by[k] = { shots: 0, when: s.when, grind };
+          by[k].shots++;
+        }
+        setBrewed(sums.map((s) => s.coffee));
+        setFromMachine(by);
+      })
+      .catch(() => { /* the shelf shows what this device knows */ });
+    return () => { alive = false; };
+  }, []);
+
+  const coffees = ready ? listCoffees(brewed) : [];
   const shown = coffees.filter((c) => c.status === tab);
   const count = (s: CoffeeStatus) => coffees.filter((c) => c.status === s).length;
 
@@ -57,7 +85,7 @@ export default function CoffeesPage() {
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {shown.map((c) => <CoffeeCard key={c.key} coffee={c} refresh={version} onOpen={() => setOpen(c)} />)}
+            {shown.map((c) => <CoffeeCard key={c.key} coffee={c} refresh={version} onOpen={() => setOpen(c)} machine={fromMachine[c.key]} />)}
           </div>
         )}
       </div>

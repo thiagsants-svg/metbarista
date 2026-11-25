@@ -28,7 +28,7 @@ function StepBar({ current }: { current: Step }) {
           <div className={`flex items-center gap-1.5 text-xs font-medium ${
             i === idx ? "text-[var(--accent)]" : i < idx ? "text-[var(--ink)]/70" : "text-[var(--ink)]/60"
           }`}>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold ${
               i === idx ? "border-[var(--accent)]/50 bg-[var(--primary)]/15 text-[var(--accent)]"
               : i < idx  ? "border-[var(--accent)]/50 bg-[var(--primary)]/15 text-[var(--ink)]"
               : "border-[var(--ink)]/15 text-[var(--ink)]/60"

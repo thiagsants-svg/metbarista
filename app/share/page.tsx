@@ -152,7 +152,7 @@ function ShareContent() {
                     <div key={l} className="bg-[var(--paper)] rounded-xl p-3 text-center">
                       <Icon className="h-3 w-3 mx-auto text-[var(--ink)]/60 mb-1" />
                       <p className="text-sm font-bold text-[var(--ink)]">{v}</p>
-                      <p className="text-[10px] text-[var(--ink)]/60 mt-0.5">{l}</p>
+                      <p className="text-xs text-[var(--ink)]/60 mt-0.5">{l}</p>
                     </div>
                   ))}
                 </div>
@@ -184,7 +184,7 @@ function ShareContent() {
                       <div className="pb-3 flex-1">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span
-                            className="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize"
+                            className="rounded-full px-2 py-0.5 text-xs font-medium capitalize"
                             style={{ backgroundColor: c.bg, color: c.text }}
                           >
                             {stage.type}
@@ -197,7 +197,7 @@ function ShareContent() {
                             {stage.exit_triggers.map((t, ti) => (
                               <span
                                 key={ti}
-                                className="text-[10px] text-[var(--ink)]/60 border border-[var(--ink)]/15 rounded px-1.5 py-0.5"
+                                className="text-xs text-[var(--ink)]/60 border border-[var(--ink)]/15 rounded px-1.5 py-0.5"
                               >
                                 {t.type}: {t.value}
                               </span>

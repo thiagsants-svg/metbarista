@@ -14,8 +14,25 @@ export interface ShotRowData {
   notes: ShotNoteParts;
   /** Grind change against the coffee's previous shot */
   grindDelta: number | null;
-  /** A flush or a test, not a real shot */
+  /** A flush, a test or a shot stopped with almost nothing in the cup: not a real shot */
   flush: boolean;
+  /** Why it isn't a real shot ("flush", "only 5.3 g") */
+  flushWhy?: string;
+  /** Pressure and weight over the shot, each 0..1, for the small curve */
+  spark?: { p: number[]; w: number[] };
+}
+
+/** The shot's curve in a few pixels: pressure (accent) and the cup filling (weight color) */
+function Spark({ p, w }: { p: number[]; w: number[] }) {
+  const W = 96, H = 32;
+  const line = (v: number[]) => v.map((y, i) => `${i ? "L" : "M"}${((i / Math.max(1, v.length - 1)) * W).toFixed(1)} ${(H - 2 - y * (H - 4)).toFixed(1)}`).join("");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-8 w-24 shrink-0" aria-hidden>
+      <line x1={0} x2={W} y1={H - 1} y2={H - 1} stroke="var(--ink)" strokeOpacity={0.2} />
+      {w.length > 1 && <path d={line(w)} fill="none" stroke="var(--weight)" strokeWidth={1.5} strokeOpacity={0.8} />}
+      {p.length > 1 && <path d={line(p)} fill="none" stroke="var(--accent)" strokeWidth={2} />}
+    </svg>
+  );
 }
 
 export const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -26,8 +43,10 @@ export function grindText(s: CoffeeLastShot): string | null {
   return null;
 }
 
-export function ShotRow({ row, face, showCoffee, selected, onSelect }: {
+export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = false }: {
   row: ShotRowData;
+  /** Under a day header: the time alone */
+  timeOnly?: boolean;
   face: "like" | "dislike" | null | undefined;
   showCoffee: boolean;
   selected: boolean;
@@ -39,12 +58,12 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect }: {
   const grind = grindText(s);
   return (
     <button type="button" onClick={onSelect} aria-current={selected}
-      className={`flex w-full flex-col gap-0.5 border-l-4 px-3 py-2.5 text-left active:bg-[var(--ink)]/[0.05] ${
-        selected ? "border-[var(--primary)] bg-[var(--ink)]/[0.06]" : "border-transparent"} ${row.flush ? "opacity-50" : ""}`}>
+      className={`flex w-full items-center gap-3 border-l-4 px-3 py-2.5 text-left active:bg-[var(--ink)]/[0.05] ${
+        selected ? "border-[var(--primary)] bg-[var(--ink)]/[0.06]" : "border-transparent"} ${row.flush ? "bg-[var(--ink)]/[0.03]" : ""}`}>
+      <span className={`flex min-w-0 flex-1 flex-col gap-0.5 ${row.flush ? "opacity-60" : ""}`}>
       <span className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-        <span className="w-24 shrink-0 text-sm tabular-nums text-[var(--ink)]/75">
-          {when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-          {" · "}
+        <span className={`${timeOnly ? "w-12" : "w-24"} shrink-0 text-sm tabular-nums text-[var(--ink)]/75`}>
+          {!timeOnly && <>{when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" · "}</>}
           {when.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
         </span>
         <span className="flex w-6 shrink-0 self-center justify-center"
@@ -60,7 +79,10 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect }: {
           <span className="text-lg font-extrabold tabular-nums">
             {grind}
             {d != null && d !== 0 && (
-              <span className="ml-1 text-xs font-semibold text-[var(--accent)]">{d > 0 ? `+${d}` : `−${Math.abs(d)}`}</span>
+              <span className="ml-1 text-xs font-semibold text-[var(--accent)]"
+                title={`${d > 0 ? "Coarser" : "Finer"} than this coffee's shot before`}>
+                {d > 0 ? `+${d}` : `−${Math.abs(d)}`}{s.patch.grindUm != null ? " µm" : ""}
+              </span>
             )}
           </span>
         )}
@@ -74,15 +96,21 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect }: {
             {compassText(notes.taste, notes.body)}
           </span>
         )}
-        {row.flush && <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/60">flush</span>}
+        {row.flush && (
+          <span className="rounded-full border border-dashed border-[var(--ink)]/50 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/80">
+            Not a shot · {row.flushWhy ?? "flush"}
+          </span>
+        )}
       </span>
-      <span className="truncate pl-[7.5rem] text-sm text-[var(--ink)]/70">
+      <span className={`truncate ${timeOnly ? "pl-[4.5rem]" : "pl-[7.5rem]"} text-sm text-[var(--ink)]/70`}>
         {[
           showCoffee ? s.coffee || "No coffee" : null,
           p.dose != null && p.ratio != null ? `${p.dose}g ${formatRatio(p.ratio)} ${p.temperature ?? ""}°C` : s.profileName,
           notes.text || null,
         ].filter(Boolean).join(" · ")}
       </span>
+      </span>
+      {row.spark && <Spark p={row.spark.p} w={row.spark.w} />}
     </button>
   );
 }

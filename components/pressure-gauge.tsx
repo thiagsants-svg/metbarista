@@ -72,7 +72,7 @@ export function Gauge({
             <g key={x}>
               <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="color-mix(in srgb, var(--ink) 45%, transparent)" strokeWidth={1.5} />
               {(x - min) % labelEvery === 0 && (
-                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={9} fill="color-mix(in srgb, var(--ink) 60%, transparent)">{x}</text>
+                <text x={lbl.x} y={lbl.y + 3} textAnchor="middle" fontSize={12} fill="color-mix(in srgb, var(--ink) 70%, transparent)">{x}</text>
               )}
             </g>
           );
@@ -91,14 +91,14 @@ export function Gauge({
 }
 
 export function PressureGauge({ value, color = "var(--accent)" }: { value: number | null | undefined; color?: string }) {
-  return <Gauge label="Pressure" unit="bar" value={value} min={0} max={12} tickEvery={2} labelEvery={4} color={color} />;
+  return <Gauge label="Pressure" unit="bar" value={value} min={0} max={12} tickEvery={2} labelEvery={6} color={color} />;
 }
 
 export function TemperatureGauge({
   value, target, color = "var(--heat)",
 }: { value: number | null | undefined; target?: number | null; color?: string }) {
   return (
-    <Gauge label="Temperature" unit="°C" value={value} min={20} max={100} tickEvery={10} labelEvery={20}
+    <Gauge label="Temperature" unit="°C" value={value} min={20} max={100} tickEvery={10} labelEvery={40}
       color={color} target={target} />
   );
 }

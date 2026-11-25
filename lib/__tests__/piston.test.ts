@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { afterShotLift, beforeAfter, summarise, weekly, weekStart } from "../piston";
+import { afterShotLift, beforeAfter, outlook, summarise, weekly, weekStart } from "../piston";
+import { daySec, maintenanceCounts } from "../piston-store";
 import type { ShotFrame } from "../types";
 
 const frame = (status: string, pos: number, speed: number, drive: number, amps: number, pressure = 0): ShotFrame => ({
@@ -49,5 +50,38 @@ describe("piston after-shot lift", () => {
     expect(s.now).toBe(1.7);
     expect(Math.round(s.change)).toBe(21);
     expect(beforeAfter(readings, t0 + 20 * day)).toEqual({ before: 1.4, after: 1.7, n: 15 });
+  });
+});
+
+describe("piston outlook", () => {
+  const DAY = 86_400;
+  // 1.50 A rising 0.01 A a day for 60 days, 3 shots a day
+  const rising = Array.from({ length: 180 }, (_, i) => ({ t: 1_000_000 + Math.floor(i / 3) * DAY + (i % 3) * 3600, a: 1.5 + Math.floor(i / 3) * 0.01 }));
+
+  it("reads the pace and when it gets due", () => {
+    const o = outlook(rising, null, rising.at(-1)!.t)!;
+    expect(o.base).toBeCloseTo(1.52, 1);
+    expect(o.perMonth!).toBeGreaterThan(15);
+    expect(o.status).toBe("soon");
+    expect(o.dueIn!.days).toBeGreaterThan(10);
+    expect(o.dueIn!.shots).toBeCloseTo(o.dueIn!.days * 3, -1);
+  });
+
+  it("starts again from the last maintenance, and waits for two weeks before a pace", () => {
+    const after = rising.at(-1)!.t - 5 * DAY;
+    const o = outlook(rising, after, rising.at(-1)!.t)!;
+    expect(o.from).toBe(after);
+    expect(o.perMonth).toBeNull();
+    expect(o.dueIn).toBeNull();
+    expect(outlook(rising.slice(0, 3), null)).toBeNull();
+  });
+});
+
+describe("maintenance counter", () => {
+  const times = [daySec("2026-10-01"), daySec("2026-10-05"), daySec("2026-10-06"), daySec("2026-10-07") + 3600];
+  it("counts shots since the last one logged, or since the first shot", () => {
+    const [grease, descale] = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 2, descale: 10 });
+    expect(grease).toMatchObject({ lastDay: "2026-10-06", shots: 2, due: true });
+    expect(descale).toMatchObject({ lastDay: null, shots: 4, due: false });
   });
 });

@@ -147,8 +147,9 @@ export function ShotCharts({
               <div className="pointer-events-none absolute bottom-[30px] left-[28px] right-[40px] top-[22px]">
                 {/* Stands on the time axis. Golden section both ways: as tall as 0.618 of the
                     plot, centered on the line that splits the right 0.618 of its width
-                    (0.382 + 0.618 x 0.618 = 0.764), so it sits off the edge, not on it. */}
-                <div className="absolute bottom-0 left-[76.4%] aspect-[160/354] h-[61.8%] max-w-[34%] -translate-x-1/2">{glass}</div>
+                    (0.382 + 0.618 x 0.618 = 0.764), so it sits off the edge, not on it.
+                    Faded, so the curves read in front of it. */}
+                <div className="absolute bottom-0 left-[76.4%] aspect-[160/354] h-[61.8%] max-w-[34%] -translate-x-1/2 opacity-60">{glass}</div>
               </div>
             )}
             {/* Over the glass, the curves get a thin outline in the background color, to stay readable */}
@@ -344,7 +345,11 @@ export const HeatingProgress = memo(function HeatingProgress({
   clock?: boolean;
 }) {
   const last = samples[samples.length - 1];
+  /** The group's sensors: on a tap (the tube is the one that matters while heating) */
+  const [sensorsOpen, setSensorsOpen] = useState(false);
   const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
+  const others = shown.filter((s) => s.key !== "temp");
+  const eta = heatEta(samples, target, current);
   const values = samples.flatMap((p) => shown.map((s) => p[s.key] as number | undefined))
     .filter((v): v is number => typeof v === "number");
   const lo = Math.floor(Math.min(...values, current ?? Infinity) - 2);
@@ -359,10 +364,18 @@ export const HeatingProgress = memo(function HeatingProgress({
             {current != null ? current.toFixed(1) : "—"}
             <span className="ml-2 text-2xl text-[var(--ink)]/65">{target != null ? `→ ${target} °C` : "°C"}</span>
           </p>
+          {/* How long is left, from how fast it's been climbing */}
+          {eta && <p className="mt-1 text-lg font-semibold text-[var(--ink)]/85">{eta}</p>}
         </div>
+        {others.length > 0 && (
+          <button type="button" onClick={() => setSensorsOpen((o) => !o)} aria-expanded={sensorsOpen}
+            className="h-11 shrink-0 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.97]">
+            {sensorsOpen ? "Hide sensors" : `Sensors (${others.length})`}
+          </button>
+        )}
       </div>
-      {/* Legend with each sensor's current value */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
+      {/* Legend with each sensor's current value, on a tap */}
+      {sensorsOpen && <div className="flex flex-wrap gap-x-4 gap-y-1">
         {shown.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
@@ -372,7 +385,7 @@ export const HeatingProgress = memo(function HeatingProgress({
             </span>
           </span>
         ))}
-      </div>
+      </div>}
       <div className="relative min-h-0 flex-1">
         {samples.length > 1 && (
           <ResponsiveContainer width="100%" height="100%">
@@ -389,7 +402,7 @@ export const HeatingProgress = memo(function HeatingProgress({
                 <ReferenceLine y={target} stroke="var(--ink)" strokeDasharray="6 4" strokeOpacity={0.8}
                   label={{ value: `${target} °C`, position: "insideTopRight", fill: "var(--ink)", fontSize: 12 }} />
               )}
-              {shown.filter((s) => s.key !== "temp").map((s) => (
+              {(sensorsOpen ? others : []).map((s) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
                   strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
               ))}
@@ -403,6 +416,23 @@ export const HeatingProgress = memo(function HeatingProgress({
     </div>
   );
 });
+
+/**
+ * "About 2 min to 94 °C", from how fast the tube climbed over the last ~30 s.
+ * Null until it has climbed for a while, or when it isn't climbing.
+ */
+export function heatEta(samples: HeatPoint[], target: number | null, current: number | null): string | null {
+  if (target == null || current == null || samples.length < 4) return null;
+  if (current >= target - 0.3) return "At temperature";
+  const last = samples[samples.length - 1];
+  const from = samples.find((p) => last.t - p.t <= 30) ?? samples[0];
+  const dt = last.t - from.t;
+  if (dt < 10) return null;
+  const rate = (last.temp - from.temp) / dt; // °C per second
+  if (rate < 0.03) return null;
+  const left = (target - current) / rate;
+  return left < 60 ? `Under a minute to ${target} °C` : `About ${Math.round(left / 60)} min to ${target} °C`;
+}
 
 /**
  * Moving average over the last `windowS` seconds for every sensor, then

@@ -8,6 +8,7 @@
 
 import { useRef, useState, useSyncExternalStore } from "react";
 import { DatabaseBackup, Download, Loader2, Upload, X } from "lucide-react";
+import { headerButton, headerWord } from "@/components/station/station-header";
 import { allPhotos, replaceAllPhotos } from "@/lib/coffee-photos";
 import {
   BACKUP_AT_KEY, backupFileName, backupSummary, makeBackup, readBackup, restoreBackup, type Backup,
@@ -25,13 +26,19 @@ export function BackupButton() {
   const stored = useSyncExternalStore(noSubscribe, () => localStorage.getItem(BACKUP_AT_KEY), () => undefined);
   const lastAt = savedNow ?? stored ?? null;
   const stale = stored !== undefined && (!lastAt || Date.parse(lastAt) < Date.parse(new Date().toDateString()) - STALE_MS);
+  // The dot says what it means: how long since the last backup
+  const daysAgo = lastAt ? Math.round((Date.parse(new Date().toDateString()) - Date.parse(new Date(lastAt).toDateString())) / 86_400_000) : null;
+  const staleText = daysAgo == null ? "No backup yet" : `Last backup ${daysAgo} days ago`;
 
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="Backup"
-        className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
+      <button onClick={() => setOpen(true)} aria-label={stale ? `Backup: ${staleText}` : "Backup"} title={stale ? staleText : "Backup"}
+        className={`relative ${headerButton} ${stale ? "border-[var(--accent)]/60" : ""}`}>
         <DatabaseBackup className="h-5 w-5" />
-        {stale && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />}
+        <span className={`${headerWord} ${stale ? "text-[var(--accent)]" : ""}`}>
+          {stale ? (daysAgo == null ? "No backup" : `Backup · ${daysAgo} d`) : "Backup"}
+        </span>
+        {stale && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--accent)] md:hidden" />}
       </button>
       {open && <BackupPanel lastAt={lastAt} onSaved={setSavedNow} onClose={() => setOpen(false)} />}
     </>

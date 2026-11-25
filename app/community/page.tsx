@@ -34,7 +34,10 @@ async function fetchFeed(url: string): Promise<FeedItem[]> {
     seen.add(title);
 
     const link = e.querySelector("link")?.getAttribute("href") ?? "";
-    const updated = e.querySelector("updated")?.textContent?.trim() ?? "";
+    const updated = e.querySelector("published")?.textContent?.trim() || e.querySelector("updated")?.textContent?.trim() || "";
+    // Firmware titles carry their own date, "2026M1063-Stable (January 14, 2026)": the post can be weeks later
+    const inTitle = /\(([A-Z][a-z]+ \d{1,2}, \d{4})\)/.exec(title)?.[1];
+    const when = inTitle && !Number.isNaN(Date.parse(inTitle)) ? inTitle : updated;
     const raw = e.querySelector("content")?.textContent ?? "";
     // strip <style> blocks and HTML tags
     const stripped = raw
@@ -42,12 +45,16 @@ async function fetchFeed(url: string): Promise<FeedItem[]> {
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+    // "&amp;" and friends back to their characters (a textarea decodes without running anything)
+    const box = document.createElement("textarea");
+    box.innerHTML = stripped;
+    const text = box.value;
 
     items.push({
       title,
-      date: updated ? new Date(updated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+      date: when ? new Date(when).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
       link,
-      snippet: stripped.slice(0, 130),
+      snippet: text.slice(0, 130),
     });
   }
   return items;
@@ -108,7 +115,7 @@ function FeedSection({ label, url, icon: Icon, color }: {
                   {item.title}
                 </p>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {item.date && <span className="text-[11px] text-[var(--ink)]/60 font-mono">{item.date}</span>}
+                  {item.date && <span className="text-xs text-[var(--ink)]/60 font-mono">{item.date}</span>}
                   <ExternalLink className="h-3 w-3 text-[var(--ink)]/60 group-hover:text-[var(--accent)] transition-colors" />
                 </div>
               </div>

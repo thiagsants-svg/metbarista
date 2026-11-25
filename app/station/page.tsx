@@ -30,11 +30,13 @@ import { RecipePanel } from "@/components/station/recipe-panel";
 import { Readout, SmallButton } from "@/components/station/readout";
 import { StationHeader } from "@/components/station/station-header";
 import { EspressoGlass } from "@/components/station/espresso-glass";
-import { PISTON_TRAVEL_MM, PurgePiston } from "@/components/station/purge-piston";
+import { PISTON_TRAVEL_MM, PurgePiston, RESTING_BAR, pistonAtBottom } from "@/components/station/purge-piston";
+import { InstallHint } from "@/components/station/install-hint";
 import { demoShot } from "@/lib/demo-shot";
 import { profileTips } from "@/lib/profile-tip";
+import { listMaintenance, loadIntervals, maintenanceCounts, type MaintenanceCount } from "@/lib/piston-store";
 import { refreshNow } from "@/lib/machine-socket";
-import { executeAction, getHistory, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
+import { executeAction, getHistory, getHistoryLight, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import { isExtracting, isHeating, isIdle, isPurging, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
@@ -57,9 +59,6 @@ import { useShotRecord } from "@/lib/station/use-shot-record";
 import { countUse } from "@/lib/usage";
 import type { ActionType, Profile } from "@/lib/types";
 
-/** The machine's pressure at rest reads about 0.4 bar (sensor offset): at or under this (shown as 0.4), it's back */
-const RESTING_BAR = 0.45;
-
 export default function StationPage() {
   useRequireConnection();
   useStationScreen();
@@ -70,7 +69,11 @@ export default function StationPage() {
   const [demoHeat, setDemoHeat] = useState(false);
   /** /station/?demo=purge: the piston going down and back up, without the machine */
   const [demoPurge, setDemoPurge] = useState<"purge" | "home" | null>(null);
+  /** The demo purge's pressure, bar */
+  const [demoPressure, setDemoPressure] = useState<number | null>(null);
   const demoPurgeOn = demoPurge !== null;
+  /** Grease or descale past its interval (Stats → Piston health): one line on the idle screen */
+  const [maintenanceDue, setMaintenanceDue] = useState<MaintenanceCount[]>([]);
   /** /station/?demo=pour: the simulated shot still to be played, point by point */
   const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
   /** Auto brew: off by default and on every page load, on purpose. */
@@ -98,26 +101,51 @@ export default function StationPage() {
   const { difluid, deviceTds, measuring: difluidMeasuring, noReply: difluidNoReply, difluidTap } = useDifluid(setError);
   const brewing = isExtracting(status);
   const purging = demoPurge !== null || isPurging(status);
-  // The pressure gauge stands out from the end of the shot, through the purge, until the pressure is
-  // back to resting (~0.4 bar on the machine, idle): the cue to take the portafilter off
-  const [pressureWatch, setPressureWatch] = useState(false);
-  const wasBrewingRef = useRef(false);
-  const restingNow = !brewing && !purging && (status?.sensors?.p ?? 0) <= RESTING_BAR;
+  // The piston panel shows the pressure coming down to rest (~0.4 bar on the machine): the cue to take
+  // the portafilter off. It stays after the purge if the pressure is still up, until it rests (or the
+  // machine moves on: heating, a shot)
+  const pressureNow = demoPurge !== null ? demoPressure : status?.sensors?.p ?? null;
+  const [settling, setSettling] = useState(false);
+  const wasPurgingRef = useRef(false);
   useEffect(() => {
-    if ((wasBrewingRef.current && !brewing) || purging) setPressureWatch(true);
-    wasBrewingRef.current = brewing;
-  }, [brewing, purging]);
+    if (wasPurgingRef.current && !purging && (pressureNow ?? 0) > RESTING_BAR) setSettling(true);
+    wasPurgingRef.current = purging;
+  // Only when the purge ends; the pressure then is read as it is
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purging]);
   useEffect(() => {
-    if (pressureWatch && restingNow) setPressureWatch(false);
-  }, [pressureWatch, restingNow]);
+    if (settling && ((pressureNow ?? 0) <= RESTING_BAR || purging || !isIdle(status))) setSettling(false);
+  }, [settling, pressureNow, purging, status]);
+  // The bar starts at the highest pressure seen once the piston is at the bottom
+  const homing = demoPurge ? demoPurge === "home" : /home/i.test(status?.name ?? "");
+  const releasing = pistonAtBottom(pistonPos, homing) || homing || settling;
+  const [releaseFrom, setReleaseFrom] = useState<number | null>(null);
+  useEffect(() => {
+    if (!releasing) { setReleaseFrom(null); return; }
+    if (pressureNow != null) setReleaseFrom((f) => (f == null || pressureNow > f ? pressureNow : f));
+  }, [releasing, pressureNow]);
   // Anonymous count of Stations connected to a machine today (see lib/usage.ts)
   useEffect(() => { if (connected) void countUse("s"); }, [connected]);
-  const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts } =
+  const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts, lastCup } =
     useShotRecord({
       demo, profiles, recipe, brewing, data, linkRef, setError,
       // The machine is waiting for the purge tap after the shot
       purgeAsked: !brewing && isWaitingForUser(status) && /purge/i.test(status?.name ?? ""),
     });
+
+  // Shots since the last grease and descale, from the machine's list of shots (light: no curves);
+  // again after each new shot
+  const newestShot = recentShots?.[0]?.dbKey;
+  useEffect(() => {
+    if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
+    let alive = true;
+    getHistoryLight(100_000)
+      .then((list) => {
+        if (alive) setMaintenanceDue(maintenanceCounts(list.map((s) => s.time), listMaintenance(), loadIntervals()).filter((c) => c.due));
+      })
+      .catch(() => { /* the line just doesn't show */ });
+    return () => { alive = false; };
+  }, [newestShot]);
 
   useEffect(() => {
     // Saved recipe lives in localStorage, read after mount to match the static HTML
@@ -173,13 +201,16 @@ export default function StationPage() {
 
   useEffect(() => {
     if (!demoPurgeOn) return;
-    // Down in 12 s (a reading every ~150 ms, like the machine's), back up in 10 s, again
+    // A reading every ~150 ms, like the machine's
     const t0 = Date.now();
     const id = setInterval(() => {
+      // Down in 10 s, 6 s at the bottom while the pressure comes down, back up in 8 s
       const t = ((Date.now() - t0) / 1000) % 24;
-      const down = t < 12;
-      setDemoPurge(down ? "purge" : "home");
-      setPistonPos(down ? (t / 12) * PISTON_TRAVEL_MM : Math.max(0, (1 - (t - 12) / 10) * PISTON_TRAVEL_MM));
+      const purge = t < 16;
+      setDemoPurge(purge ? "purge" : "home");
+      // About 2.5 bar while it pushes, down to rest in the 6 s at the bottom
+      setDemoPressure(t < 10 ? 2.5 : t < 15 ? 2.5 - ((t - 10) / 5) * 2.1 : 0.4);
+      setPistonPos(t < 10 ? (t / 10) * PISTON_TRAVEL_MM : purge ? PISTON_TRAVEL_MM : Math.max(0, (1 - (t - 16) / 8) * PISTON_TRAVEL_MM));
     }, 150);
     return () => clearInterval(id);
   // Started once by ?demo=purge; the phase it sets doesn't restart it
@@ -306,6 +337,8 @@ export default function StationPage() {
   const online = connected && !!status;
   /** During heating and the shot, Stop is the control that matters: give it the big slot */
   const stopFirst = brewing || heating;
+  /** Idle: nothing to stop, so Stop stays visible but small */
+  const stopQuiet = !!status && idle && !stopFirst;
 
   // ── Main button follows the flow ──
   // idle → Start heating · heating → progress · water → Water added · ready → Brew
@@ -325,9 +358,8 @@ export default function StationPage() {
     tone = "brew";
   } else if (heating) {
     mainLabel = "Heating";
-    mainHint = tempTarget != null && sensors?.t != null
-      ? `${sensors.t.toFixed(1)} → ${tempTarget} °C · prep the puck`
-      : "prep the puck and cup";
+    // The temperature is on the gauge and the heating chart: no third copy here
+    mainHint = "prep the puck and cup";
     MainIcon = Flame; tone = "heat";
   } else if (brewing) { mainLabel = "Brewing"; mainHint = fmtClock(elapsed); tone = "busy"; }
   else if (idle) { mainAction = baseProfile ? "load" : null; tone = baseProfile ? "start" : "off"; }
@@ -343,7 +375,12 @@ export default function StationPage() {
   }[tone];
 
   /** The piston while the machine purges: in the chart's place, and beside the rating popup */
-  const pistonProps = { position: pistonPos, home: demoPurge ? demoPurge === "home" : /home/i.test(status?.name ?? "") };
+  const pistonProps = {
+    // After the purge the piston is back at the top
+    position: settling ? 0 : pistonPos, home: homing, settling, pressure: pressureNow, releaseFrom,
+  };
+  /** The piston panel: through the purge, and after it until the pressure rests */
+  const pistonPanel = purging || settling;
 
   /** The cup filling with the scale's weight, up to the target line */
   const glass = (
@@ -363,9 +400,13 @@ export default function StationPage() {
         pill={statusPill(status, connected, preheatLeft)}
         theme={theme} onToggleTheme={toggleTheme} />
 
+      {/* In Chrome's tab the Station loses the top of the screen: offer the app, only while idle */}
+      {idle && !rateOpen && <InstallHint />}
+
       {rateOpen && (() => {
         const last = data[data.length - 1];
-        const w = last?.weight ?? 0;
+        // The cup once the machine saved the shot (last drops in), else the last reading
+        const w = lastCup ?? last?.weight ?? 0;
         const summary = last
           ? `${w.toFixed(1)} g · ${fmtClock(last.t / 1000)}${recipe.dose > 0 ? ` · 1:${(w / recipe.dose).toFixed(2)}` : ""}`
           : "Shot done";
@@ -377,7 +418,7 @@ export default function StationPage() {
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
           facts={lastFacts}
           top={rateTop}
-          aside={purging ? <PurgePiston {...pistonProps} className="min-h-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
+          aside={pistonPanel ? <PurgePiston {...pistonProps} className="min-h-0 min-w-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
           onSkip={() => { setRateOpen(false); setData([]); }}
           onSave={(...args) => { void saveRating(...args); setData([]); }} />;
       })()}
@@ -403,15 +444,13 @@ export default function StationPage() {
               value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t}
               target={tempTarget ?? setTemp} />
           ) : (
-            <div className={`h-full rounded-md ring-[3px] transition-colors ${pressureWatch ? "bg-[var(--accent)]/10 ring-[var(--accent)]" : "ring-transparent"}`}>
-              <PressureGauge value={sensors?.p} color={COLORS.pressure} />
-            </div>
+            <PressureGauge value={sensors?.p} color={COLORS.pressure} />
           )}
         </div>
 
         {/* Chart */}
         <div className="flex min-h-0 flex-col landscape:col-start-1">
-          {purging ? (
+          {pistonPanel ? (
             <PurgePiston {...pistonProps} />
           ) : (
           <ShotCharts
@@ -427,7 +466,7 @@ export default function StationPage() {
                 if (brewing || tempView) return null;
                 if (data.length === 0) return null;
                 const last = data[data.length - 1];
-                const finalW = last.weight ?? 0;
+                const finalW = lastCup ?? last.weight ?? 0;
                 const peak = Math.max(0, ...data.map((d) => d.pressure ?? 0));
                 return (
                   <div className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-t-2 border-[var(--ink)] pt-2">
@@ -461,12 +500,13 @@ export default function StationPage() {
               ) : needsWater ? (
                 <p className="text-2xl font-semibold text-[var(--water)]">Pour the water, then tap “Water added”</p>
               ) : waiting ? (
-                <p className="text-2xl font-semibold text-[var(--accent)]">Ready — tap Brew</p>
+                <p className="text-2xl font-semibold text-[var(--accent)]">{/purge/i.test(status?.name ?? "") ? "Ready — tap Purge" : "Ready — tap Brew"}</p>
               ) : (
                 // Idle: the last shots of the coffee, and the temperature in one line
                 <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
                   coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} plan={nextPlan}
-                  profileTip={baseProfile ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null} />
+                  profileTip={baseProfile ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null}
+                  maintenanceDue={maintenanceDue} />
               )
             }
           />
@@ -474,7 +514,7 @@ export default function StationPage() {
         </div>
 
         {/* Controls */}
-        <div className="grid min-h-0 gap-2 sm:gap-2.5 grid-cols-[2fr_1fr] grid-rows-[auto_auto_auto] landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 landscape:grid-cols-1 landscape:grid-rows-[auto_minmax(0,1fr)_auto_auto]">
+        <div className={`grid min-h-0 gap-2 sm:gap-2.5 ${stopQuiet ? "grid-cols-[4fr_1fr]" : "grid-cols-[2fr_1fr]"} grid-rows-[auto_auto_auto] landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 landscape:grid-cols-1 landscape:grid-rows-[auto_minmax(0,1fr)_auto_auto]`}>
           <RecipePanel
             profiles={profiles}
             base={baseProfile}
@@ -512,7 +552,7 @@ export default function StationPage() {
           <button
             onClick={() => run("stop")}
             disabled={!!status && idle}
-            className={`${stopFirst ? "order-2 min-h-[84px] text-3xl" : "order-3 min-h-[56px]"} flex items-center justify-center gap-2.5 rounded-md border-2 border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30`}
+            className={`${stopFirst ? "order-2 min-h-[84px] text-3xl" : stopQuiet ? "order-3 min-h-11 text-base" : "order-3 min-h-[56px]"} flex items-center justify-center gap-2.5 rounded-md border-2 border-[var(--stop)] bg-transparent text-xl font-bold text-[var(--stop)] active:scale-[0.98] disabled:opacity-30`}
           >
             {busy === "stop" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Square className="h-5 w-5" fill="currentColor" />}
             Stop

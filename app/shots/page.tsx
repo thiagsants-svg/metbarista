@@ -27,12 +27,32 @@ type Face = "like" | "dislike";
 const PAGE = 30;
 const sameCoffee = (a: string, b: string) => asciiName(a).toLowerCase() === asciiName(b).toLowerCase();
 
+/** Under this in the cup it's a stopped or choked try, not a shot to compare */
+const TOO_LITTLE_G = 12;
+
+/** Pressure and weight scaled 0..1 (pressure over 12 bar, weight over the shot's own), ~40 points */
+function sparkOf(shot: ShotEntry): ShotRowData["spark"] {
+  const f = shot.data ?? [];
+  if (f.length < 3) return undefined;
+  const step = Math.max(1, Math.ceil(f.length / 40));
+  const pick = f.filter((_, i) => i % step === 0 || i === f.length - 1);
+  const wMax = Math.max(1, ...pick.map((x) => x.shot?.weight ?? 0));
+  return {
+    p: pick.map((x) => Math.min(1, Math.max(0, (x.shot?.pressure ?? 0) / 12))),
+    w: pick.map((x) => Math.min(1, Math.max(0, (x.shot?.weight ?? 0) / wMax))),
+  };
+}
+
 function buildRows(shots: ShotEntry[]): ShotRowData[] {
   const rows = shots.map((shot) => {
     const sum = shotSummary(shot);
+    const throwaway = analyzeShot(shot).throwaway;
+    const tiny = !throwaway && sum.weight < TOO_LITTLE_G;
     return {
       id: shot.id, sum, notes: parseShotNote(getShotNote(shot.time)?.note),
-      grindDelta: null as number | null, flush: analyzeShot(shot).throwaway,
+      grindDelta: null as number | null, flush: throwaway || tiny,
+      flushWhy: throwaway ? "flush" : tiny ? `only ${sum.weight.toFixed(1)} g` : undefined,
+      spark: sparkOf(shot),
     };
   });
   // Grind change against the same coffee's previous (older) shot
@@ -44,6 +64,22 @@ function buildRows(shots: ShotEntry[]): ShotRowData[] {
     if (pg != null) r.grindDelta = Math.round((g - pg) * 10) / 10;
   });
   return rows;
+}
+
+/** Rows grouped by day, newest first: "Today", "Yesterday", then "Mon, Nov 24" */
+function byDay(rows: ShotRowData[]): [string, ShotRowData[]][] {
+  const out: [string, ShotRowData[]][] = [];
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  for (const r of rows) {
+    const d = new Date(r.sum.when); d.setHours(0, 0, 0, 0);
+    const days = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+    const label = days === 0 ? "Today" : days === 1 ? "Yesterday"
+      : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const last = out[out.length - 1];
+    if (last && last[0] === label) last[1].push(r);
+    else out.push([label, [r]]);
+  }
+  return out;
 }
 
 function ShotsContent() {
@@ -141,17 +177,33 @@ function ShotsContent() {
 
       {coffee && <CoffeeOverview coffee={coffees.find((c) => sameCoffee(c.name, coffee))?.name ?? coffee} rows={shown} faces={faces} />}
 
+      {shown.some((r) => r.grindDelta) && (
+        <p className="text-xs text-[var(--ink)]/65">
+          <b className="text-[var(--accent)]">−10 µm</b> / <b className="text-[var(--accent)]">+5 µm</b>: the grind against the same coffee&apos;s shot before (finer / coarser).
+          The small curve: pressure, and the cup filling.
+        </p>
+      )}
+
       {shown.length === 0 ? (
         <p className="py-6 text-base text-[var(--ink)]/70">No shots{coffee ? ` with ${coffee}` : ""} in the last {limit}.</p>
       ) : (
-        <ol className="divide-y divide-[var(--ink)]/15 rounded-md border border-[var(--ink)]/15">
-          {shown.map((r) => (
-            <li key={r.id}>
-              <ShotRow row={r} face={faces[r.id]} showCoffee={!coffee} selected={r.id === selectedId}
-                onSelect={() => go({ shot: r.id === selectedId ? null : r.id })} />
-            </li>
+        <div className="space-y-3">
+          {byDay(shown).map(([day, list]) => (
+            <section key={day}>
+              <h3 className="sticky top-0 z-[1] bg-[var(--paper)] py-1 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">
+                {day} <span className="font-normal">· {list.length} shot{list.length === 1 ? "" : "s"}</span>
+              </h3>
+              <ol className="divide-y divide-[var(--ink)]/15 rounded-md border border-[var(--ink)]/15">
+                {list.map((r) => (
+                  <li key={r.id}>
+                    <ShotRow row={r} face={faces[r.id]} showCoffee={!coffee} selected={r.id === selectedId} timeOnly
+                      onSelect={() => go({ shot: r.id === selectedId ? null : r.id })} />
+                  </li>
+                ))}
+              </ol>
+            </section>
           ))}
-        </ol>
+        </div>
       )}
 
       {shots && shots.length >= limit && (
