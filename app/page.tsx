@@ -89,10 +89,19 @@ export default function HomePage() {
               Browse profiles <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <p className="mt-6 text-xs text-[var(--ink)]/65">
+          <p className="mx-auto mt-6 max-w-xl rounded-lg border border-[var(--ink)]/20 px-4 py-2.5 text-sm text-[var(--ink)]/85">
+            <b>Doesn&apos;t work on iPhone or iPad.</b>{" "}Safari doesn&apos;t let a website talk to devices on your
+            local network (and every browser on iOS runs on Safari&apos;s engine), so it can&apos;t reach the machine.
+            Use Chrome on Android or a computer.
+          </p>
+          <p className="mt-3 text-xs text-[var(--ink)]/65">
             Runs in the browser, straight to your machine on the local network. Bluetooth (grinder, refractometer)
-            needs Chrome on Android or a computer; iPhone and iPad can&apos;t. It counts, anonymously, how many
-            devices open it each day: no names, no machine or coffee data.
+            needs Chrome too. It counts, anonymously, how many devices open it each day: no names, no machine or
+            coffee data. Open source:{" "}
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
+              className="font-semibold text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">
+              code on GitHub
+            </a>.
           </p>
         </div>
       </section>

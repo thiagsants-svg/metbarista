@@ -24,7 +24,18 @@ Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)*
 | **Profiles** | Browse, load, create and share profiles. |
 | **Backup** | Everything lives in the tablet's browser; one file (with the bag photos) saves and restores it. |
 
-Bluetooth (grinder, refractometer) needs Chrome on Android or a computer; iPhone and iPad browsers can't.
+### Which devices
+
+| Device | Works? |
+|---|---|
+| Android tablet or phone, **Chrome** | Yes, everything: machine, grinder and refractometer |
+| Windows, Mac, Linux or Chromebook, **Chrome** or **Edge** | Yes, everything |
+| **iPhone or iPad**, any browser | **No** |
+| Mac, **Safari** | No |
+
+**Why not iPhone or iPad.** The site is served over https (not9bar.com) and the machine answers over plain http on your Wi-Fi (`http://192.168.x.x`). Chrome lets a site reach devices on the local network once you allow it (it asks the first time: allow it). Safari doesn't: it blocks an https page from talking to an http device on the local network, and it has no way to ask for permission. On iPhone and iPad every browser (Chrome, Edge, Firefox too) is Safari underneath, because Apple requires its engine, so none of them can reach the machine. Safari also has no Web Bluetooth, so the Motto 80 grinder and the DiFluid refractometer can't connect either.
+
+The only way around it on iOS would be an app of its own, outside the browser.
 
 **Privacy:** your data stays in your browser. The site counts, anonymously, how many devices open it each day (and how many use the Station with a machine): a +1 on the project's own counter (a Cloudflare Worker, [cloudflare/count-worker.js](cloudflare/count-worker.js)), nothing else. Daily numbers: [not9bar.com/usage](https://not9bar.com/usage).
 
