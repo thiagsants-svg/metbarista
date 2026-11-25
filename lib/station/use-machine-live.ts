@@ -12,7 +12,7 @@ import type { HeatPoint, ShotPoint } from "@/components/shot-charts";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, type MachineNotification } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
-import { isExtracting, isHeating, isIdle, isWaitingForWater } from "@/lib/brew-state";
+import { isExtracting, isHeating, isIdle, isPurging, isWaitingForWater } from "@/lib/brew-state";
 import { gravFlow, groupTempsFor } from "@/lib/station/format";
 import type { ActionType, LiveStatus, LiveTemperatures } from "@/lib/types";
 
@@ -45,6 +45,8 @@ export function useMachineLive({
   const autoFiredRef = useRef(false);
   /** Latest group temperatures from the machine's "sensors" event. */
   const groupTempsRef = useRef<Partial<LiveTemperatures>>({});
+  /** The piston's position (mm), kept only while the machine purges: it changes several times a second */
+  const [pistonPos, setPistonPos] = useState<number | null>(null);
   /** Last temperature target the machine reported (shown as "set" during the shot). */
   const [setTemp, setSetTemp] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -64,10 +66,14 @@ export function useMachineLive({
       heater: (sec) => setPreheatLeft(sec),
       disconnect: () => { setConnected(false); setPreheatLeft(0); },
       notification: onNotice,
-      temperatures: (g) => { groupTempsRef.current = g; },
+      temperatures: (g) => {
+        groupTempsRef.current = g;
+        if (isPurging(statusRef.current) && typeof g.m_pos === "number") setPistonPos(g.m_pos);
+      },
       status: (s) => {
         setStatus(s);
         statusRef.current = s;
+        if (!isPurging(s)) setPistonPos(null);
         setConnected(true);
         if (s.setpoints?.temperature != null) setSetTemp(s.setpoints.temperature);
         const now = Date.now();
@@ -170,6 +176,6 @@ export function useMachineLive({
 
   return {
     connected, status, statusRef, preheatLeft, data, setData, grav, heatSamples, setHeatSamples,
-    preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef,
+    preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef, pistonPos, setPistonPos,
   };
 }

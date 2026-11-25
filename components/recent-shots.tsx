@@ -33,8 +33,10 @@ function grindLabel(s: CoffeeLastShot): string {
 const keyOf = (s: CoffeeLastShot) => `${s.dbKey ?? s.when}`;
 
 export function RecentShots({
-  coffee, shots, temp, target, plan,
+  coffee, shots, temp, target, plan, profileTip,
 }: {
+  /** The dial-in tip in the chosen profile's description, in its author's words */
+  profileTip?: { name: string; tips: string[] } | null;
   coffee?: string;
   /** null while loading */
   shots: CoffeeLastShot[] | null;
@@ -45,6 +47,8 @@ export function RecentShots({
 }) {
   // The newest shot starts open (the parent remounts this when the list changes)
   const [open, setOpen] = useState<string | null>(shots?.[0] ? keyOf(shots[0]) : null);
+  /** The profile's tip: two lines, all of it on a tap */
+  const [tipOpen, setTipOpen] = useState(false);
   const name = coffee?.trim();
   const planHere = plan && name && asciiName(plan.coffee).toLowerCase() === asciiName(name).toLowerCase() ? plan : null;
   const lastRecipe = shots?.[0]?.patch;
@@ -57,6 +61,16 @@ export function RecentShots({
         <span className="text-2xl font-extrabold tabular-nums">{temp != null ? temp.toFixed(1) : "—"}</span>
         <span className="text-sm text-[var(--ink)]/70">°C{target != null ? ` · target ${target} °C` : ""}</span>
       </div>
+
+      {!!profileTip?.tips.length && (
+        <button type="button" onClick={() => setTipOpen(!tipOpen)} aria-expanded={tipOpen}
+          className="mt-2 shrink-0 rounded-md bg-[var(--ink)]/[0.04] px-3 py-1.5 text-left active:bg-[var(--ink)]/[0.08]">
+          <span className={`text-sm text-[var(--ink)]/80 ${tipOpen ? "" : "line-clamp-2"}`}>
+            <b className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Profile tip · {profileTip.name}</b>
+            {" "}{profileTip.tips.join(" ")}
+          </span>
+        </button>
+      )}
 
       <p className="mt-3 shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">
         {name ? `Last shots · ${name}` : "Last shots"}

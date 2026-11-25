@@ -2,7 +2,8 @@
 
 /**
  * After the shot: the official app's faces (like / dislike), saved on the
- * machine so every app shows them; the taste and what to change next time
+ * machine so every app shows them; the taste on a compass (sour ↔ bitter,
+ * weak ↔ strong) and what to change next time
  * (temperature and ratio on the same wheels as the recipe, grind as a
  * suggestion), kept for this coffee; and optional tasting notes.
  */
@@ -15,8 +16,10 @@ import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { ShotFactsList } from "@/components/shots/shot-facts";
 import type { ShotFact } from "@/lib/shot-facts";
 import { WheelPicker } from "@/components/wheel-picker";
+import { TasteCompass } from "@/components/taste-compass";
+import { compassBody, compassHint, compassTaste, type Body, type CompassPoint } from "@/lib/taste-compass";
 import {
-  grindLabel, grindOptions, grindTarget, planLines, TASTE_HINT, TASTE_LABEL, type NextPlan, type Taste,
+  grindLabel, grindOptions, grindTarget, planLines, type NextPlan,
 } from "@/lib/next-plan";
 import { extractionYield, formatRatio, RATIO_PRESETS, type Recipe } from "@/lib/recipe";
 
@@ -27,8 +30,12 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, facts, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, facts, aside, top = 0, onSave, onSkip,
 }: {
+  /** px from the top of the screen left uncovered (the Station's readouts, pressure included) */
+  top?: number;
+  /** Shown beside the popup (the purge piston, while the machine purges): left of it in landscape, above it in portrait */
+  aside?: React.ReactNode;
   /** What the shot's curves show (channeling, choking, limits), once the machine saved it */
   facts?: ShotFact[] | null;
   /** e.g. "50.4 g · 0:52 · 1:2.52" */
@@ -51,12 +58,17 @@ export function ShotRating({
   onDifluid?: () => void;
   /** Earlier shots of this coffee with a TDS reading, for the brew chart */
   pastBrews?: BrewPoint[];
-  onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null) => void;
+  onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null, body?: Body) => void;
   onSkip: () => void;
 }) {
   const [face, setFace] = useState<Face | null>(null);
   const [note, setNote] = useState("");
-  const [taste, setTaste] = useState<Taste | null>(null);
+  /** Where the shot sits on the taste compass: sour ↔ bitter, weak ↔ strong */
+  const [point, setPoint] = useState<CompassPoint | null>(null);
+  const taste = point ? compassTaste(point) : null;
+  const body = point ? compassBody(point) : undefined;
+  // Grind only when the compass says extract more or less (not when it says change the yield)
+  const showGrind = (taste === "sour" && body !== "strong") || (taste === "bitter" && body !== "weak");
   const [temp, setTemp] = useState(nearest(TEMPS, shotRecipe.temperature ?? 94));
   const [ratio, setRatio] = useState(nearest(RATIO_PRESETS, shotRecipe.ratio ?? 2));
   const [grindDelta, setGrindDelta] = useState<number | undefined>(undefined);
@@ -78,7 +90,7 @@ export function ShotRating({
     taste,
     ...(temp !== shotRecipe.temperature ? { temperature: temp } : {}),
     ...(ratio !== shotRecipe.ratio ? { ratio } : {}),
-    ...(grindDelta ? { grindDelta } : {}),
+    ...(grindDelta && showGrind ? { grindDelta } : {}),
   };
   const lines = plan ? planLines(shotRecipe, plan) : [];
 
@@ -121,8 +133,14 @@ export function ShotRating({
   );
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-3" onClick={onSkip}>
-      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-[var(--paper)] p-4 shadow-xl"
+    <div className="fixed inset-0 z-[130] flex items-center justify-center gap-3 bg-black/40 p-3 portrait:flex-col" style={{ top }} onClick={onSkip}>
+      {aside && (
+        <div className="flex shrink-0 overflow-hidden rounded-xl bg-[var(--paper)] text-[var(--ink)] shadow-xl portrait:h-36 portrait:w-full portrait:max-w-lg landscape:h-[min(26rem,100%)] landscape:w-56"
+          onClick={(e) => e.stopPropagation()}>
+          {aside}
+        </div>
+      )}
+      <div className="max-h-full min-h-0 w-full max-w-lg overflow-y-auto rounded-xl bg-[var(--paper)] p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">How was this shot?</p>
         <p className="mt-0.5 text-lg font-bold tabular-nums text-[var(--ink)]">{summary}</p>
@@ -137,28 +155,23 @@ export function ShotRating({
           {faceBtn("dislike", "Didn’t like it", Frown)}
         </div>
 
-        {/* Taste, then what to change next time (kept for this coffee) */}
+        {/* Taste on the compass, then what to change next time (kept for this coffee) */}
         <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Taste</p>
-        <div className="mt-1 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Taste">
-          {(["sour", "balanced", "bitter"] as Taste[]).map((t) => (
-            <button key={t} type="button" role="radio" aria-checked={taste === t}
-              onClick={() => { setTaste(taste === t ? null : t); setGrindDelta(undefined); }}
-              className={chip(taste === t)}>
-              {TASTE_LABEL[t]}
-            </button>
-          ))}
-        </div>
+        <TasteCompass value={point} onChange={(p) => {
+          if ((p ? compassTaste(p) : null) !== taste) setGrindDelta(undefined);
+          setPoint(p);
+        }} />
 
-        {taste && taste !== "balanced" && (
+        {taste && (taste !== "balanced" || body) && (
           <>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Next time</p>
-            <p className="text-sm text-[var(--ink)]/70">{TASTE_HINT[taste]}</p>
+            <p className="text-sm text-[var(--ink)]/70">{compassHint(taste, body)}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {tile("temp", "Temp (°C)", `${temp} °C`, temp !== shotRecipe.temperature, TEMPS, temp, String, setTemp)}
               {tile("ratio", "Ratio", formatRatio(ratio), ratio !== shotRecipe.ratio, RATIO_PRESETS, ratio, formatRatio, setRatio)}
             </div>
             {/* Grind: only a reminder, the grinder is set by hand */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            {showGrind && taste && <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Grind tip</span>
               {grindOptions(taste, shotRecipe).map((d) => (
                 <button key={d} type="button" aria-pressed={grindDelta === d}
@@ -166,7 +179,7 @@ export function ShotRating({
                   {grindLabel(d, shotRecipe)}{grindTarget(shotRecipe, d) ? ` (${grindTarget(shotRecipe, d)})` : ""}
                 </button>
               ))}
-            </div>
+            </div>}
           </>
         )}
         {taste && (
@@ -223,7 +236,7 @@ export function ShotRating({
             Skip
           </button>
           <button type="button" disabled={!face && !note.trim() && !taste && tds == null}
-            onClick={() => onSave(face, note.trim(), plan, tds)}
+            onClick={() => onSave(face, note.trim(), plan, tds, body)}
             className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98] disabled:opacity-40">
             Save
           </button>

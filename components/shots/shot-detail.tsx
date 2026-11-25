@@ -22,6 +22,8 @@ import { stageSummary } from "@/lib/stage-summary";
 import { rateShot } from "@/lib/machine-api";
 import { getShotNote, getShotPlan, saveShotNote } from "@/lib/shot-notes";
 import { composeShotNote } from "@/lib/shot-record";
+import { TasteCompass } from "@/components/taste-compass";
+import { compassBody, compassPoint, compassTaste, type CompassPoint } from "@/lib/taste-compass";
 import { planLines, TASTE_LABEL, type Taste } from "@/lib/next-plan";
 import { extractionYield, formatRatio } from "@/lib/recipe";
 import type { ShotEntry } from "@/lib/types";
@@ -158,7 +160,10 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
   onFace: (face: Face | null) => void;
   onSaved: () => void;
 }) {
-  const [taste, setTaste] = useState<Taste | undefined>(row.notes.taste);
+  // The taste compass starts where the saved taste and body read the same
+  const [point, setPoint] = useState<CompassPoint | null>(() => compassPoint(row.notes.taste, row.notes.body));
+  const taste: Taste | undefined = point ? compassTaste(point) : undefined;
+  const body = point ? compassBody(point) : undefined;
   const [tdsInput, setTdsInput] = useState(row.notes.tds != null ? row.notes.tds.toFixed(2) : "");
   const [text, setText] = useState(row.notes.text);
   const [busyFace, setBusyFace] = useState(false);
@@ -167,7 +172,7 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
   const tdsValue = Number(tdsInput.replace(",", "."));
   const tds = tdsInput.trim() && tdsValue > 0 && tdsValue < 30 ? tdsValue : undefined;
   const ey = tds != null ? extractionYield(tds, row.sum.weight, row.sum.patch.dose ?? 0) ?? undefined : undefined;
-  const changed = taste !== row.notes.taste || tds !== row.notes.tds || text.trim() !== row.notes.text;
+  const changed = taste !== row.notes.taste || body !== row.notes.body || tds !== row.notes.tds || text.trim() !== row.notes.text;
 
   async function setMachineFace(f: Face) {
     const next = face === f ? null : f;
@@ -183,13 +188,10 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
   }
 
   function save() {
-    saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, composeShotNote({ taste, tds, ey, text }));
+    saveShotNote(shot.time, getShotNote(shot.time)?.rating ?? 0, composeShotNote({ taste, body, tds, ey, text }));
     setStatus("Saved");
     onSaved();
   }
-
-  const chip = (on: boolean) => `h-11 rounded-md border px-3 text-sm font-semibold active:scale-[0.97] ${
-    on ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/25 text-[var(--ink)]/80"}`;
 
   return (
     <section className="rounded-md border border-[var(--ink)]/15 p-3">
@@ -206,14 +208,7 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
         ))}
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Taste">
-        {(["sour", "balanced", "bitter"] as Taste[]).map((t) => (
-          <button key={t} type="button" role="radio" aria-checked={taste === t}
-            onClick={() => setTaste(taste === t ? undefined : t)} className={chip(taste === t)}>
-            {TASTE_LABEL[t]}
-          </button>
-        ))}
-      </div>
+      <div className="mt-3"><TasteCompass value={point} onChange={setPoint} size={180} /></div>
 
       <div className="mt-3 flex items-center gap-3">
         <label className="flex h-12 w-40 shrink-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">

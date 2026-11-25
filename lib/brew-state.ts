@@ -51,6 +51,11 @@ export function isHeating(s: LiveStatus | null | undefined): boolean {
   return ["heating", "preheating"].includes(statusName(s));
 }
 
+/** The machine purging the chamber, or raising the piston back home after it */
+export function isPurging(s: LiveStatus | null | undefined): boolean {
+  return ["purge", "home"].includes(statusName(s));
+}
+
 export function isIdle(s: LiveStatus | null | undefined): boolean {
   return !s || statusName(s) === "idle";
 }

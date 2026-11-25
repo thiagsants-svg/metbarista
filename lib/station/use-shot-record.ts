@@ -21,6 +21,7 @@ import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 import { shotFacts, type ShotFact } from "@/lib/shot-facts";
+import type { Body } from "@/lib/taste-compass";
 
 export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, data, linkRef, setError }: {
   demo: boolean;
@@ -63,7 +64,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
   }
 
   /** Face → the machine (shows in the official app); notes → the Shots page's Tasting Notes */
-  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null, tds: number | null) {
+  async function saveRating(face: Face | null, rawNote: string, plan: PlanChoice | null, tds: number | null, body?: Body) {
     setRateOpen(false);
     if (demo) return;
     // What to change next time, kept for this coffee
@@ -76,6 +77,7 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, dat
     const shotWeight = data[data.length - 1]?.weight ?? 0;
     const note = composeShotNote({
       taste: plan?.taste,
+      body,
       tds: tds ?? undefined,
       ey: tds != null ? extractionYield(tds, shotWeight, recipe.dose) ?? undefined : undefined,
       text: rawNote,

@@ -24,13 +24,6 @@ export interface NextPlan {
 
 export const TASTE_LABEL: Record<Taste, string> = { sour: "Sour", balanced: "Balanced", bitter: "Bitter" };
 
-/** What usually helps, as a hint next to the wheels */
-export const TASTE_HINT: Record<Taste, string> = {
-  sour: "Try warmer, a longer ratio or a finer grind",
-  balanced: "Keep the recipe",
-  bitter: "Try cooler, a shorter ratio or a coarser grind",
-};
-
 function isDial(r: Partial<Recipe>): boolean {
   return r.grindSetting != null && r.grindUm == null;
 }

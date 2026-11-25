@@ -269,4 +269,6 @@ export interface LiveTemperatures {
   t_tube: number;
   t_external_1: number;
   t_external_2: number;
+  /** The piston's position, mm from the bottom (0 to ~76); only in the "sensors" event */
+  m_pos?: number;
 }

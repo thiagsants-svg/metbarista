@@ -25,4 +25,12 @@ describe("shot notes", () => {
     expect(composeShotNote({ text: " " })).toBe("");
     expect(composeShotNote({ tds: 9, text: "" })).toBe("TDS 9.00%");
   });
+
+  it("keeps the body from the taste compass", () => {
+    const line = "Sour · Weak · TDS 8.10% · thin";
+    expect(parseShotNote(line)).toEqual({ taste: "sour", body: "weak", tds: 8.1, text: "thin" });
+    expect(composeShotNote(parseShotNote(line))).toBe(line);
+    expect(parseShotNote("Strong")).toEqual({ body: "strong", text: "" });
+    expect(parseShotNote("nice · Strong")).toEqual({ text: "nice · Strong" });
+  });
 });

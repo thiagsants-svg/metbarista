@@ -106,3 +106,11 @@
     to { transform: translateX(-50%); }
   }
 }
+/* Station: drops falling from the group head while the machine purges */
+@theme {
+  --animate-purge-drip: purge-drip 0.9s linear infinite;
+  @keyframes purge-drip {
+    from { transform: translateY(0); opacity: 0.9; }
+    to { transform: translateY(26px); opacity: 0; }
+  }
+}

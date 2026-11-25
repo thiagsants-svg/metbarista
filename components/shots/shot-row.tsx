@@ -5,7 +5,7 @@
 import { Frown, Smile } from "lucide-react";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
 import type { ShotNoteParts } from "@/lib/shot-record";
-import { TASTE_LABEL } from "@/lib/next-plan";
+import { compassText } from "@/lib/taste-compass";
 import { formatRatio } from "@/lib/recipe";
 
 export interface ShotRowData {
@@ -69,9 +69,9 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect }: {
             EY {s.ey.toFixed(1)}%{s.tds != null ? ` · TDS ${s.tds.toFixed(2)}` : ""}
           </span>
         )}
-        {notes.taste && (
+        {(notes.taste || notes.body) && (
           <span className="rounded-full border border-[var(--ink)]/25 px-2 py-0.5 text-xs font-semibold text-[var(--ink)]/80">
-            {TASTE_LABEL[notes.taste]}
+            {compassText(notes.taste, notes.body)}
           </span>
         )}
         {row.flush && <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/60">flush</span>}

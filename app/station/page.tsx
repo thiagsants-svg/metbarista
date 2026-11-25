@@ -30,12 +30,14 @@ import { RecipePanel } from "@/components/station/recipe-panel";
 import { Readout, SmallButton } from "@/components/station/readout";
 import { StationHeader } from "@/components/station/station-header";
 import { EspressoGlass } from "@/components/station/espresso-glass";
+import { PISTON_TRAVEL_MM, PurgePiston } from "@/components/station/purge-piston";
 import { demoShot } from "@/lib/demo-shot";
+import { profileTips } from "@/lib/profile-tip";
 import { refreshNow } from "@/lib/machine-socket";
 import { executeAction, getHistory, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
-import { isExtracting, isHeating, isIdle, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
+import { isExtracting, isHeating, isIdle, isPurging, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
 import {
   type Recipe, DEFAULT_RECIPE, beverageWeight, buildShotProfile, formatRatio, loadRecipe, MAX_FINAL_WEIGHT,
   maxYieldFor, overCapacity, pickBaseProfile, saveRecipe, retractionFor, retractionMlToMm, retractionMmToMl,
@@ -55,6 +57,9 @@ import { useShotRecord } from "@/lib/station/use-shot-record";
 import { countUse } from "@/lib/usage";
 import type { ActionType, Profile } from "@/lib/types";
 
+/** The machine's pressure at rest reads about 0.4 bar (sensor offset): at or under this (shown as 0.4), it's back */
+const RESTING_BAR = 0.45;
+
 export default function StationPage() {
   useRequireConnection();
   useStationScreen();
@@ -63,6 +68,9 @@ export default function StationPage() {
   const [demo, setDemo] = useState(false);
   const [demoEnd, setDemoEnd] = useState<ShotPoint | null>(null);
   const [demoHeat, setDemoHeat] = useState(false);
+  /** /station/?demo=purge: the piston going down and back up, without the machine */
+  const [demoPurge, setDemoPurge] = useState<"purge" | "home" | null>(null);
+  const demoPurgeOn = demoPurge !== null;
   /** /station/?demo=pour: the simulated shot still to be played, point by point */
   const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
   /** Auto brew: off by default and on every page load, on purpose. */
@@ -76,16 +84,32 @@ export default function StationPage() {
   const { theme, style: themeStyle, toggle: toggleTheme } = useStationTheme();
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   const startedAtRef = useRef(0);
+  /** The readouts row: the rating popup leaves it undimmed (the pressure tells when the portafilter can come off) */
+  const readoutsRef = useRef<HTMLDivElement>(null);
+  const [rateTop, setRateTop] = useState(0);
 
   const { notices, noticeBusy, respondToNotice, onSocketNotice, showDemoNotice } = useMachineNotices(setError);
   const {
     connected, status, statusRef, preheatLeft, data, setData, grav, heatSamples, setHeatSamples,
-    preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef,
+    preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef, pistonPos, setPistonPos,
   } = useMachineLive({ onNotice: onSocketNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef });
   const { grinderLink, linkRef, connectGrinder, toggleGrinder, live: grinderLive } =
     useGrinder({ grinder: recipe.grinder, setRecipe, setError, demo });
   const { difluid, deviceTds, measuring: difluidMeasuring, noReply: difluidNoReply, difluidTap } = useDifluid(setError);
   const brewing = isExtracting(status);
+  const purging = demoPurge !== null || isPurging(status);
+  // The pressure gauge stands out from the end of the shot, through the purge, until the pressure is
+  // back to resting (~0.4 bar on the machine, idle): the cue to take the portafilter off
+  const [pressureWatch, setPressureWatch] = useState(false);
+  const wasBrewingRef = useRef(false);
+  const restingNow = !brewing && !purging && (status?.sensors?.p ?? 0) <= RESTING_BAR;
+  useEffect(() => {
+    if ((wasBrewingRef.current && !brewing) || purging) setPressureWatch(true);
+    wasBrewingRef.current = brewing;
+  }, [brewing, purging]);
+  useEffect(() => {
+    if (pressureWatch && restingNow) setPressureWatch(false);
+  }, [pressureWatch, restingNow]);
   // Anonymous count of Stations connected to a machine today (see lib/usage.ts)
   useEffect(() => { if (connected) void countUse("s"); }, [connected]);
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts } =
@@ -101,6 +125,9 @@ export default function StationPage() {
     // /station/?demo shows a simulated shot to preview the chart
     const demoParam = new URLSearchParams(window.location.search).get("demo");
     if (demoParam === "notice") showDemoNotice();
+    // ?demo=purge-rate: with the rating popup open, as right after Purge is pressed
+    if (demoParam === "purge" || demoParam === "purge-rate") setDemoPurge("purge");
+    if (demoParam === "purge-rate") setRateOpen(true);
     if (demoParam === "heat") {
       // /station/?demo=heat previews the heating view
       setDemoHeat(true);
@@ -112,7 +139,7 @@ export default function StationPage() {
         };
       }));
       setSetTemp(94);
-    } else if (demoParam !== null) {
+    } else if (demoParam !== null && !demoParam.startsWith("purge")) {
       const pts = demoShot();
       setDemo(true);
       setTargetWeight(40);
@@ -135,6 +162,29 @@ export default function StationPage() {
   // Runs once: the hooks' setters it calls don't change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!rateOpen) return;
+    const measure = () => setRateTop(Math.round(readoutsRef.current?.getBoundingClientRect().bottom ?? 0));
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [rateOpen]);
+
+  useEffect(() => {
+    if (!demoPurgeOn) return;
+    // Down in 12 s (a reading every ~150 ms, like the machine's), back up in 10 s, again
+    const t0 = Date.now();
+    const id = setInterval(() => {
+      const t = ((Date.now() - t0) / 1000) % 24;
+      const down = t < 12;
+      setDemoPurge(down ? "purge" : "home");
+      setPistonPos(down ? (t / 12) * PISTON_TRAVEL_MM : Math.max(0, (1 - (t - 12) / 10) * PISTON_TRAVEL_MM));
+    }, 150);
+    return () => clearInterval(id);
+  // Started once by ?demo=purge; the phase it sets doesn't restart it
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoPurgeOn]);
 
   useEffect(() => {
     if (!demoPour) return;
@@ -292,6 +342,9 @@ export default function StationPage() {
     off: "bg-[var(--ink)]/[0.05] text-[var(--ink)]/70",
   }[tone];
 
+  /** The piston while the machine purges: in the chart's place, and beside the rating popup */
+  const pistonProps = { position: pistonPos, home: demoPurge ? demoPurge === "home" : /home/i.test(status?.name ?? "") };
+
   /** The cup filling with the scale's weight, up to the target line */
   const glass = (
     <EspressoGlass weight={data[data.length - 1]?.weight} scale={sensors?.w} target={targetWeight}
@@ -323,6 +376,8 @@ export default function StationPage() {
           deviceTds={deviceTds} difluid={difluid} difluidMeasuring={difluidMeasuring} difluidNoReply={difluidNoReply} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
           facts={lastFacts}
+          top={rateTop}
+          aside={purging ? <PurgePiston {...pistonProps} className="min-h-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
           onSkip={() => { setRateOpen(false); setData([]); }}
           onSave={(...args) => { void saveRating(...args); setData([]); }} />;
       })()}
@@ -336,7 +391,7 @@ export default function StationPage() {
       {/* ── Body: side by side in landscape, stacked in portrait ── */}
       <div className="grid min-h-0 flex-1 gap-2 sm:gap-2.5 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(280px,31%)]">
         {/* Readouts */}
-        <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
+        <div ref={readoutsRef} className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="var(--ink)" />
           <Readout label={sensors?.w != null && sensors.w < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
             value={sensors?.w != null && sensors.w < -1 && !brewing ? "—" : fmt(sensors?.w)}
@@ -348,12 +403,17 @@ export default function StationPage() {
               value={demoHeat ? heatSamples[heatSamples.length - 1]?.temp : sensors?.t}
               target={tempTarget ?? setTemp} />
           ) : (
-            <PressureGauge value={sensors?.p} color={COLORS.pressure} />
+            <div className={`h-full rounded-md ring-[3px] transition-colors ${pressureWatch ? "bg-[var(--accent)]/10 ring-[var(--accent)]" : "ring-transparent"}`}>
+              <PressureGauge value={sensors?.p} color={COLORS.pressure} />
+            </div>
           )}
         </div>
 
         {/* Chart */}
         <div className="flex min-h-0 flex-col landscape:col-start-1">
+          {purging ? (
+            <PurgePiston {...pistonProps} />
+          ) : (
           <ShotCharts
             data={demoHeat ? [] : data}
             targetWeight={targetWeight}
@@ -405,10 +465,12 @@ export default function StationPage() {
               ) : (
                 // Idle: the last shots of the coffee, and the temperature in one line
                 <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
-                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} plan={nextPlan} />
+                  coffee={recipe.coffee} shots={recentShots} temp={sensors?.t} plan={nextPlan}
+                  profileTip={baseProfile ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null} />
               )
             }
           />
+          )}
         </div>
 
         {/* Controls */}
