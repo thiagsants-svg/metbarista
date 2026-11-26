@@ -9,7 +9,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Bluetooth, ClipboardList, Droplets, HardDriveDownload, Loader2, Tablet, TrendingUp } from "lucide-react";
+import { ArrowRight, Bluetooth, Bot, ClipboardList, Droplets, HardDriveDownload, Loader2, Tablet } from "lucide-react";
 import { ConnectDialog } from "@/components/connect-dialog";
 import { UsageStrip } from "@/components/usage-strip";
 import { BrandMark } from "@/components/brand-mark";
@@ -23,9 +23,9 @@ const STATION = "/station";
 const FEATURES = [
   { icon: Tablet, title: "A station by the machine", desc: "Full screen on a tablet: recipe wheels, slide to heat, live curve with the stage the shot is in and what it aims for." },
   { icon: Bluetooth, title: "Grinder on the record", desc: "The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot." },
-  { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow." },
+  { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow. Skipped a reading? The TDS is estimated from the coffee's measured shots." },
   { icon: ClipboardList, title: "Next shot, decided at the cup", desc: "Taste, then set temperature and ratio for next time. The plan waits for you when you pick that coffee again." },
-  { icon: TrendingUp, title: "Every coffee's story", desc: "Last shots of each coffee with curve, grind, like or dislike, TDS and EY." },
+  { icon: Bot, title: "AI review, your key", desc: "Ask Claude, ChatGPT, Gemini or Grok about a shot: profile, curve and the coffee's last shots go along. The key stays on your tablet." },
   { icon: HardDriveDownload, title: "Yours, on your tablet", desc: "No account, no cloud: it talks straight to the machine. A backup file keeps your coffees and notes." },
 ];
 
