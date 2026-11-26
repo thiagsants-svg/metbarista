@@ -11,7 +11,7 @@ import { sameCoffee } from "@/lib/recipe";
 import { shotGrindLabel } from "@/lib/coffee-history";
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Frown, Smile, Wrench } from "lucide-react";
+import { ChevronDown, Frown, Smile, Wrench, X } from "lucide-react";
 import type { MaintenanceCount } from "@/lib/piston-store";
 import { ShotPlot } from "@/components/shot-charts";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
@@ -30,6 +30,17 @@ function grindValue(s: CoffeeLastShot): number | undefined {
 
 const keyOf = (s: CoffeeLastShot) => `${s.dbKey ?? s.when}`;
 
+const MAINT_HIDDEN_KEY = "not9bar_maintenance_hidden_until";
+const MAINT_HIDE_MS = 3 * 24 * 3600_000;
+/** The maintenance line was hidden less than 3 days ago */
+function maintenanceHiddenNow(): boolean {
+  if (typeof window === "undefined") return false;
+  return Number(localStorage.getItem(MAINT_HIDDEN_KEY) ?? 0) > Date.now();
+}
+function hideMaintenance(): void {
+  try { localStorage.setItem(MAINT_HIDDEN_KEY, String(Date.now() + MAINT_HIDE_MS)); } catch { /* shows again */ }
+}
+
 export function RecentShots({
   coffee, shots, temp, target, plan, profileTip, maintenanceDue,
 }: {
@@ -45,6 +56,8 @@ export function RecentShots({
   /** Decided after tasting this coffee's last shot */
   plan?: NextPlan | null;
 }) {
+  /** The maintenance line, hidden for a few days with its x */
+  const [maintHidden, setMaintHidden] = useState(() => maintenanceHiddenNow());
   // The newest shot starts open (the parent remounts this when the list changes)
   const [open, setOpen] = useState<string | null>(shots?.[0] ? keyOf(shots[0]) : null);
   /** The profile's tip: two lines, all of it on a tap */
@@ -72,9 +85,10 @@ export function RecentShots({
         </button>
       )}
 
-      {!!maintenanceDue?.length && (
+      {!!maintenanceDue?.length && !maintHidden && (
+        <div className="mt-2 flex shrink-0 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-[var(--bad)]/10 pr-1 text-sm">
         <Link href="/stats/#piston-title"
-          className="mt-2 flex shrink-0 items-center gap-2 rounded-md border border-[var(--bad)]/40 bg-[var(--bad)]/10 px-3 py-1.5 text-sm active:bg-[var(--bad)]/20">
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 active:bg-[var(--bad)]/20">
           <Wrench className="h-4 w-4 shrink-0 text-[var(--bad)]" />
           <span className="min-w-0 tabular-nums text-[var(--ink)]/85">
             {maintenanceDue.map((c, i) => (
@@ -87,6 +101,13 @@ export function RecentShots({
             ))}
           </span>
         </Link>
+        {/* Hidden for 3 days (the grease is on its way), then it comes back until it's logged */}
+        <button type="button" aria-label="Hide for 3 days" title="Hide for 3 days"
+          onClick={() => { hideMaintenance(); setMaintHidden(true); }}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--ink)]/60 active:bg-[var(--ink)]/10">
+          <X className="h-5 w-5" />
+        </button>
+        </div>
       )}
 
       <p className="mt-3 shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap } from "lucide-react";
+import { ChevronDown, ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
-import { CHANNELS, latestPerChannel, markCompanyUpdateSeen, type Channel } from "@/lib/firmware";
+import { CHANNELS, latestChangelog, latestPerChannel, markCompanyUpdateSeen, type BuildChangelog, type Channel } from "@/lib/firmware";
 
 const DISCORD_INVITE = "https://discord.gg/w48ha2h3";
 const PROXY = "https://metbarista-feed-proxy.metbarista.workers.dev/?url=";
@@ -64,18 +64,101 @@ async function fetchFeed(url: string): Promise<FeedItem[]> {
 // ─── Feed section component ────────────────────────────────────────────────────
 
 /** The newest firmware of each channel, from Meticulous's GitHub (the changelog below can lag) */
+/** The machine's parts, as the changelog names them */
+const COMPONENT: Record<string, string> = {
+  backend: "Machine software", dial: "Dial", "web-app": "Web app", firmware: "Motor board", linux: "Linux",
+  watcher: "Watcher", "plotter-ui": "Plotter", "crash-reporter": "Crash reporter", "meticulous-machine": "Build and updates",
+  uboot: "Boot loader",
+};
+
+/** One channel: its newest version, and on a tap what changed in it */
+function ChannelChangelog({ channel, version }: { channel: Channel; version: string }) {
+  const [open, setOpen] = useState(false);
+  const [log, setLog] = useState<BuildChangelog | null | "loading" | "failed">(null);
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && log === null) {
+      setLog("loading");
+      latestChangelog(channel).then((l) => setLog(l ?? "failed")).catch(() => setLog("failed"));
+    }
+  }
+  const count = log && typeof log === "object" ? log.groups.reduce((n, g) => n + g.items.length, 0) : null;
+  return (
+    <div className="rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04]">
+      <button type="button" onClick={toggle} aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+        <span className="text-sm font-semibold capitalize text-[var(--ink)]">{channel}</span>
+        <span className="flex items-center gap-2 font-mono text-sm tabular-nums text-[var(--ink)]/85">
+          {version}
+          <ChevronDown className={`h-4 w-4 text-[var(--ink)]/50 transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-[var(--ink)]/10 px-4 py-3 text-sm">
+          {log === "loading" || log === null ? (
+            <Loader2 className="mx-auto h-4 w-4 animate-spin text-[var(--ink)]/60" />
+          ) : log === "failed" ? (
+            <p className="text-[var(--ink)]/60">Couldn&apos;t read the changes from GitHub.</p>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--ink)]/60">
+                {log.version} · built {log.date} · {count} changes ·{" "}
+                <a href={`https://github.com/MeticulousHome/meticulous-machine/tree/${channel}/${version}`} target="_blank" rel="noopener noreferrer"
+                  className="underline underline-offset-2">on GitHub</a>
+              </p>
+              {log.version !== version && (
+                <p className="mt-1 text-xs text-[var(--ink)]/60">The newest changelog published is for {log.version}.</p>
+              )}
+              {log.groups.map((g) => (
+                <div key={g.component} className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">{COMPONENT[g.component] ?? g.component}</p>
+                  <ul className="mt-1 space-y-1">
+                    {g.items.map((it, k) => (
+                      <li key={k} className="flex gap-2 text-[var(--ink)]/85">
+                        <span className={`mt-0.5 shrink-0 rounded px-1.5 text-xs font-bold uppercase ${it.kind === "feat" ? "bg-[var(--good)]/15 text-[var(--good)]" : "bg-[var(--ink)]/10 text-[var(--ink)]/70"}`}>
+                          {it.kind === "feat" ? "new" : it.kind === "perf" ? "faster" : "fix"}
+                        </span>
+                        <span className="min-w-0">{it.scope && <span className="text-[var(--ink)]/55">{it.scope}: </span>}{it.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LatestFirmware() {
   const [latest, setLatest] = useState<Record<Channel, string | null> | null>(null);
-  useEffect(() => { latestPerChannel().then(setLatest).catch(() => {}); }, []);
-  if (!latest || !CHANNELS.some((c) => latest[c])) return null;
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { latestPerChannel().then(setLatest).catch(() => setFailed(true)); }, []);
+  const found = latest && CHANNELS.some((c) => latest[c]);
   return (
-    <p className="rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] px-4 py-2.5 text-sm text-[var(--ink)]/85">
-      <b>Newest on GitHub:</b>{" "}
-      {CHANNELS.filter((c) => latest[c]).map((c, i) => (
-        <span key={c}>{i > 0 && " · "}{c} <span className="font-mono tabular-nums">{latest[c]}</span></span>
-      ))}
-      <span className="block text-xs text-[var(--ink)]/60">Released builds, ahead of the changelog. Each machine gets them over a few days.</span>
-    </p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Zap className="h-4 w-4" style={{ color: "var(--accent)" }} />
+        <h2 className="text-sm font-semibold text-[var(--ink)]/85">Firmware</h2>
+      </div>
+      {!latest && !failed ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-[var(--ink)]/60" /></div>
+      ) : !found ? (
+        <p className="rounded-xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] px-4 py-3 text-xs text-[var(--ink)]/60 text-center">
+          Couldn&apos;t read the newest firmware from GitHub.
+        </p>
+      ) : (
+        <>
+          {CHANNELS.filter((c) => latest![c]).map((c) => <ChannelChangelog key={c} channel={c} version={latest![c]!} />)}
+          <p className="text-xs text-[var(--ink)]/60">
+            The newest build of each channel, from Meticulous&apos;s GitHub: tap one to see what changed (new features and fixes, as the developers wrote them). Each machine gets it over a few days.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -174,17 +257,12 @@ export default function CommunityPage() {
 
         {/* Live feeds — 2 col on lg */}
         <div>
-          <p className="mb-4 text-sm text-[var(--ink)]/70">Meticulous news, live from meticuloushome.com: firmware and company updates</p>
+          <p className="mb-4 text-sm text-[var(--ink)]/70">Meticulous news: firmware from Meticulous&apos;s GitHub, company updates from meticuloushome.com</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-3">
+              {/* Firmware from GitHub only: the changelog feed lagged months behind */}
               <LatestFirmware />
-              <FeedSection
-                label="Firmware Changelog"
-                url="https://meticuloushome.com/blogs/meticulous-espresso-changelog.atom"
-                icon={Zap}
-                color="var(--accent)"
-              />
             </div>
             <FeedSection
               label="Company Updates"

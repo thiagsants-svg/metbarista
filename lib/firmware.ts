@@ -123,3 +123,64 @@ export function unseenCompanyUpdate(newestTitle: string | null): string | null {
   if (seen == null) { markCompanyUpdateSeen(newestTitle); return null; }
   return seen === newestTitle ? null : newestTitle;
 }
+
+// ── Changelog of a build ──
+
+/** One change of a build, from its commit message ("fix(wifi): keep auto-connect running…") */
+export interface ChangeItem { kind: "feat" | "fix" | "perf"; scope: string | null; text: string }
+export interface BuildChangelog {
+  version: string;
+  /** "2026-11-17" */
+  date: string;
+  /** Per component (backend, dial, firmware…), only new features, fixes and speed-ups */
+  groups: { component: string; items: ChangeItem[] }[];
+}
+
+/** Reads Meticulous's changelog YAML (images/changes/<channel>/<time>.changelog.yaml) */
+export function parseChangelog(yaml: string): BuildChangelog {
+  const version = /build-version:\s*"([^"]+)"/.exec(yaml)?.[1] ?? "";
+  const date = (/timestamp:\s*"(\d{4}-\d{2}-\d{2})/.exec(yaml)?.[1]) ?? "";
+  const groups: BuildChangelog["groups"] = [];
+  let inChanges = false;
+  let current: BuildChangelog["groups"][number] | null = null;
+  const seen = new Set<string>();
+  for (const line of yaml.split(/\r?\n/)) {
+    if (/^changes:\s*$/.test(line)) { inChanges = true; continue; }
+    if (!inChanges) continue;
+    const comp = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line);
+    if (comp) { current = { component: comp[1], items: [] }; groups.push(current); continue; }
+    const msg = /^\s+message:\s*"(.*)"\s*$/.exec(line);
+    if (!msg || !current) continue;
+    const text = msg[1].replace(/\\"/g, '"');
+    const m = /^(feat|fix|perf)(?:\(([^)]+)\))?!?:\s*(.+)$/i.exec(text);
+    if (!m || seen.has(text)) continue;
+    seen.add(text);
+    current.items.push({ kind: m[1].toLowerCase() as ChangeItem["kind"], scope: m[2] ?? null, text: m[3] });
+  }
+  return { version, date, groups: groups.filter((g) => g.items.length) };
+}
+
+const CHANGES_API = "https://api.github.com/repos/MeticulousHome/meticulous-machine/contents/images/changes";
+const RAW = "https://raw.githubusercontent.com/MeticulousHome/meticulous-machine/main/";
+
+/** What changed in the newest build of a channel, or null if GitHub can't be read */
+export async function latestChangelog(channel: Channel): Promise<BuildChangelog | null> {
+  const key = `not9bar_fw_changes_${channel}`;
+  const hit = cached<BuildChangelog>(key);
+  if (hit) return hit;
+  try {
+    const list = await fetch(`${CHANGES_API}/${channel}?ref=main`, { signal: AbortSignal.timeout(8000), credentials: "omit", referrerPolicy: "no-referrer" });
+    if (!list.ok) return null;
+    const files = ((await list.json()) as { name: string; path: string }[])
+      .filter((f) => f.name.endsWith(".changelog.yaml")).sort((a, b) => a.name.localeCompare(b.name));
+    const newest = files.at(-1);
+    if (!newest) return null;
+    const res = await fetch(RAW + newest.path, { signal: AbortSignal.timeout(8000), credentials: "omit", referrerPolicy: "no-referrer" });
+    if (!res.ok) return null;
+    const log = parseChangelog(await res.text());
+    keep(key, log);
+    return log;
+  } catch {
+    return null;
+  }
+}
