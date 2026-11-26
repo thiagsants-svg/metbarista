@@ -7,6 +7,7 @@
  * small local log of what was loaded and when, matched to shots by time.
  */
 
+import { barDownOf } from "./bar-down";
 import { activeTargets } from "./shot-facts";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
@@ -149,6 +150,8 @@ export interface CoffeeLastShot {
   /** Refractometer reading and extraction yield, from the shot's notes (this device) */
   tds?: number;
   ey?: number;
+  /** Bar down (°C) when the shot started (lib/bar-down.ts) */
+  barDown?: number | null;
   /** The shot in the machine's history (to read its face) */
   dbKey?: number;
   /** The shot's string id on the machine (its face is read and set with it) */
@@ -233,6 +236,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     ...parseTds(getShotNote(shot.time)?.note),
     dbKey: shot.db_key,
     shotId: shot.id,
+    barDown: barDownOf(shot),
   };
 }
 

@@ -65,7 +65,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
   const [picking, setPicking] = useState(false);
-  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null }, eyRefs);
+  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null }, eyRefs);
 
   const tile = (label: string, value: string, sub?: string | null) => (
     <div className="min-w-0 border-t-2 border-[var(--ink)] pt-1.5">
@@ -98,7 +98,8 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tile("Dose", p.dose != null ? `${p.dose} g` : "—")}
         {tile("Ratio", p.ratio != null ? formatRatio(p.ratio) : "—", actualRatio ? `came out 1:${actualRatio.toFixed(2)}` : null)}
-        {tile("Temp", p.temperature != null ? `${p.temperature} °C` : "—")}
+        {tile("Temp", p.temperature != null ? `${p.temperature} °C` : "—",
+          s.barDown != null ? `Bar down at start ${s.barDown.toFixed(1)}${p.temperature != null ? ` (${s.barDown - p.temperature >= 0 ? "+" : "−"}${Math.abs(s.barDown - p.temperature).toFixed(1)})` : ""}` : null)}
         {tile("Grind", grindText(s) ?? "—",
           [p.feed != null ? `feed ${p.feed}` : null, p.rpm != null ? `${p.rpm} rpm` : null, p.grinder ?? null].filter(Boolean).join(" · ") || null)}
         {tile("In the cup", `${s.weight.toFixed(1)} g`)}

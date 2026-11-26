@@ -41,6 +41,7 @@ export function shotDigest(x: ReviewShot, opts: { stages?: boolean; tdsEstimate?
   lines.push(`Recipe: dose ${p.dose ?? "?"} g · ratio ${p.ratio != null ? formatRatio(p.ratio) : "?"} · temperature ${p.temperature ?? "?"} °C · grind ${grind}`);
   const actual = p.dose ? ` (1:${(sum.weight / p.dose).toFixed(2)})` : "";
   lines.push(`Result: ${r1(sum.weight)} g in the cup${actual} in ${clock(sum.seconds)}`);
+  if (sum.barDown != null) lines.push(`Group's lowest thermometer (Bar down, by the puck) when the shot started: ${sum.barDown.toFixed(1)} °C${p.temperature != null ? ` (target ${p.temperature} °C)` : ""}`);
   if (notes.tds != null) lines.push(`Refractometer: TDS ${notes.tds}%${notes.ey != null ? `, EY ${notes.ey}%` : ""}`);
   // Only a real reading goes to the AI: the on-screen estimate is our own idea, not a recognised measure
   const verdict = [x.face === "like" ? "liked it" : x.face === "dislike" ? "didn't like it" : null, compassText(notes.taste, notes.body) || null]
@@ -113,16 +114,16 @@ export function dataGaps(x: ReviewShot): string[] {
 
 /** The coffee's shots side by side, oldest first: what changed and what came out */
 export function seriesTable(shots: ReviewShot[]): string {
-  const head = "| when | grind | dose g | temp °C | ratio set | cup g | ratio out | time | TDS % | EY % | verdict |";
+  const head = "| when | grind | dose g | temp °C | Bar down at start °C | ratio set | cup g | ratio out | time | TDS % | EY % | verdict |";
   const rows = shots.map((x) => {
     const p = x.sum.patch;
     const when = new Date(x.sum.when).toISOString().slice(5, 16).replace("T", " ");
     const grind = p.grindUm != null ? `${p.grindUm} µm` : p.grindSetting != null ? String(p.grindSetting) : "?";
     const out = p.dose ? `1:${(x.sum.weight / p.dose).toFixed(2)}` : "?";
     const verdict = [x.face === "like" ? "liked" : x.face === "dislike" ? "disliked" : "", compassText(x.notes.taste, x.notes.body)].filter(Boolean).join(", ") || "-";
-    return `| ${when} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${verdict} |`;
+    return `| ${when} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${x.sum.barDown != null ? x.sum.barDown.toFixed(1) : "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${verdict} |`;
   });
-  return [head, "|" + " --- |".repeat(11), ...rows].join("\n");
+  return [head, "|" + " --- |".repeat(12), ...rows].join("\n");
 }
 
 /** The setup, as sentences */

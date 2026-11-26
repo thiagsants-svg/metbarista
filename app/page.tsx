@@ -104,8 +104,8 @@ export default function HomePage() {
           </p>
           <p className="mt-3 text-xs text-[var(--ink)]/65">
             Runs in the browser, straight to your machine on the local network. Bluetooth (grinder, refractometer)
-            needs Chrome too. It counts, anonymously, how many devices open it each day: no names, no machine or
-            coffee data. Open source:{" "}
+            needs Chrome too. It counts, anonymously, how many devices open it each day and how many different machines
+            (by a short code that can&apos;t be turned back into the serial): no names, no coffee data. Open source:{" "}
             <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
               className="font-semibold text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">
               code on GitHub

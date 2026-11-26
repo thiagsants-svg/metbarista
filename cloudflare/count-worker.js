@@ -4,11 +4,17 @@
  *
  *   POST /hit/d   a device opened the site today (the site sends it once a day)
  *   POST /hit/s   a Station connected to a machine today
+ *   POST /hit/n   a browser opened the site for the first time (sent once ever)
+ *   POST /hit/m   {"c":"3fa2"} a machine's short code (4 hex digits, sent once
+ *                 per machine and browser; see machineCode in lib/usage.ts)
+ *   GET  /totals  { machines, devices }: different machines (estimated) and browsers
  *   GET  /days?n=14   the last n days (UTC), newest first: [{ day, d, s }]
  *   GET  /summary     { today: {d, s}, week: {d, s}, web: {visits, pageViews} | null }
  *                     (web: Cloudflare Web Analytics, last 7 days, when configured)
  *
- * Anonymous: only the day's totals are kept (no IP, no device id). The day is
+ * Anonymous: only the day's totals are kept (no IP, no device id). For
+ * machines, only the set of short codes is kept, with no date, time or IP:
+ * 65,536 possible codes, so a code can't be turned back into a serial. The day is
  * taken here (UTC), so a visitor can only add to today. Pasted into the
  * Cloudflare dashboard; see README.md.
  */
@@ -49,6 +55,39 @@ export default {
       // Kept for two years
       await env.COUNTS.put(key, String(value), { expirationTtl: 60 * 60 * 24 * 730 });
       return json({ value }, origin);
+    }
+
+    // POST /hit/n: one more browser, ever
+    if (url.pathname === "/hit/n" && request.method === "POST") {
+      if (origin !== ALLOWED_ORIGIN) return json({ error: "not allowed" }, origin, 403);
+      const value = Number((await env.COUNTS.get("n-total")) ?? 0) + 1;
+      await env.COUNTS.put("n-total", String(value));
+      return json({ value }, origin);
+    }
+
+    // POST /hit/m {"c":"3fa2"}: this machine's code joins the set (nothing else stored)
+    if (url.pathname === "/hit/m" && request.method === "POST") {
+      if (origin !== ALLOWED_ORIGIN) return json({ error: "not allowed" }, origin, 403);
+      const body = await request.json().catch(() => null);
+      const code = typeof body?.c === "string" ? body.c.toLowerCase() : "";
+      if (!/^[0-9a-f]{4}$/.test(code)) return json({ error: "bad code" }, origin, 400);
+      if (!(await env.COUNTS.get(`m-${code}`))) await env.COUNTS.put(`m-${code}`, "1");
+      return json({ ok: true }, origin);
+    }
+
+    // GET /totals: different machines (corrected for shared codes) and browsers
+    if (url.pathname === "/totals" && request.method === "GET") {
+      let codes = 0, cursor;
+      do {
+        const page = await env.COUNTS.list({ prefix: "m-", cursor });
+        codes += page.keys.length;
+        cursor = page.list_complete ? undefined : page.cursor;
+      } while (cursor);
+      // Linear counting: two machines may share a code, so a few more than the codes seen
+      const M = 65536;
+      const machines = codes >= M ? codes : Math.round(-M * Math.log(1 - codes / M));
+      const devices = Number((await env.COUNTS.get("n-total")) ?? 0);
+      return json({ machines, devices }, origin);
     }
 
     // GET /days?n=14: the last n days

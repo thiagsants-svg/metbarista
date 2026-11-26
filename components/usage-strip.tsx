@@ -40,7 +40,7 @@ export function UsageStrip() {
             : tile("Brewing, 7 days", s.week.s, "Station-days with a Meticulous")}
         </div>
         <p className="mt-3 text-xs text-[var(--ink)]/60">
-          Counted anonymously: a device adds 1 a day; nothing about you, your machine or your coffee.{" "}
+          Counted anonymously: a device adds 1 a day, a machine a short code that can&apos;t identify it; nothing about you or your coffee.{" "}
           <Link href="/usage" className="inline-flex items-center gap-1 font-semibold underline underline-offset-2">
             Daily numbers <ArrowRight className="h-3 w-3" />
           </Link>

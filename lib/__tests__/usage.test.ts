@@ -45,3 +45,13 @@ describe("usage counter", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("machine code", () => {
+  it("is 4 hex digits, the same for the same serial", async () => {
+    const { machineCode } = await import("../usage");
+    const a = await machineCode("ABC123");
+    expect(a).toMatch(/^[0-9a-f]{4}$/);
+    expect(await machineCode(" ABC123 ")).toBe(a);
+    expect(await machineCode("ABC124")).not.toBe(a);
+  });
+});

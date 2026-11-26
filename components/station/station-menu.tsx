@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Coffee, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
+import { Bluetooth, Coffee, Droplet, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
@@ -20,9 +20,11 @@ export const PAGES = [
   { href: "/station", label: "Station", icon: Tablet },
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
+  { href: "/pour-over", label: "Pour-over", icon: Droplet },
   { href: "/profiles", label: "Profiles", icon: Layers },
   { href: "/stats", label: "Stats", icon: Target },
   { href: "/community", label: "Community", icon: Users },
+  { href: "/bluetooth", label: "Devices", icon: Bluetooth },
   { href: "/?about", label: "About", icon: Info },
 ];
 

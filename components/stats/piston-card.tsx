@@ -7,7 +7,7 @@
  * Read only: nothing is sent to the machine.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Wrench, X } from "lucide-react";
 import { beforeAfter, DUE_RISE, outlook, SOON_RISE, summarise, weekly, type LiftReading } from "@/lib/piston";
 import {
@@ -24,7 +24,7 @@ const pct = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(Math.r
 
 const W = 640, H = 190, PAD = { l: 40, r: 10, t: 14, b: 22 };
 
-export function PistonCard() {
+export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
   const [readings, setReadings] = useState<LiftReading[]>(() => (typeof window === "undefined" ? [] : cachedReadings()));
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +34,8 @@ export function PistonCard() {
   const [kind, setKind] = useState<MaintenanceKind>("grease");
   const [intervals, setIntervals] = useState<Intervals>(() => (typeof window === "undefined" ? { grease: 100, descale: 200 } : loadIntervals()));
 
+  const onReadRef = useRef(onRead);
+  useEffect(() => { onReadRef.current = onRead; }, [onRead]);
   // Measure the shots not measured yet (all of them the first time)
   useEffect(() => {
     let alive = true;
@@ -41,6 +43,7 @@ export function PistonCard() {
       if (!alive) return;
       setProgress(done < total ? { done, total } : null);
       setReadings(r);
+      onReadRef.current?.();
     }, () => alive).catch((e) => { if (alive) { setError(e instanceof Error ? e.message : String(e)); setProgress(null); } });
     return () => { alive = false; };
   }, []);

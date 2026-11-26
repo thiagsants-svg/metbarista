@@ -7,7 +7,7 @@
  * badges. Reads the machine's history without the curves, so it's quick.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Snowflake } from "lucide-react";
 import { getHistoryLight, getShotRating } from "@/lib/machine-api";
@@ -21,6 +21,7 @@ import { TASTE_LABEL, type Taste } from "@/lib/next-plan";
 import { formatRatio } from "@/lib/recipe";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { PistonCard } from "@/components/stats/piston-card";
+import { BarDownCard } from "@/components/stats/bar-down-card";
 import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike" | null;
@@ -61,6 +62,8 @@ export default function StatsPage() {
   }, []);
 
   const from = period.days ? now - period.days * DAY : Math.min(now, ...(history ?? []).map((h) => h.time * 1000));
+  const [readTick, setReadTick] = useState(0);
+  const bumpRead = useCallback(() => setReadTick((t) => t + 1), []);
   const inPeriod = useMemo(() => (history ?? []).filter((h) => h.time * 1000 >= from), [history, from]);
 
   // Likes live on the machine: read them for the shots in the period
@@ -233,7 +236,8 @@ export default function StatsPage() {
             )}
 
             {/* The machine itself: seal friction over the months */}
-            <PistonCard />
+            <BarDownCard tick={readTick} shots={inPeriod.map((h) => ({ id: h.id, face: faces[h.id] ?? null, ey: parseShotNote(getShotNote(h.time)?.note).ey ?? null }))} />
+            <PistonCard onRead={bumpRead} />
           </>
         )}
       </div>

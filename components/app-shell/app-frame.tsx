@@ -16,7 +16,7 @@ import { statusPill } from "@/lib/station/format";
 import { useMachineStatus } from "@/lib/station/use-machine-status";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { getSavedIp } from "@/lib/connection-store";
-import { countUse } from "@/lib/usage";
+import { countUse, countNewDevice } from "@/lib/usage";
 
 const noSubscribe = () => () => {};
 
@@ -30,7 +30,7 @@ const TABS = [
 const TITLES: [string, string][] = [
   ["/shots", "Shots"], ["/coffees", "Coffees"], ["/stats", "Stats"], ["/profiles", "Profiles"],
   ["/profile", "Profile"], ["/community", "Community"], ["/create", "New profile"], ["/import", "Import a profile"],
-  ["/share", "Share a profile"], ["/compare", "Compare shots"], ["/live", "Live shot"], ["/shortcuts", "Home screen shortcut"], ["/usage", "Usage"],
+  ["/share", "Share a profile"], ["/compare", "Compare shots"], ["/live", "Live shot"], ["/shortcuts", "Home screen shortcut"], ["/usage", "Usage"], ["/bluetooth", "Devices"], ["/pour-over", "Pour-over"],
 ];
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
@@ -42,7 +42,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   // Saved on this device: read after the page loads
   const hasMachine = useSyncExternalStore(noSubscribe, () => !!getSavedIp(), () => true);
   // Anonymous count of devices using the app today (see lib/usage.ts)
-  useEffect(() => { void countUse("d"); }, []);
+  useEffect(() => { void countUse("d"); void countNewDevice(); }, []);
 
   if (station) return <>{children}</>;
 

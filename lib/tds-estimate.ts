@@ -7,7 +7,7 @@
  *   TDS ≈ EY × dose ÷ cup weight
  *
  * Similar = same dose (±1 g), ratio (±0.3), grind (±10 µm or ±0.5 on a dial)
- * and time (±20 %), each only when both shots know it. With fewer than 3
+ * time (±20 %) and Bar down at the start (±1.5 °C), each only when both shots know it. With fewer than 3
  * similar shots it falls back to every measured shot of the coffee, and says
  * which way this shot differs (grind, time). The margin is how much those EYs
  * spread (one standard deviation), turned into TDS. Always shown as an
@@ -31,6 +31,8 @@ export interface EyReference {
   grind?: number | null;
   /** s */
   seconds?: number | null;
+  /** Bar down at the start, °C */
+  barDown?: number | null;
 }
 
 export interface TdsEstimate {
@@ -48,6 +50,8 @@ export interface TdsEstimate {
 }
 
 const MIN_SHOTS = 3;
+/** °C: Bar down at the start counted as alike */
+const BAR_DOWN_TOL = 1.5;
 
 function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
@@ -66,7 +70,7 @@ const close = (a: number | null | undefined, b: number | null | undefined, withi
 export function estimateTds(
   shot: {
     coffee: string | null | undefined; dose: number; ratio?: number | null; cupWeight: number;
-    grind?: number | null; seconds?: number | null;
+    grind?: number | null; seconds?: number | null; barDown?: number | null;
   },
   refs: EyReference[],
 ): TdsEstimate | null {
@@ -77,6 +81,7 @@ export function estimateTds(
   const similar = mine.filter((r) => Math.abs(r.dose - shot.dose) <= 1
     && close(r.ratio, shot.ratio, 0.3)
     && close(r.grind, shot.grind, grindTol)
+    && close(r.barDown, shot.barDown, BAR_DOWN_TOL)
     && (r.seconds == null || shot.seconds == null || Math.abs(r.seconds - shot.seconds) <= 0.2 * r.seconds));
   const pool = similar.length >= MIN_SHOTS ? similar : mine.length >= MIN_SHOTS ? mine : null;
   if (!pool) return null;
@@ -100,6 +105,11 @@ export function estimateTds(
     differs.push(`time ${Math.round(shot.seconds)} s vs ${Math.round(t[0])}–${Math.round(t[1])} s measured`);
   }
 
+  const b = range(pool.map((r) => r.barDown));
+  if (b && shot.barDown != null && (shot.barDown < b[0] - BAR_DOWN_TOL || shot.barDown > b[1] + BAR_DOWN_TOL)) {
+    differs.push(`Bar down at start ${shot.barDown.toFixed(1)} °C vs ${b[0] === b[1] ? b[0].toFixed(1) : `${b[0].toFixed(1)}–${b[1].toFixed(1)}`} °C measured`);
+  }
+
   return {
     tds: Math.round(toTds(ey) * 100) / 100,
     margin: Math.round(toTds(stdev(eys)) * 100) / 100,
@@ -116,6 +126,7 @@ export function eyReferences(shots: CoffeeLastShot[]): EyReference[] {
     ? [{
       coffee: s.coffee, dose: s.patch.dose, ratio: s.patch.ratio ?? null, ey: s.ey,
       grind: s.patch.grindUm ?? s.patch.grindSetting ?? null, seconds: s.seconds > 0 ? s.seconds : null,
+      barDown: s.barDown ?? null,
     }]
     : []));
 }

@@ -346,11 +346,11 @@ export const HeatingProgress = memo(function HeatingProgress({
   clock?: boolean;
 }) {
   const last = samples[samples.length - 1];
-  /** The group's sensors: on a tap (the tube is the one that matters while heating) */
-  const [sensorsOpen, setSensorsOpen] = useState(false);
+  // The group's sensors stay on screen while heating: the Bar down (closest to the puck) is often the last to arrive
   const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
   const others = shown.filter((s) => s.key !== "temp");
   const eta = heatEta(samples, target, current);
+  const barDownEta = barDownReady(samples, target);
   const values = samples.flatMap((p) => shown.map((s) => p[s.key] as number | undefined))
     .filter((v): v is number => typeof v === "number");
   const lo = Math.floor(Math.min(...values, current ?? Infinity) - 2);
@@ -367,16 +367,17 @@ export const HeatingProgress = memo(function HeatingProgress({
           </p>
           {/* How long is left, from how fast it's been climbing */}
           {eta && <p className="mt-1 text-lg font-semibold text-[var(--ink)]/85">{eta}</p>}
+          {barDownEta && (
+            barDownEta.startsWith("Ready")
+              ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1 text-base font-bold text-white">{barDownEta}</p>
+              : <p className="inline-flex items-center gap-1.5 text-base font-semibold text-[var(--ink)]/85">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--h4)" }} />{barDownEta}
+              </p>
+          )}
         </div>
-        {others.length > 0 && (
-          <button type="button" onClick={() => setSensorsOpen((o) => !o)} aria-expanded={sensorsOpen}
-            className="h-11 shrink-0 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.97]">
-            {sensorsOpen ? "Hide sensors" : `Sensors (${others.length})`}
-          </button>
-        )}
       </div>
-      {/* Legend with each sensor's current value, on a tap */}
-      {sensorsOpen && <div className="flex flex-wrap gap-x-4 gap-y-1">
+      {/* Legend with each sensor's current value */}
+      {others.length > 0 && <div className="flex flex-wrap gap-x-4 gap-y-1">
         {shown.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
@@ -403,7 +404,7 @@ export const HeatingProgress = memo(function HeatingProgress({
                 <ReferenceLine y={target} stroke="var(--ink)" strokeDasharray="6 4" strokeOpacity={0.8}
                   label={{ value: `${target} °C`, position: "insideTopRight", fill: "var(--ink)", fontSize: 12 }} />
               )}
-              {(sensorsOpen ? others : []).map((s) => (
+              {others.map((s) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
                   strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
               ))}
@@ -433,6 +434,31 @@ export function heatEta(samples: HeatPoint[], target: number | null, current: nu
   if (rate < 0.03) return null;
   const left = (target - current) / rate;
   return left < 60 ? `Under a minute to ${target} °C` : `About ${Math.round(left / 60)} min to ${target} °C`;
+}
+
+/** How close the Bar down must be to the target to count as ready, °C */
+export const BAR_DOWN_MARGIN = 2;
+
+/**
+ * "Bar down: about 3 min to 90 °C": when the Bar down sensor (the group's
+ * lowest, by the puck) gets within BAR_DOWN_MARGIN of the target, from how fast
+ * it climbed over the last ~60 s (it moves slower than the tube). Null without
+ * the sensor or a target, or while it isn't climbing.
+ */
+export function barDownReady(samples: HeatPoint[], target: number | null, margin = BAR_DOWN_MARGIN): string | null {
+  if (target == null) return null;
+  const pts = samples.filter((p) => typeof p.barDown === "number") as (HeatPoint & { barDown: number })[];
+  if (!pts.length) return null;
+  const last = pts[pts.length - 1];
+  const goal = target - margin;
+  if (last.barDown >= goal) return `Ready: Bar down within ${margin} °C (${last.barDown.toFixed(1)})`;
+  const from = pts.find((p) => last.t - p.t <= 60) ?? pts[0];
+  const dt = last.t - from.t;
+  if (dt < 15) return null;
+  const rate = (last.barDown - from.barDown) / dt;
+  if (rate < 0.005) return `Bar down ${last.barDown.toFixed(1)} °C, not climbing yet`;
+  const left = (goal - last.barDown) / rate;
+  return left < 60 ? `Bar down: under a minute to ${goal} °C` : `Bar down: about ${Math.round(left / 60)} min to ${goal} °C`;
 }
 
 /**

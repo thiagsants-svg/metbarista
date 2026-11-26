@@ -10,6 +10,7 @@
 
 import { getHistoryLight, searchHistory } from "./machine-api";
 import { afterShotLift, type LiftReading } from "./piston";
+import { hasBarDown, rememberBarDown } from "./bar-down";
 
 const READINGS_KEY = "not9bar_piston_v1";
 const LOG_KEY = "metbarista_maintenance";
@@ -45,7 +46,8 @@ export async function updateReadings(
 ): Promise<LiftReading[]> {
   const cache = readCache();
   const shots = await getHistoryLight(100_000);
-  const missing = shots.filter((s) => !(s.id in cache)).map((s) => s.time).sort((a, b) => a - b);
+  // Also read once the shots whose Bar down at start isn't known yet (lib/bar-down.ts)
+  const missing = shots.filter((s) => !(s.id in cache) || !hasBarDown(s.id)).map((s) => s.time).sort((a, b) => a - b);
   const total = missing.length;
   let done = 0;
   onProgress(0, total, cachedReadings());
@@ -59,6 +61,7 @@ export async function updateReadings(
       cache[shot.id] = [shot.time, lift ? lift.current : null];
     }
     writeCache(cache);
+    rememberBarDown(got);
     while (i < missing.length && missing[i] < end) { i++; done++; }
     onProgress(done, total, cachedReadings());
     await new Promise((r) => setTimeout(r, 300));

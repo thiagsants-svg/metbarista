@@ -121,13 +121,19 @@ export class DifluidLink {
     try {
       if (!this.device) {
         const known = localStorage.getItem(ACCESS_KEY) ? ((await bt.getDevices?.().catch(() => [])) ?? []) : [];
-        this.device = known.find((d) => /r2|difluid/i.test(d.name ?? ""))
+        const found = this.choose ? undefined : known.find((d) => /r2|difluid/i.test(d.name ?? ""));
+        this.choose = false;
+        this.onLog(found ? `reusing ${found.name ?? "the known R2"}` : "opening Chrome's device list");
+        this.device = found
           ?? await bt.requestDevice({ filters: [{ services: [SERVICE] }], optionalServices: [SERVICE] });
         this.device.addEventListener("gattserverdisconnected", () => { this.server = null; this.char = null; this.onState("off"); });
       }
+      this.onLog(`connecting to ${this.device.name ?? "device"}…`);
       this.server = await this.device.gatt!.connect();
+      this.onLog("connected · looking for the DiFluid service (00FF)");
       const service = await this.server.getPrimaryService(SERVICE);
       this.char = await service.getCharacteristic(CHAR);
+      this.onLog("found channel AA01");
       localStorage.setItem(ACCESS_KEY, "1");
       // Listen on every channel: results may come on another one than the commands
       const all = (await service.getCharacteristics?.().catch(() => null)) ?? [this.char];
@@ -157,6 +163,7 @@ export class DifluidLink {
       this.onState("on");
     } catch (e) {
       const name = e instanceof Error ? e.name : "";
+      this.onLog(`error: ${name || "?"}: ${e instanceof Error ? e.message : String(e)}`);
       if (name === "SecurityError" && this.device) { this.device = null; localStorage.removeItem(ACCESS_KEY); }
       this.onState("off", name === "NotFoundError" || name === "SecurityError" ? undefined : e instanceof Error ? e.message : String(e));
     }
@@ -170,6 +177,16 @@ export class DifluidLink {
     await write(SINGLE_TEST as BufferSource);
     this.onLog(`AA01 → ${hex(SINGLE_TEST)} (measure)`);
   }
+
+  /** Forget the device so the next connect shows Chrome's list again */
+  forget(): void {
+    this.disconnect();
+    this.device = null;
+    this.choose = true;
+    localStorage.removeItem(ACCESS_KEY);
+  }
+
+  private choose = false;
 
   disconnect(): void {
     if (this.server?.connected) this.server.disconnect();
