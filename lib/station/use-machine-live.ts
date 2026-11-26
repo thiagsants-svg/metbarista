@@ -9,6 +9,8 @@
 import { activeTargets } from "@/lib/shot-facts";
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { HeatPoint, ShotPoint } from "@/components/shot-charts";
+import { stepHeatRun, type HeatRun } from "@/lib/heat-log";
+import { getMachineInfo } from "@/lib/machine-api";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, type MachineNotification } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
@@ -172,6 +174,23 @@ export function useMachineLive({
   // Runs once: everything it calls is a ref or a state setter
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Heating forecast vs reality, logged on this device (lib/heat-log.ts); live machine only, not the demo
+  const heatRunRef = useRef<HeatRun | null>(null);
+  /** The machine's mains voltage, read once (GET /machine) */
+  const voltageRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (heatStartRef.current == null) return;
+    if (voltageRef.current === undefined) {
+      voltageRef.current = 0; // asked once
+      getMachineInfo().then((i) => { voltageRef.current = i.mainVoltage || 0; }).catch(() => { voltageRef.current = undefined; });
+    }
+    heatRunRef.current = stepHeatRun(heatRunRef.current, heatSamples, setTemp, heatStartRef.current, {
+      voltage: voltageRef.current || undefined,
+      profile: statusRef.current?.loaded_profile ?? undefined,
+      machineReady: isClickToStart(statusRef.current),
+    });
+  }, [heatSamples, setTemp]);
 
   // Push collected shot points to the chart a few times per second
   useEffect(() => {

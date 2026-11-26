@@ -13,6 +13,8 @@
 
 import { memo, useState } from "react";
 import { TEMP_LABEL } from "@/lib/station/readings";
+import { BAR_DOWN_MARGIN, barDownState, waterLeft } from "@/lib/heat-log";
+export { BAR_DOWN_MARGIN };
 import {
   Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, XAxis, YAxis,
 } from "recharts";
@@ -424,46 +426,25 @@ export const HeatingProgress = memo(function HeatingProgress({
  * Null until it has climbed for a while, or when it isn't climbing.
  */
 export function heatEta(samples: HeatPoint[], target: number | null, current: number | null): string | null {
-  if (target == null || current == null || samples.length < 4) return null;
-  if (current >= target - 0.3) return "Water at temperature";
-  const last = samples[samples.length - 1];
-  const from = samples.find((p) => last.t - p.t <= 30) ?? samples[0];
-  const dt = last.t - from.t;
-  if (dt < 10) return null;
-  const rate = (last.temp - from.temp) / dt; // °C per second
-  if (rate < 0.03) return null;
-  const left = (target - current) / rate;
+  const left = waterLeft(samples, target, current);
+  if (left == null) return null;
+  if (left === 0) return "Water at temperature";
   return left < 60 ? `Water: under a minute to ${target} °C` : `Water: about ${Math.round(left / 60)} min to ${target} °C`;
 }
 
-/** How close the Bar down must be to the target to count as ready, °C */
-export const BAR_DOWN_MARGIN = 2;
-
 /**
  * "Bar down: about 3 min to 90 °C": when the Bar down sensor (the group's
- * lowest, by the puck) gets within BAR_DOWN_MARGIN of the target, from how fast
- * it climbed over the last ~60 s (it moves slower than the tube). Null without
- * the sensor or a target, or while it isn't climbing.
+ * lowest, by the puck) gets within BAR_DOWN_MARGIN of the target (see
+ * lib/heat-log.ts, which also logs these forecasts against the real arrival).
  */
 export function barDownReady(samples: HeatPoint[], target: number | null, margin = BAR_DOWN_MARGIN): string | null {
-  if (target == null) return null;
-  const pts = samples.filter((p) => typeof p.barDown === "number") as (HeatPoint & { barDown: number })[];
-  if (!pts.length) return null;
-  const last = pts[pts.length - 1];
+  const s = barDownState(samples, target, margin);
+  if (!s || target == null) return null;
   const goal = target - margin;
-  if (last.barDown >= goal) return `Ready: group within ${margin} °C (Bar down ${last.barDown.toFixed(1)})`;
-  const from = pts.find((p) => last.t - p.t <= 60) ?? pts[0];
-  const dt = last.t - from.t;
-  if (dt < 15) return null;
-  const rate = (last.barDown - from.barDown) / dt;
-  if (rate < 0.005 && dt < 110) return `Group (Bar down) ${last.barDown.toFixed(1)} °C, not climbing yet`;
-  // Settled: barely climbing any more (under 0.1 °C a minute over 2 min), whatever the gap
-  const early = pts.find((p) => last.t - p.t <= 120) ?? pts[0];
-  if (last.t - early.t >= 110 && ((last.barDown - early.barDown) / (last.t - early.t)) * 60 < 0.1) {
-    return `Ready: group settled (Bar down ${last.barDown.toFixed(1)} °C, ${(target - last.barDown).toFixed(1)} below)`;
-  }
-  const left = (goal - last.barDown) / rate;
-  return left < 60 ? `Group (Bar down): under a minute to ${goal} °C` : `Group (Bar down): about ${Math.round(left / 60)} min to ${goal} °C`;
+  if (s.kind === "ready") return `Ready: group within ${margin} °C (Bar down ${s.barDown.toFixed(1)})`;
+  if (s.kind === "flat") return `Group (Bar down) ${s.barDown.toFixed(1)} °C, not climbing yet`;
+  if (s.kind === "settled") return `Ready: group settled (Bar down ${s.barDown.toFixed(1)} °C, ${(target - s.barDown).toFixed(1)} below)`;
+  return s.left < 60 ? `Group (Bar down): under a minute to ${goal} °C` : `Group (Bar down): about ${Math.round(s.left / 60)} min to ${goal} °C`;
 }
 
 /**

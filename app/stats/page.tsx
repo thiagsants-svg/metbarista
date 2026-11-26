@@ -22,6 +22,7 @@ import { formatRatio } from "@/lib/recipe";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { PistonCard } from "@/components/stats/piston-card";
 import { BarDownCard } from "@/components/stats/bar-down-card";
+import { HeatForecastCard } from "@/components/stats/heat-forecast-card";
 import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike" | null;
@@ -237,6 +238,7 @@ export default function StatsPage() {
 
             {/* The machine itself: seal friction over the months */}
             <BarDownCard tick={readTick} shots={inPeriod.map((h) => ({ id: h.id, coffee: shotSummary(h).coffee, face: faces[h.id] ?? null, ey: parseShotNote(getShotNote(h.time)?.note).ey ?? null }))} />
+            <HeatForecastCard />
             <PistonCard onRead={bumpRead} />
           </>
         )}
