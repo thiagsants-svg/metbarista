@@ -42,4 +42,22 @@ describe("heating forecast", () => {
     const rows = heatErrors(saved, "barDown");
     expect(rows[0].avg).toBeLessThan(0); // optimistic far out
   });
+  it("tells hot from cold water by the dip, with nothing to tap", () => {
+    const run = (pouredAt: number) => {
+      let r: HeatRun | null = null;
+      const samples: HeatSample[] = [];
+      for (let t = 0; t <= 300; t++) {
+        const temp = t < 100 ? 60 + t * 0.3 : Math.max(pouredAt, 90 - (t - 100) * 2) + (t - 100) * 0.05;
+        samples.push({ t, temp, barDown: 70 + t * 0.02 });
+        r = stepHeatRun(r, samples, 93, 2_000_000 + pouredAt, { waitingForWater: t >= 80 && t < 100 });
+      }
+      return r!;
+    };
+    const hot = run(85), cold = run(45);
+    expect(hot.water).toMatchObject({ addedAt: 100, kind: "hot" });
+    expect(cold.water).toMatchObject({ addedAt: 100, kind: "cold" });
+    expect(cold.water.tubeMinAfter).toBeLessThan(50);
+    expect(cold.water.guesses.every((g) => g.t >= 100)).toBe(true);
+    expect(heatErrors(loadHeatRuns(), "water", "hot")).toHaveLength(3);
+  });
 });

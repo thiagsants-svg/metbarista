@@ -7,7 +7,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { heatErrors, loadHeatRuns, type HeatRun } from "@/lib/heat-log";
+import { heatErrors, loadHeatRuns, waterKind, type HeatRun } from "@/lib/heat-log";
 
 const noop = () => () => {};
 let cache: { raw: string | null; runs: HeatRun[] } = { raw: null, runs: [] };
@@ -24,6 +24,9 @@ const signed = (s: number) => (Math.abs(s) < 15 ? "on time" : s > 0 ? `${clock(s
 export function HeatForecastCard() {
   const runs = useSyncExternalStore(noop, snapshot, () => none);
   const recent = runs.slice(-8).reverse();
+  // Hot water from the kettle and cold tap water heat very differently: scored apart (worked out from the dip, nothing to tap)
+  const kinds = (["cold", "hot", "unknown"] as const).filter((k) => runs.some((r) => waterKind(r) === k));
+  const kindLabel = { cold: "Cold water poured in", hot: "Hot water poured in", unknown: "Water step not seen" };
   const tables = [
     { key: "water" as const, title: "Water" },
     { key: "barDown" as const, title: "Bar down (within 2 °C)" },
@@ -42,13 +45,13 @@ export function HeatForecastCard() {
       ) : (
         <>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            {tables.map((tb) => (
-              <div key={tb.key}>
-                <p className="text-base font-semibold">{tb.title}</p>
+            {kinds.flatMap((kind) => tables.map((tb) => ({ ...tb, kind }))).map((tb) => (
+              <div key={`${tb.kind}-${tb.key}`}>
+                <p className="text-base font-semibold">{tb.title}{kinds.length > 1 && <span className="font-normal text-[var(--ink)]/70"> · {kindLabel[tb.kind]}</span>}</p>
                 <table className="mt-1 w-full text-sm">
                   <thead><tr className="text-left text-[var(--ink)]/70"><th className="font-medium">Said when</th><th className="font-medium">Average</th><th className="font-medium">Worst</th><th className="font-medium text-right">n</th></tr></thead>
                   <tbody>
-                    {heatErrors(runs, tb.key).map((r) => (
+                    {heatErrors(runs, tb.key, kinds.length > 1 ? tb.kind : undefined).map((r) => (
                       <tr key={r.label} className="border-t border-[var(--ink)]/10">
                         <td className="py-1">{r.label}</td>
                         <td className="tabular-nums">{r.avg == null ? "—" : signed(r.avg)}</td>
@@ -74,6 +77,7 @@ export function HeatForecastCard() {
                   {r.startBarDown != null ? ` · group at ${r.startBarDown.toFixed(0)} °C` : ""}
                   {r.sincePrevMin != null && r.sincePrevMin < 24 * 60 ? ` · ${r.sincePrevMin} min after the last heating` : ""}
                   {r.machineReadyAt != null && <> · machine said ready in {clock(r.machineReadyAt)}</>}
+                  {r.water.kind && <> · {r.water.kind} water in at {clock(r.water.addedAt ?? 0)} (tube {r.water.tubeBefore?.toFixed(0)} → {r.water.tubeMinAfter?.toFixed(0)} °C)</>}
                   {r.water.readyAt != null && <> · water in {clock(r.water.readyAt)}{w ? ` (first said ${clock(w.at)})` : ""}</>}
                   {r.barDown.readyAt != null && <> · Bar down {r.barDown.how === "settled" ? "settled" : "ready"} in {clock(r.barDown.readyAt)}{b ? ` (first said ${clock(b.at)})` : ""}</>}
                 </li>

@@ -189,6 +189,7 @@ export function useMachineLive({
       voltage: voltageRef.current || undefined,
       profile: statusRef.current?.loaded_profile ?? undefined,
       machineReady: isClickToStart(statusRef.current),
+      waitingForWater: isWaitingForWater(statusRef.current),
     });
   }, [heatSamples, setTemp]);
 

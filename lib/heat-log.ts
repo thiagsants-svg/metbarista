@@ -18,6 +18,11 @@ export const CURVE_COLS = ["temp", "barUp", "barMidUp", "barMidDown", "barDown",
 /** A curve row every this many seconds */
 const CURVE_EVERY = 5;
 
+/** Lowest tube temperature in the minute after the water went in at or above this: it was poured hot (°C) */
+export const HOT_WATER_MIN = 70;
+/** How long after the water went in to look for the dip, s */
+const DIP_WINDOW = 60;
+
 /** How close the Bar down must be to the target to count as ready, °C */
 export const BAR_DOWN_MARGIN = 2;
 
@@ -69,6 +74,8 @@ export interface HeatGuess { t: number; at: number }
 
 /** What else is known about the heating, for a forecast that learns from past ones */
 export interface HeatContext {
+  /** The machine is asking for water ("Pour water and click to continue") */
+  waitingForWater?: boolean;
   /** The machine's mains voltage (from its own info): 110–127 V heats slower than 220–240 V */
   voltage?: number;
   /** The heating profile's name */
@@ -93,7 +100,15 @@ export interface HeatRun {
   lastT?: number;
   /** The curve every 5 s: [t, ...CURVE_COLS], 0.1 °C */
   curve?: (number | null)[][];
-  water: { guesses: HeatGuess[]; readyAt?: number };
+  water: {
+    guesses: HeatGuess[]; readyAt?: number;
+    /** Second the water went in (the machine stopped asking for it) */
+    addedAt?: number;
+    /** Tube temperature just before, and the lowest in the minute after */
+    tubeBefore?: number; tubeMinAfter?: number;
+    /** Worked out from the dip, nothing to tap: cold tap water pulls the tube down, kettle water barely */
+    kind?: "hot" | "cold";
+  };
   barDown: { guesses: HeatGuess[]; readyAt?: number; how?: "ready" | "settled" };
 }
 
@@ -153,6 +168,18 @@ export function stepHeatRun(
   run.lastT = Math.round(last.t);
   if (ctx.machineReady && run.machineReadyAt == null) { run.machineReadyAt = run.lastT; changed = true; }
 
+  // The water going in, and whether it was poured hot: from the dip it makes in the tube
+  const wa = run.water;
+  if (ctx.waitingForWater) { wa.tubeBefore = round1(last.temp); wa.addedAt = undefined; wa.tubeMinAfter = undefined; wa.kind = undefined; }
+  else if (wa.tubeBefore != null && wa.addedAt == null) {
+    // The water forecast starts over: what it said about the empty chamber doesn't count
+    wa.addedAt = run.lastT; wa.tubeMinAfter = round1(last.temp); wa.guesses = []; wa.readyAt = undefined; changed = true;
+  }
+  else if (wa.addedAt != null && wa.kind == null) {
+    wa.tubeMinAfter = round1(Math.min(wa.tubeMinAfter ?? last.temp, last.temp));
+    if (run.lastT - wa.addedAt >= DIP_WINDOW) { wa.kind = wa.tubeMinAfter >= HOT_WATER_MIN ? "hot" : "cold"; changed = true; }
+  }
+
   if (run.water.readyAt == null) {
     const left = waterLeft(samples, target, last.temp);
     if (left === 0) { run.water.readyAt = last.t; changed = true; }
@@ -183,7 +210,8 @@ export interface HeatErrorRow { label: string; n: number; avg: number | null; wo
  * Forecast error by how far out it was made, in seconds: positive means it
  * said later than it really was (pessimistic), negative sooner (optimistic).
  */
-export function heatErrors(runs: HeatRun[], which: "water" | "barDown"): HeatErrorRow[] {
+export function heatErrors(runs: HeatRun[], which: "water" | "barDown", kind?: "hot" | "cold" | "unknown"): HeatErrorRow[] {
+  if (kind) runs = runs.filter((r) => waterKind(r) === kind);
   return HEAT_BUCKETS.map((b) => {
     const errs: number[] = [];
     for (const r of runs) {
@@ -199,4 +227,9 @@ export function heatErrors(runs: HeatRun[], which: "water" | "barDown"): HeatErr
     const worst = errs.reduce((a, c) => (Math.abs(c) > Math.abs(a) ? c : a), 0);
     return { label: b.label, n: errs.length, avg, worst };
   });
+}
+
+/** How the water went in: hot, cold, or unknown (no water step seen, or the dip not finished) */
+export function waterKind(r: HeatRun): "hot" | "cold" | "unknown" {
+  return r.water.kind ?? "unknown";
 }
