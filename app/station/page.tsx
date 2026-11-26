@@ -15,6 +15,8 @@
  * Preheat (toggle).
  */
 
+import { estimateTds, eyReferences, type EyReference } from "@/lib/tds-estimate";
+import { shotSummary } from "@/lib/coffee-history";
 import { timeHM } from "@/lib/format-date";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -43,7 +45,7 @@ import { applyDemo, useStationDemoPlayback } from "@/lib/station/use-station-dem
 import { profileTips } from "@/lib/profile-tip";
 import { listMaintenance, loadIntervals, maintenanceCounts, type MaintenanceCount } from "@/lib/piston-store";
 import { refreshNow } from "@/lib/machine-socket";
-import { executeAction, getHistoryPicked, getMachineInfo, getSettings, getShotTimes, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
+import { executeAction, getHistoryLight, getHistoryPicked, getMachineInfo, getSettings, getShotTimes, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { pickRecentShots } from "@/lib/coffee-history";
 import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
@@ -123,6 +125,16 @@ export default function StationPage() {
       purging: isPurging(status),
       idle: !!status && isIdle(status),
     });
+
+  /** This tablet's measured shots (TDS / EY in the notes), for the TDS estimate; read again after each shot */
+  const [eyRefs, setEyRefs] = useState<EyReference[]>([]);
+  useEffect(() => {
+    if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
+    let alive = true;
+    getHistoryLight(300).then((h) => { if (alive) setEyRefs(eyReferences(h.map((s) => shotSummary(s)))); }).catch(() => {});
+    return () => { alive = false; };
+  }, [rateOpen]);
+
 
   // Shots since the last grease and descale, from the machine's list of shots (light: no curves);
   // again after each new shot
@@ -391,6 +403,7 @@ export default function StationPage() {
           deviceTds={deviceTds} difluid={difluid} difluidMeasuring={difluidMeasuring} difluidNoReply={difluidNoReply} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
           facts={lastFacts}
+          tdsEstimate={estimateTds({ coffee: recipe.coffee, dose: recipe.dose, ratio: recipe.ratio, cupWeight: w, grind: recipe.grindUm ?? recipe.grindSetting ?? null, seconds: last ? last.t / 1000 : null }, eyRefs)}
           top={rateTop}
           aside={pistonPanel ? <PurgePiston {...pistonProps} className="min-h-0 min-w-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
           onSkip={() => { skipRating(); setData([]); }}

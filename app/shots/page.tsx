@@ -7,6 +7,7 @@
  * Same look as the Station, light or dark.
  */
 
+import { eyReferences } from "@/lib/tds-estimate";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -261,6 +262,8 @@ function ShotsContent() {
                 .filter((r) => !r.flush && r.sum.coffee && selected.sum.coffee && sameCoffee(r.sum.coffee, selected.sum.coffee)
                   && r.sum.tds != null && r.sum.ey != null)
                 .map((r) => ({ tds: r.sum.tds!, ey: r.sum.ey! }))}
+              faces={faces}
+              eyRefs={eyReferences(rows.filter((r) => r.id !== selected.id && !r.flush).map((r) => r.sum))}
               onFace={(f) => setFaces((cur) => ({ ...cur, [selected.id]: f }))}
               onSaved={() => setVersion((v) => v + 1)}
               onBack={() => go({ shot: null })}

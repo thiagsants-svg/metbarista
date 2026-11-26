@@ -123,6 +123,8 @@ Ideas from the community, with thanks:
 - **Piston health**: the after-shot lift measure and its thresholds come from [ha-meticulous](https://github.com/hessius/ha-meticulous) by hessius (MIT), itself based on Nick Wilson's [meticulous-addon](https://github.com/nickwilsonr/meticulous-addon).
 - **Shot facts**: the idea comes from [Metic](https://github.com/hessius/MeticAI) by hessius; the rules and thresholds here are our own.
 - **Taste compass**: the idea is Barista Hustle's Espresso Compass, as Metic puts it after the shot; the drawing and rules here are our own.
+- **Estimated TDS**: the idea of estimating a shot's TDS from earlier refractometer readings comes from [portal-met-bridge](https://github.com/privaterra/portal-met-bridge) by privaterra (MIT), which calibrates a Belka Portal's conductivity that way; here, without a sensor, it uses the typical extraction yield of the coffee's measured shots made alike.
+- **AI review**: a stage-by-stage review of a shot by the AI you choose (Claude, ChatGPT, Gemini or Grok), with your own key kept on the tablet, follows the idea of [portal-met-bridge](https://github.com/privaterra/portal-met-bridge) by privaterra (MIT); the code and prompt here are our own.
 - **Purge piston**: drawing the piston at its real position comes from the purge screen of the Meticulous dial ([meticulous-dial](https://github.com/MeticulousHome/meticulous-dial)); the drawing here is our own.
 
 MIT License. Original work © Asaf Nakash and contributors ([MetBarista](https://github.com/nakashon/metbarista)); Not Nine Bar changes © its contributors. See [LICENSE](LICENSE).

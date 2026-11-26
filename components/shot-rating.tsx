@@ -8,6 +8,7 @@
  * suggestion), kept for this coffee; and optional tasting notes.
  */
 
+import type { TdsEstimate } from "@/lib/tds-estimate";
 import { useState } from "react";
 import { Bluetooth, Frown, Loader2, Smile } from "lucide-react";
 import type { DifluidState } from "@/lib/difluid";
@@ -30,7 +31,7 @@ const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
 
 export function ShotRating({
-  summary, coffee, recipe, shotRecipe, weight, deviceTds, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, facts, aside, top = 0, onSave, onSkip,
+  summary, coffee, recipe, shotRecipe, weight, deviceTds, tdsEstimate, difluid, difluidMeasuring, difluidNoReply, onDifluid, pastBrews, facts, aside, top = 0, onSave, onSkip,
 }: {
   /** px from the top of the screen left uncovered (the Station's readouts, pressure included) */
   top?: number;
@@ -56,6 +57,8 @@ export function ShotRating({
   difluidNoReply?: boolean;
   /** Connects to the R2, or asks it to measure when connected */
   onDifluid?: () => void;
+  /** TDS estimated from this coffee's measured shots, shown while no TDS is entered */
+  tdsEstimate?: TdsEstimate | null;
   /** Earlier shots of this coffee with a TDS reading, for the brew chart */
   pastBrews?: BrewPoint[];
   onSave: (face: Face | null, note: string, plan: PlanChoice | null, tds: number | null, body?: Body) => void;
@@ -173,10 +176,19 @@ export function ShotRating({
           <section className="flex min-w-0 flex-col rounded-lg border border-[var(--ink)]/15 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
-              <p className="min-w-0 truncate text-sm text-[var(--ink)]/75">
+              <p className="min-w-0 text-right text-sm text-[var(--ink)]/75">
                 {ey != null
                   ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b> <span className="text-[var(--ink)]/60">({weight.toFixed(1)} g ÷ {shotRecipe.dose} g)</span></>
-                  : "Optional"}
+                  : tdsEstimate ? (
+                    <span title={`Typical EY ${tdsEstimate.ey}% of ${tdsEstimate.n} measured shots ${tdsEstimate.basis === "similar" ? "made the same way" : "of this coffee"}`}>
+                      ≈ TDS <b className="tabular-nums text-[var(--ink)]">{tdsEstimate.tds.toFixed(2)}%</b>
+                      <span className="tabular-nums text-[var(--ink)]/70"> ±{tdsEstimate.margin.toFixed(2)}</span>{" "}
+                      <span className="text-[var(--ink)]/60">estimated · {tdsEstimate.n} measured {tdsEstimate.basis === "similar" ? "alike" : "shots"}</span>
+                      {tdsEstimate.differs.length > 0 && (
+                        <span className="block whitespace-normal text-xs font-semibold text-[var(--accent)]">Unlike the measured shots: {tdsEstimate.differs.join(", ")}</span>
+                      )}
+                    </span>
+                  ) : "Optional"}
               </p>
             </div>
             <div className="mt-2 flex items-center gap-2">

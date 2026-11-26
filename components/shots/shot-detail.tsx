@@ -6,6 +6,9 @@
  * here too: a TDS measured later, a face forgotten after the shot.
  */
 
+import { AiReviewPanel } from "@/components/shots/ai-review-panel";
+import { sameCoffee } from "@/lib/recipe";
+import { estimateTds, type EyReference, type TdsEstimate } from "@/lib/tds-estimate";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Frown, GitCompareArrows, Loader2, Smile } from "lucide-react";
@@ -30,7 +33,11 @@ import type { ShotEntry } from "@/lib/types";
 
 type Face = "like" | "dislike";
 
-export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack, others, compareId, onCompare }: {
+export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack, others, compareId, onCompare, eyRefs = [], faces }: {
+  /** Likes of the other shots (for the AI review's table) */
+  faces?: Record<string, "like" | "dislike" | null>;
+  /** Measured shots (EY) of all coffees, for the TDS estimate */
+  eyRefs?: EyReference[];
   shot: ShotEntry;
   /** The other loaded shots, to compare with */
   others: ShotPick[];
@@ -58,6 +65,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
   const [picking, setPicking] = useState(false);
+  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null }, eyRefs);
 
   const tile = (label: string, value: string, sub?: string | null) => (
     <div className="min-w-0 border-t-2 border-[var(--ink)] pt-1.5">
@@ -137,9 +145,19 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
       )}
 
       {/* Remount when another shot opens, so the fields start from its notes */}
-      <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved} />
+      <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved}
+        tdsEstimate={tdsEstimate} />
 
       <StageTable summary={stages} />
+
+      {/* AI review: this shot, with up to 5 earlier shots of the same coffee for the trend */}
+      <AiReviewPanel key={`ai-${shot.id}`}
+        current={{ shot, sum: s, notes: row.notes, face: face ?? null, plan }}
+        previous={others
+          .filter((o) => !o.row.flush && o.row.sum.coffee && s.coffee && sameCoffee(o.row.sum.coffee, s.coffee) && o.row.sum.when < s.when)
+          .sort((a, b) => b.row.sum.when - a.row.sum.when)
+          .slice(0, 5)
+          .map((o) => ({ shot: o.shot, sum: o.row.sum, notes: o.row.notes, face: faces?.[o.row.id] ?? null }))} />
 
       {shot.profile && (
         <p className="text-sm text-[var(--ink)]/70">
@@ -152,7 +170,9 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   );
 }
 
-function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
+function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate }: {
+  /** TDS estimated from this coffee's other measured shots, shown while no TDS is entered */
+  tdsEstimate: TdsEstimate | null;
   shot: ShotEntry;
   row: ShotRowData;
   pastBrews: BrewPoint[];
@@ -221,7 +241,16 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved }: {
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
             <p className="min-w-0 truncate text-sm text-[var(--ink)]/75">
-              {ey != null ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b></> : "Optional"}
+              {ey != null ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b></> : tdsEstimate ? (
+                    <span title={`Typical EY ${tdsEstimate.ey}% of ${tdsEstimate.n} measured shots ${tdsEstimate.basis === "similar" ? "made the same way" : "of this coffee"}`}>
+                      ≈ TDS <b className="tabular-nums text-[var(--ink)]">{tdsEstimate.tds.toFixed(2)}%</b>
+                      <span className="tabular-nums text-[var(--ink)]/70"> ±{tdsEstimate.margin.toFixed(2)}</span>{" "}
+                      <span className="text-[var(--ink)]/60">estimated · {tdsEstimate.n} measured {tdsEstimate.basis === "similar" ? "alike" : "shots"}</span>
+                      {tdsEstimate.differs.length > 0 && (
+                        <span className="block whitespace-normal text-xs font-semibold text-[var(--accent)]">Unlike the measured shots: {tdsEstimate.differs.join(", ")}</span>
+                      )}
+                    </span>
+                  ) : "Optional"}
             </p>
           </div>
           <label className="mt-2 flex h-12 min-w-0 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3">
