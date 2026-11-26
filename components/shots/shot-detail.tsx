@@ -17,7 +17,7 @@ import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
-import { FACT_LABEL, shotFacts } from "@/lib/shot-facts";
+import { FACT_LABEL, shotFacts, firstDropsAt } from "@/lib/shot-facts";
 import { ShotFactsList } from "@/components/shots/shot-facts";
 import { StageTable } from "@/components/shots/stage-table";
 import { CompareView, ComparePicker, type ShotPick } from "@/components/shots/compare-view";
@@ -30,6 +30,7 @@ import { compassBody, compassPoint, compassTaste, type CompassPoint } from "@/li
 import { planLines, TASTE_LABEL, type Taste } from "@/lib/next-plan";
 import { extractionYield, formatRatio } from "@/lib/recipe";
 import type { ShotEntry } from "@/lib/types";
+import { loadWaters, setShotWater, waterText, type WaterRecipe } from "@/lib/water";
 
 type Face = "like" | "dislike";
 
@@ -65,7 +66,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
   const [picking, setPicking] = useState(false);
-  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null }, eyRefs);
+  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null, waterId: s.waterId ?? null }, eyRefs);
 
   const tile = (label: string, value: string, sub?: string | null) => (
     <div className="min-w-0 border-t-2 border-[var(--ink)] pt-1.5">
@@ -103,10 +104,11 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
         {tile("Grind", grindText(s) ?? "—",
           [p.feed != null ? `feed ${p.feed}` : null, p.rpm != null ? `${p.rpm} rpm` : null, p.grinder ?? null].filter(Boolean).join(" · ") || null)}
         {tile("In the cup", `${s.weight.toFixed(1)} g`)}
-        {tile("Time", fmtClock(s.seconds))}
+        {tile("Time", fmtClock(s.seconds), firstDropsAt(shot.data ?? []) != null ? `first drops at ${firstDropsAt(shot.data ?? [])} s` : null)}
         {tile("TDS", s.tds != null ? `${s.tds.toFixed(2)}%` : "—")}
         {tile("EY", s.ey != null ? `${s.ey.toFixed(1)}%` : "—")}
       </div>
+      <WaterPicker shotTime={shot.time} initial={s.waterId ?? null} />
 
       {versus ? (
         <CompareView a={{ row, shot }} b={versus} onClose={() => onCompare(null)} />
@@ -182,7 +184,8 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate 
   onSaved: () => void;
 }) {
   // The taste compass starts where the saved taste and body read the same
-  const [point, setPoint] = useState<CompassPoint | null>(() => compassPoint(row.notes.taste, row.notes.body));
+  // The exact point when it was kept with the plan, else the side it was on
+  const [point, setPoint] = useState<CompassPoint | null>(() => getShotPlan(shot.time)?.point ?? compassPoint(row.notes.taste, row.notes.body));
   const taste: Taste | undefined = point ? compassTaste(point) : undefined;
   const body = point ? compassBody(point) : undefined;
   const [tdsInput, setTdsInput] = useState(row.notes.tds != null ? row.notes.tds.toFixed(2) : "");
@@ -283,5 +286,22 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate 
         {status && <p className="text-sm font-semibold text-[var(--ink)]/75">{status}</p>}
       </div>
     </section>
+  );
+}
+
+/** The shot's water: the one in use when it was pulled, changeable for this shot */
+function WaterPicker({ shotTime, initial }: { shotTime: number; initial: string | null }) {
+  const [list] = useState<WaterRecipe[]>(() => loadWaters());
+  const [id, setId] = useState<string | null>(initial);
+  if (!list.length) return null;
+  return (
+    <label className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-[var(--ink)]/70">Water</span>
+      <select className="min-h-11 rounded-md border border-[var(--ink)]/25 bg-transparent px-2" value={id ?? ""}
+        onChange={(e) => { const v = e.target.value || null; setId(v); setShotWater(shotTime, v); }}>
+        <option value="">Not set</option>
+        {list.map((w) => <option key={w.id} value={w.id}>{waterText(w)}</option>)}
+      </select>
+    </label>
   );
 }

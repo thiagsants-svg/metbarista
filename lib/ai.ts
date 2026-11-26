@@ -37,6 +37,8 @@ export interface AiSetup {
   /** Puck preparation used */
   prep?: string[];
   drink?: "espresso" | "milk" | "both";
+  /** Basket model and size, e.g. "IMS 18 g" */
+  basket?: string;
   /** Anything else about the setup */
   notes?: string;
 }
@@ -48,6 +50,7 @@ export const PREP_OPTIONS: Record<string, string> = {
   screen: "a puck screen on top",
   singleDose: "single-dose grinding (each dose weighed)",
   tamper: "a calibrated tamper",
+  paper: "a paper filter under the puck",
 };
 
 export interface AiSettings {
@@ -65,7 +68,11 @@ const keyName = (p: Provider) => `not9bar_ai_key_${p}`;
 export function loadAiSettings(): AiSettings {
   const base: AiSettings = { provider: "anthropic", models: {}, language: "en" };
   if (typeof window === "undefined") return base;
-  try { return { ...base, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}") as Partial<AiSettings>) }; } catch { return base; }
+  try {
+    const s = { ...base, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}") as Partial<AiSettings>) };
+    // A restored or hand-edited setting naming an AI that doesn't exist falls back to Claude
+    return s.provider in PROVIDERS ? s : { ...s, provider: "anthropic" };
+  } catch { return base; }
 }
 export function saveAiSettings(s: AiSettings): void {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* kept for this visit only */ }

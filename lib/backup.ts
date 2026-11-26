@@ -10,6 +10,7 @@
  * Version 2 adds the coffees' bag photos (kept in IndexedDB, not localStorage).
  */
 
+import { validKettleHost } from "./kettle";
 import type { CoffeePhoto } from "./coffee-photos";
 
 const PREFIX = "metbarista_";
@@ -61,12 +62,21 @@ export function readBackup(text: string): Backup {
     throw new Error("This backup comes from a newer Station: reload the page and try again.");
   }
   const data: Record<string, string> = {};
-  for (const [k, v] of Object.entries(b.data)) if (backedUp(k) && typeof v === "string") data[k] = v;
+  for (const [k, v] of Object.entries(b.data)) if (backedUp(k) && typeof v === "string" && safeValue(k, v)) data[k] = v;
   const photos = Array.isArray(b.photos)
     ? b.photos.filter((p): p is CoffeePhoto => !!p && typeof p.id === "string" && typeof p.coffee === "string"
       && typeof p.dataUrl === "string" && p.dataUrl.startsWith("data:image/") && typeof p.at === "number")
     : undefined;
   return { app: APP, version: b.version, savedAt: String(b.savedAt ?? ""), data, ...(photos ? { photos } : {}) };
+}
+
+/**
+ * Device addresses in a backup file someone shared must be home-network ones:
+ * a file can't point the Station or the kettle reader at another host.
+ */
+function safeValue(key: string, value: string): boolean {
+  if (key === "metbarista_machine_ip" || key === "metbarista_kettle_ip") return validKettleHost(value);
+  return true;
 }
 
 /** Replaces this tablet's Station data with the backup's (Bluetooth permissions stay) */

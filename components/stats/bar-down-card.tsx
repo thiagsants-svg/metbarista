@@ -12,16 +12,21 @@ import { useMemo } from "react";
 import { byGap, READY_MARGIN, rememberedBarDown } from "@/lib/bar-down";
 
 export function BarDownCard({ shots, tick }: {
-  shots: { id: string; face?: "like" | "dislike" | null; ey?: number | null }[];
+  shots: { id: string; coffee?: string; face?: "like" | "dislike" | null; ey?: number | null }[];
   /** Changes while the shots are being read, so the card fills in */
   tick: number;
 }) {
   const groups = useMemo(() => {
     void tick;
     const known = new Map(rememberedBarDown().map((b) => [b.id, b]));
+    // Each coffee's usual extraction, so a new bag (often the cold first shots) doesn't pass for the group's fault
+    const byCoffee = new Map<string, number[]>();
+    for (const s of shots) if (s.ey != null) byCoffee.set(s.coffee ?? "", [...(byCoffee.get(s.coffee ?? "") ?? []), s.ey]);
+    const usual = (c: string) => { const xs = [...(byCoffee.get(c) ?? [])].sort((a, b) => a - b); return xs.length >= 2 ? xs[Math.floor(xs.length / 2)] : null; };
     const rows = shots.flatMap((s) => {
       const b = known.get(s.id);
-      return b ? [{ gap: b.target - b.barDown, face: s.face ?? null, ey: s.ey ?? null }] : [];
+      const u = usual(s.coffee ?? "");
+      return b ? [{ gap: b.target - b.barDown, face: s.face ?? null, ey: s.ey != null && u != null ? s.ey - u : null }] : [];
     });
     return { rows: rows.length, groups: byGap(rows) };
   }, [shots, tick]);
@@ -30,10 +35,10 @@ export function BarDownCard({ shots, tick }: {
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">Bar down at the start</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">Group temperature at the start (Bar down)</h2>
       <p className="mt-1 text-sm text-[var(--ink)]/70">
-        The group&apos;s lowest thermometer, by the puck, when each shot started, against the target temperature.
-        Is it worth waiting for it to come within {READY_MARGIN} °C? Read from the shots the machine keeps.
+        Bar down is the group&apos;s lowest thermometer, by the puck: how far below the target it was when each shot started.
+        Your hypothesis: waiting until it&apos;s within {READY_MARGIN} °C gives better shots. Read from the shots the machine keeps.
       </p>
       {groups.rows === 0 ? (
         <p className="mt-3 text-sm text-[var(--ink)]/65">No shot read yet: it fills in while the piston card reads the machine&apos;s shots.</p>
@@ -44,7 +49,7 @@ export function BarDownCard({ shots, tick }: {
               <th className="py-1 font-medium">Bar down</th>
               <th className="py-1 text-right font-medium">Shots</th>
               <th className="py-1 text-right font-medium">Liked</th>
-              <th className="py-1 text-right font-medium">EY</th>
+              <th className="py-1 text-right font-medium">Extraction vs the coffee&apos;s usual</th>
             </tr>
           </thead>
           <tbody>
@@ -53,14 +58,15 @@ export function BarDownCard({ shots, tick }: {
                 <td className="py-1.5">{g.label}</td>
                 <td className="py-1.5 text-right">{g.shots}</td>
                 <td className="py-1.5 text-right">{g.rated ? `${Math.round((g.liked / g.rated) * 100)}% of ${g.rated}` : "—"}</td>
-                <td className="py-1.5 text-right">{g.eys.length ? `${avg(g.eys).toFixed(1)}% (${g.eys.length})` : "—"}</td>
+                <td className="py-1.5 text-right">{g.eys.length ? `${avg(g.eys) >= 0 ? "+" : "−"}${Math.abs(avg(g.eys)).toFixed(1)} (${g.eys.length})` : "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <p className="mt-2 text-xs text-[var(--ink)]/60">
-        Few rated or measured shots say little: rate and measure more to see whether it matters on your machine.
+      <p className="mt-2 text-sm text-[var(--ink)]/65">
+        The first shots of a session or of a new bag are often both colder and less dialled in, so this table alone can mislead.
+        To settle it: same coffee and recipe, alternate waiting and not waiting for 4–6 pairs, and measure each with the refractometer.
       </p>
     </section>
   );

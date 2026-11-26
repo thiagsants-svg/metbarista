@@ -29,7 +29,7 @@ function Log({ lines, onClear }: { lines: string[]; onClear: () => void }) {
     <div className="mt-3">
       <div className="flex items-center justify-between">
         <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">Debug log</p>
-        <button onClick={onClear} className="inline-flex items-center gap-1 text-xs text-[var(--ink)]/65"><Trash2 className="h-3.5 w-3.5" />Clear</button>
+        <button onClick={onClear} className="inline-flex min-h-11 items-center gap-1 px-2 text-sm text-[var(--ink)]/70"><Trash2 className="h-4 w-4" />Clear</button>
       </div>
       <pre ref={ref} className="mt-1 h-56 overflow-auto rounded-md bg-[var(--ink)]/[0.06] p-2 text-[11px] leading-snug whitespace-pre-wrap break-all">
         {lines.length ? lines.join("\n") : "Nothing yet."}
@@ -38,8 +38,9 @@ function Log({ lines, onClear }: { lines: string[]; onClear: () => void }) {
   );
 }
 
-const btn = "rounded-md border border-[var(--ink)]/25 px-3 py-2 text-sm font-semibold active:scale-95 disabled:opacity-40";
-const stateColor = (s: string) => (s === "on" ? "bg-green-600" : s === "connecting" ? "bg-amber-500" : s === "lost" ? "bg-red-600" : "bg-[var(--ink)]/30");
+const btn = "min-h-11 rounded-md border border-[var(--ink)]/25 px-4 py-2 text-base font-semibold active:scale-95 disabled:opacity-40";
+const STATE_LABEL: Record<string, string> = { on: "Connected", off: "Not connected", connecting: "Connecting…", lost: "Lost" };
+const stateColor = (s: string) => (s === "on" ? "bg-[var(--good)]" : s === "connecting" ? "bg-[var(--warn)]" : s === "lost" ? "bg-[var(--bad)]" : "bg-[var(--ink)]/30");
 
 function Card({ title, state, children, wifi }: { title: string; state: string; children: React.ReactNode; wifi?: boolean }) {
   return (
@@ -47,7 +48,7 @@ function Card({ title, state, children, wifi }: { title: string; state: string; 
       <div className="flex items-center gap-2">
         {wifi ? <Thermometer className="h-5 w-5 text-[var(--accent)]" /> : <Bluetooth className="h-5 w-5 text-[var(--accent)]" />}
         <h2 className="text-lg font-bold">{title}</h2>
-        <span className="ml-auto inline-flex items-center gap-1.5 text-sm"><span className={`h-2.5 w-2.5 rounded-full ${stateColor(state)}`} />{state}</span>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-sm"><span className={`h-2.5 w-2.5 rounded-full ${stateColor(state)}`} />{STATE_LABEL[state] ?? state}</span>
       </div>
       {children}
     </section>
@@ -138,21 +139,24 @@ function KettleCard() {
     }
   }, [add]);
 
-  // Every 3 s while watching (one request at a time)
+  // Every 3 s while watching, the next read only after the last one finished
   useEffect(() => {
     if (!watching) return;
-    const id = setInterval(() => { void once(ip, true); }, 3000);
-    return () => clearInterval(id);
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loop = async () => { await once(ip, true); if (alive) timer = setTimeout(loop, 3000); };
+    timer = setTimeout(loop, 3000);
+    return () => { alive = false; clearTimeout(timer); };
   }, [watching, ip, once]);
 
   return (
     <Card title="Kettle · Fellow Stagg EKG Pro (Wi-Fi)" state={state} wifi>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="grid gap-1 text-sm">Kettle address on your Wi-Fi
-          <input className="w-48 rounded-md border border-[var(--ink)]/25 bg-transparent px-3 py-2" inputMode="decimal" placeholder="192.168.1.20"
+          <input className="w-48 rounded-md border border-[var(--ink)]/25 bg-transparent px-3 py-2" inputMode="url" autoCapitalize="off" autoCorrect="off" placeholder="192.168.1.20"
             value={ip} onChange={(e) => setIp(e.target.value)} />
         </label>
-        <button className={btn} onClick={() => { setKettleIp(ip); void once(ip); }}>Read now</button>
+        <button className={btn} disabled={!ip.trim()} onClick={() => { setKettleIp(ip); void once(ip); }}>Read now</button>
         <button className={btn} disabled={!ip} onClick={() => { setKettleIp(ip); setWatching((w) => !w); }}>{watching ? "Stop" : "Follow every 3 s"}</button>
       </div>
       <p className="mt-3 text-sm">

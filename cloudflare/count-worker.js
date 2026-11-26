@@ -5,7 +5,7 @@
  *   POST /hit/d   a device opened the site today (the site sends it once a day)
  *   POST /hit/s   a Station connected to a machine today
  *   POST /hit/n   a browser opened the site for the first time (sent once ever)
- *   POST /hit/m   {"c":"3fa2"} a machine's short code (4 hex digits, sent once
+ *   POST /hit/m   {"c":"3f"} a machine's short code (2 hex digits, sent once
  *                 per machine and browser; see machineCode in lib/usage.ts)
  *   GET  /totals  { machines, devices }: different machines (estimated) and browsers
  *   GET  /days?n=14   the last n days (UTC), newest first: [{ day, d, s }]
@@ -14,7 +14,8 @@
  *
  * Anonymous: only the day's totals are kept (no IP, no device id). For
  * machines, only the set of short codes is kept, with no date, time or IP:
- * 65,536 possible codes, so a code can't be turned back into a serial. The day is
+ * 256 possible codes, each shared by many machines, so a code can't point to
+ * one. The counts can't be verified: a script can send made-up hits. The day is
  * taken here (UTC), so a visitor can only add to today. Pasted into the
  * Cloudflare dashboard; see README.md.
  */
@@ -70,29 +71,31 @@ export default {
       if (origin !== ALLOWED_ORIGIN) return json({ error: "not allowed" }, origin, 403);
       const body = await request.json().catch(() => null);
       const code = typeof body?.c === "string" ? body.c.toLowerCase() : "";
-      if (!/^[0-9a-f]{4}$/.test(code)) return json({ error: "bad code" }, origin, 400);
-      if (!(await env.COUNTS.get(`m-${code}`))) await env.COUNTS.put(`m-${code}`, "1");
+      if (!/^[0-9a-f]{2}$/.test(code)) return json({ error: "bad code" }, origin, 400);
+      if (!(await env.COUNTS.get(`m2-${code}`))) {
+        await env.COUNTS.put(`m2-${code}`, "1");
+        // A running count, so /totals never has to list the codes
+        await env.COUNTS.put("m2-count", String(Number((await env.COUNTS.get("m2-count")) ?? 0) + 1));
+      }
       return json({ ok: true }, origin);
     }
 
-    // GET /totals: different machines (corrected for shared codes) and browsers
+    // GET /totals: different machines (corrected for shared codes) and browsers; cached 5 min
     if (url.pathname === "/totals" && request.method === "GET") {
-      let codes = 0, cursor;
-      do {
-        const page = await env.COUNTS.list({ prefix: "m-", cursor });
-        codes += page.keys.length;
-        cursor = page.list_complete ? undefined : page.cursor;
-      } while (cursor);
-      // Linear counting: two machines may share a code, so a few more than the codes seen
-      const M = 65536;
-      const machines = codes >= M ? codes : Math.round(-M * Math.log(1 - codes / M));
-      const devices = Number((await env.COUNTS.get("n-total")) ?? 0);
-      return json({ machines, devices }, origin);
+      return cached(url, origin, async () => {
+        const codes = Math.min(255, Number((await env.COUNTS.get("m2-count")) ?? 0));
+        // Linear counting: several machines share a code, so more machines than codes seen
+        const M = 256;
+        const machines = Math.round(-M * Math.log(1 - codes / M));
+        const devices = Number((await env.COUNTS.get("n-total")) ?? 0);
+        return { machines, devices, saturated: codes >= 255 };
+      });
     }
 
     // GET /days?n=14: the last n days
     if (url.pathname === "/days" && request.method === "GET") {
       const n = Math.min(90, Math.max(1, Number(url.searchParams.get("n")) || 14));
+      return cached(url, origin, async () => {
       const now = Date.now();
       const days = Array.from({ length: n }, (_, i) => new Date(now - i * 86_400_000).toISOString().slice(0, 10));
       const out = await Promise.all(days.map(async (day) => ({
@@ -100,7 +103,8 @@ export default {
         d: Number((await env.COUNTS.get(`d-${day}`)) ?? 0),
         s: Number((await env.COUNTS.get(`s-${day}`)) ?? 0),
       })));
-      return json(out, origin);
+      return out;
+      });
     }
 
     // GET /summary: today and the last 7 days, plus Web Analytics when configured
@@ -132,6 +136,16 @@ export default {
     return json({ error: "not found" }, origin, 404);
   },
 };
+
+/** Answers from the edge cache for 5 minutes, so reading the counts can't drain the KV budget */
+async function cached(url, origin, compute) {
+  const cache = caches.default;
+  const key = new Request(`${url.origin}${url.pathname}${url.search}`);
+  const hit = await cache.match(key);
+  const body = hit ? await hit.text() : JSON.stringify(await compute());
+  if (!hit) await cache.put(key, new Response(body, { headers: { "Cache-Control": "max-age=300" } }));
+  return new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...cors(origin) } });
+}
 
 /**
  * Visits and page views of the last 7 days from Cloudflare Web Analytics. Needs

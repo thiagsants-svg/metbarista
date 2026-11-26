@@ -66,7 +66,8 @@ import { useMachineLive } from "@/lib/station/use-machine-live";
 import { useGrinder } from "@/lib/station/use-grinder";
 import { useDifluid } from "@/lib/station/use-difluid";
 import { useShotRecord } from "@/lib/station/use-shot-record";
-import { countMachine, countUse } from "@/lib/usage";
+import { countMachine, countUse, counting, machineCounted } from "@/lib/usage";
+import { currentWaterId } from "@/lib/water";
 import type { ActionType, Profile } from "@/lib/types";
 
 export default function StationPage() {
@@ -119,7 +120,7 @@ export default function StationPage() {
     if (!connected) return;
     void countUse("s");
     // Different machines: only a short code that can't be turned back into the serial (lib/usage.ts)
-    getMachineInfo().then((m) => countMachine(m.serial)).catch(() => {});
+    if (counting() && !machineCounted()) getMachineInfo().then((m) => countMachine(m.serial)).catch(() => {});
   }, [connected]);
   const { recentShots, nextPlan, setNextPlan, rateOpen, setRateOpen, showRecent, saveRating, lastFacts, lastCup, unrated, rateUnrated, skipRating } =
     useShotRecord({
@@ -408,7 +409,7 @@ export default function StationPage() {
           deviceTds={deviceTds} difluid={difluid} difluidMeasuring={difluidMeasuring} difluidNoReply={difluidNoReply} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
           facts={lastFacts}
-          tdsEstimate={estimateTds({ coffee: recipe.coffee, dose: recipe.dose, ratio: recipe.ratio, cupWeight: w, grind: recipe.grindUm ?? recipe.grindSetting ?? null, seconds: last ? last.t / 1000 : null, barDown: data.find((d) => typeof d.barDown === "number")?.barDown ?? null }, eyRefs)}
+          tdsEstimate={estimateTds({ coffee: recipe.coffee, dose: recipe.dose, ratio: recipe.ratio, cupWeight: w, grind: recipe.grindUm ?? recipe.grindSetting ?? null, seconds: last ? last.t / 1000 : null, barDown: data.find((d) => typeof d.barDown === "number")?.barDown ?? null, waterId: currentWaterId() }, eyRefs)}
           top={rateTop}
           aside={pistonPanel ? <PurgePiston {...pistonProps} className="min-h-0 min-w-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
           onSkip={() => { skipRating(); setData([]); }}

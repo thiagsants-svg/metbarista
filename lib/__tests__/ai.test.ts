@@ -63,7 +63,7 @@ describe("review extras", () => {
   it("puts the coffee's shots side by side", () => {
     const t = seriesTable([base(1764000000000, 145), base(1764003600000, 140, 9)]);
     expect(t.split("\n")).toHaveLength(4);
-    expect(t).toMatch(/145 µm .* 36 \| 1:2.00 \| 0:30 \| - /);
+    expect(t).toMatch(/145 µm .* 36 \| 1:2.00 \| \? \| 0:30 \| - /);
     expect(t).toMatch(/140 µm .* \| 9 \| 20 \|/);
   });
   it("tells the setup and samples the curve once a second", () => {

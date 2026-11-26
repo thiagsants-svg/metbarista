@@ -14,7 +14,7 @@ export const THEMES = {
     "--paper": "#ebeae6", "--ink": "#111111", "--accent": "#8a6200",
     "--primary": "#ffc400", "--on-primary": "#111111", "--stop": "#d62828",
     "--heat": "#c2410c", "--water": "#0369a1", "--weight": "#1d4ed8", "--grav": "#8a8a85", "--temp": "#8a6200",
-    "--h0": "#8a6200", "--h1": "#111111", "--h2": "#55554f", "--h3": "#8f8e88", "--h4": "#b9b7b0",
+    "--h0": "#8a6200", "--h1": "#111111", "--h2": "#55554f", "--h3": "#6b6a64", "--h4": "#be185d",
     "--h5": "#1d4ed8", "--h6": "#7aa2f7",
     // Status text and tints: OK, soon, due (dark enough to read on paper)
     "--good": "#047857", "--warn": "#92400e", "--bad": "#9a3412",

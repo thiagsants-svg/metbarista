@@ -30,7 +30,7 @@ const TABS = [
 const TITLES: [string, string][] = [
   ["/shots", "Shots"], ["/coffees", "Coffees"], ["/stats", "Stats"], ["/profiles", "Profiles"],
   ["/profile", "Profile"], ["/community", "Community"], ["/create", "New profile"], ["/import", "Import a profile"],
-  ["/share", "Share a profile"], ["/compare", "Compare shots"], ["/live", "Live shot"], ["/shortcuts", "Home screen shortcut"], ["/usage", "Usage"], ["/bluetooth", "Devices"], ["/pour-over", "Pour-over"],
+  ["/share", "Share a profile"], ["/compare", "Compare shots"], ["/live", "Live shot"], ["/shortcuts", "Home screen shortcut"], ["/usage", "Usage"], ["/bluetooth", "Devices"], ["/pour-over", "Pour-over"], ["/water", "Water"],
 ];
 
 export function AppFrame({ children }: { children: React.ReactNode }) {

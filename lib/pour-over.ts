@@ -39,6 +39,8 @@ export const STOP_FLOW = 0.4;
 export const STOP_HOLD = 1.2;
 /** g risen above the last level before a new pour counts (a bump isn't a pour) */
 export const MIN_RISE = 2;
+/** g of water that must stay once a "pour" stops, or it was a bump */
+export const MIN_POUR = 5;
 /** g/s: faster than any kettle, a knock on the scale */
 export const MAX_FLOW = 25;
 
@@ -88,6 +90,11 @@ export function step(d: Detector, s: Sample): Detector {
         cur.end = calmSince - (t0 ?? 0);
         pouring = false;
         calmSince = null;
+        // A bump or a hand on the brewer, not a pour: forget it (and the clock, if it was the first)
+        if (w - cur.from < MIN_POUR) {
+          pours.pop();
+          if (!pours.length) t0 = null;
+        }
       }
     } else calmSince = null;
   }
@@ -121,6 +128,8 @@ export interface RecipePour {
   grams: number;
   /** s the pour should last (the flow is grams ÷ seconds) */
   seconds: number;
+  /** Agitation after this pour */
+  then?: "swirl" | "stir";
 }
 
 export interface PourRecipe {
@@ -138,19 +147,19 @@ const BREWS_KEY = "metbarista_pourover_brews";
 
 export const DEFAULT_RECIPES: PourRecipe[] = [
   {
-    id: "bloom-two", name: "Bloom and two pours", dose: 15, temperature: 93,
-    pours: [{ at: 0, grams: 45, seconds: 10 }, { at: 45, grams: 105, seconds: 20 }, { at: 90, grams: 90, seconds: 20 }],
-    notes: "1:16. Let the bloom sit 45 s; a gentle swirl after the last pour.",
+    id: "bloom-two", name: "Bloom and two pours", dose: 15, temperature: 96,
+    pours: [{ at: 0, grams: 45, seconds: 10, then: "swirl" }, { at: 45, grams: 105, seconds: 20 }, { at: 90, grams: 90, seconds: 20, then: "swirl" }],
+    notes: "1:16. Swirl to wet all the grounds in the bloom, and gently once more after the last pour. Cooler (90–93 °C) for darker roasts.",
   },
   {
-    id: "five-equal", name: "Five equal pours", dose: 20, temperature: 92,
+    id: "five-equal", name: "Five equal pours", dose: 20, temperature: 95,
     pours: [0, 45, 90, 135, 180].map((at) => ({ at, grams: 60, seconds: 10 })),
     notes: "1:15. The first two pours set the sweetness and acidity, the last three the strength.",
   },
   {
-    id: "one-long", name: "Bloom and one long pour", dose: 15, temperature: 94,
-    pours: [{ at: 0, grams: 40, seconds: 10 }, { at: 40, grams: 200, seconds: 60 }],
-    notes: "1:16. A slow, steady pour in circles.",
+    id: "one-long", name: "Bloom and one long pour", dose: 15, temperature: 96,
+    pours: [{ at: 0, grams: 40, seconds: 10, then: "stir" }, { at: 40, grams: 200, seconds: 60, then: "swirl" }],
+    notes: "1:16. Stir the bloom, then a slow, steady pour in circles; a gentle swirl at the end.",
   },
 ];
 
@@ -168,10 +177,21 @@ export function saveRecipes(list: PourRecipe[]): void {
 export const recipeWater = (r: PourRecipe) => r.pours.reduce((a, p) => a + p.grams, 0);
 export const recipeRatio = (r: PourRecipe) => recipeWater(r) / r.dose;
 
-/** The recipe for this dose: every pour's water scaled, times unchanged */
+/**
+ * The recipe for this dose: every pour's water scaled, its pouring time too so
+ * the flow stays the same, and the later pours pushed back by the time added.
+ * (A bigger bed also drains slower: a coarser grind may be needed.)
+ */
 export function scaleRecipe(r: PourRecipe, dose: number): PourRecipe {
   const k = dose > 0 ? dose / r.dose : 1;
-  return { ...r, dose, pours: r.pours.map((p) => ({ ...p, grams: Math.round(p.grams * k) })) };
+  let shift = 0;
+  const pours = r.pours.map((p) => {
+    const seconds = Math.max(1, Math.round(p.seconds * k));
+    const out = { ...p, at: Math.round(p.at + shift), grams: Math.round(p.grams * k), seconds };
+    shift += seconds - p.seconds;
+    return out;
+  });
+  return { ...r, dose, pours };
 }
 
 export interface Guide {
@@ -216,6 +236,18 @@ export interface PourBrew {
   grinder?: string;
   grind?: string;
   temperature?: number;
+  /** The kettle's own reading when the first pour began */
+  kettleTemp?: number;
+  /** V60, flat-bottom, Chemex… */
+  brewer?: string;
+  /** Water used: its recipe (lib/water.ts) and, as text, what it was then */
+  waterId?: string;
+  waterNote?: string;
+  /** g of water added to the drink after brewing */
+  bypass?: number;
+  /** s when the bed drained (tapped), else the brew ended at `seconds` */
+  drained?: number;
+  dry?: boolean;
   recipe?: string;
   pours: Pour[];
   /** [s, g of water] about twice a second */

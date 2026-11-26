@@ -36,7 +36,7 @@ export function PourScene({ pouring, dripping, water, target, kettleTemp = null 
         .po-steam { animation: po-steam 2.4s ease-in-out infinite; opacity: .0; }
         .po-steam2 { animation-delay: 1.2s; }
         @keyframes po-steam { 0% { transform: translateY(6px); opacity: 0; } 40% { opacity: .45; } 100% { transform: translateY(-14px); opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { .po-stream, .po-drop, .po-steam { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .po-stream, .po-drop, .po-steam { animation: none; } .po-kettle, .po-level { transition: none; } }
       `}</style>
 
       {/* Kettle base (Stagg EKG Pro): its screen shows the kettle's own temperature when it can be read */}

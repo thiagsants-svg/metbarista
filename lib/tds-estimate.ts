@@ -6,7 +6,7 @@
  *
  *   TDS ≈ EY × dose ÷ cup weight
  *
- * Similar = same dose (±1 g), ratio (±0.3), grind (±10 µm or ±0.5 on a dial)
+ * Similar = same dose (±1 g), ratio (±0.3), grind (±5 µm, one Motto step, or ±0.5 on a dial)
  * time (±20 %) and Bar down at the start (±1.5 °C), each only when both shots know it. With fewer than 3
  * similar shots it falls back to every measured shot of the coffee, and says
  * which way this shot differs (grind, time). The margin is how much those EYs
@@ -33,6 +33,8 @@ export interface EyReference {
   seconds?: number | null;
   /** Bar down at the start, °C */
   barDown?: number | null;
+  /** Water recipe id */
+  waterId?: string | null;
 }
 
 export interface TdsEstimate {
@@ -70,20 +72,22 @@ const close = (a: number | null | undefined, b: number | null | undefined, withi
 export function estimateTds(
   shot: {
     coffee: string | null | undefined; dose: number; ratio?: number | null; cupWeight: number;
-    grind?: number | null; seconds?: number | null; barDown?: number | null;
+    grind?: number | null; seconds?: number | null; barDown?: number | null; waterId?: string | null;
   },
   refs: EyReference[],
 ): TdsEstimate | null {
   if (!shot.coffee || !(shot.dose > 0) || !(shot.cupWeight > 0)) return null;
   const mine = refs.filter((r) => sameCoffee(r.coffee, shot.coffee) && r.ey > 5 && r.ey < 35);
   // A dial setting (single digits) moves in steps of ~0.5; microns in steps of ~10
-  const grindTol = shot.grind != null && shot.grind < 50 ? 0.5 : 10;
+  // One Motto 80 step is 5 µm
+  const grindTol = shot.grind != null && shot.grind < 50 ? 0.5 : 5;
   const similar = mine.filter((r) => Math.abs(r.dose - shot.dose) <= 1
     && close(r.ratio, shot.ratio, 0.3)
     && close(r.grind, shot.grind, grindTol)
     && close(r.barDown, shot.barDown, BAR_DOWN_TOL)
     && (r.seconds == null || shot.seconds == null || Math.abs(r.seconds - shot.seconds) <= 0.2 * r.seconds));
-  const pool = similar.length >= MIN_SHOTS ? similar : mine.length >= MIN_SHOTS ? mine : null;
+  // Only shots made the same way: the whole coffee mixes ratios, and EY moves with the ratio
+  const pool = similar.length >= MIN_SHOTS ? similar : null;
   if (!pool) return null;
   const eys = pool.map((r) => r.ey);
   const ey = median(eys);
@@ -97,7 +101,7 @@ export function estimateTds(
   };
   const g = range(pool.map((r) => r.grind));
   if (g && shot.grind != null && (shot.grind < g[0] - grindTol || shot.grind > g[1] + grindTol)) {
-    const unit = grindTol === 10 ? " µm" : "";
+    const unit = grindTol === 5 ? " µm" : "";
     differs.push(`grind ${shot.grind}${unit} vs ${g[0] === g[1] ? g[0] : `${g[0]}–${g[1]}`}${unit} measured`);
   }
   const t = range(pool.map((r) => r.seconds));
@@ -127,6 +131,7 @@ export function eyReferences(shots: CoffeeLastShot[]): EyReference[] {
       coffee: s.coffee, dose: s.patch.dose, ratio: s.patch.ratio ?? null, ey: s.ey,
       grind: s.patch.grindUm ?? s.patch.grindSetting ?? null, seconds: s.seconds > 0 ? s.seconds : null,
       barDown: s.barDown ?? null,
+      waterId: s.waterId ?? null,
     }]
     : []));
 }

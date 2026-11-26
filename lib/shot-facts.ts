@@ -46,6 +46,15 @@ export function activeTargets(sp: ShotSetpoints | undefined): { pTarget: number 
 
 /** Grams in the cup that count as "the first drops" */
 const FIRST_DRIP_G = 2;
+
+/** Seconds from the start to the first drops (2 g in the cup): the best single grind-consistency number */
+export function firstDropsAt(frames: ShotFrame[]): number | null {
+  for (const f of frames) {
+    const w = Number(f.shot?.weight);
+    if (Number.isFinite(w) && w >= FIRST_DRIP_G) return Math.round(f.time / 100) / 10;
+  }
+  return null;
+}
 /** Ignore the first moments of a stage: the machine is moving to the new target */
 const STAGE_SETTLE_MS = 2000;
 /** Channeling: how quick and how big the jump must be */

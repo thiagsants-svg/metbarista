@@ -24,6 +24,8 @@ export interface NextPlan {
   grindWas?: string;
   /** Older plans: a set grind change, µm on the Motto 80, dial steps otherwise (negative = finer) */
   grindDelta?: number;
+  /** Where the taste was tapped on the compass (-1…1 each way): how sour or bitter, not only which side */
+  point?: { x: number; y: number };
   /** ms: when it was decided */
   at: number;
 }

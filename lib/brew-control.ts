@@ -1,9 +1,15 @@
 /**
  * Brew control chart for espresso: extraction yield (EY, %) across, strength
  * (TDS, %) up, like DiFluid's app. Since EY = TDS × ratio, each ratio is a line
- * TDS = EY / ratio. The target box follows DiFluid's espresso standards
- * (EY 18-22 %; TDS by style), picked from the shot's ratio.
+ * TDS = EY / ratio. The target box: EY 18-23 % (good light roasts on
+ * lever-style profiles land at 21-23 %), and the strength that EY gives at the
+ * shot's own ratio, so the box sits on the ratio line and only the extraction
+ * decides in or out: strength is what the ratio was chosen for (taste it on
+ * the compass). Without a ratio, DiFluid's style boxes.
  */
+
+/** % extraction counted as in range for espresso */
+export const ESPRESSO_EY: [number, number] = [18, 23];
 
 export interface BrewTarget {
   name: string;
@@ -17,11 +23,12 @@ export const TARGETS: Record<"ristretto" | "normale" | "lungo", BrewTarget> = {
   lungo: { name: "Lungo", ey: [18, 22], tds: [5, 8] },
 };
 
-/** Style from the ratio: up to 1:1.5 ristretto, from 1:3 lungo, normale between */
+/** Style from the ratio (up to 1:1.5 ristretto, from 1:3 lungo, normale between), its box on the ratio's own line */
 export function targetFor(ratio: number | undefined): BrewTarget {
-  if (ratio != null && ratio <= 1.5) return TARGETS.ristretto;
-  if (ratio != null && ratio >= 3) return TARGETS.lungo;
-  return TARGETS.normale;
+  const style = ratio != null && ratio <= 1.5 ? TARGETS.ristretto : ratio != null && ratio >= 3 ? TARGETS.lungo : TARGETS.normale;
+  if (ratio == null || !(ratio > 0)) return style;
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  return { name: style.name, ey: ESPRESSO_EY, tds: [r2(ESPRESSO_EY[0] / ratio), r2(ESPRESSO_EY[1] / ratio)] };
 }
 
 export type Extraction = "under" | "ideal" | "over";
@@ -42,8 +49,8 @@ export function brewVerdict(tds: number, ey: number, target: BrewTarget): BrewVe
   const ex = { under: "Under-extracted", ideal: "Extraction in range", over: "Over-extracted" }[extraction];
   const st = { weak: "weak", ideal: "strength OK", strong: "strong" }[strength];
   const hint =
-    extraction === "under" ? "warmer, finer or a longer ratio"
-    : extraction === "over" ? "cooler, coarser or a shorter ratio"
+    extraction === "under" ? "finer first, then 1-2 °C warmer"
+    : extraction === "over" ? "coarser first, then 1-2 °C cooler"
     : strength === "weak" ? "a shorter ratio"
     : strength === "strong" ? "a longer ratio"
     : null;

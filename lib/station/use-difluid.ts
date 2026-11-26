@@ -2,7 +2,7 @@
 
 /** DiFluid R2 refractometer (Bluetooth): its readings fill the rating popup's TDS field */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DifluidLink, type DifluidState } from "@/lib/difluid";
 
 /** A test takes a few seconds; past this, say the reading didn't come back */
@@ -17,6 +17,12 @@ export function useDifluid(setError: (msg: string | null) => void) {
   /** The last Measure got no reading back */
   const [noReply, setNoReply] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Leaving the screen lets the R2 go (for the Station, another tab or DiFluid's app)
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    difluidRef.current?.disconnect();
+    difluidRef.current = null;
+  }, []);
 
   const stopWaiting = () => {
     if (timerRef.current) clearTimeout(timerRef.current);

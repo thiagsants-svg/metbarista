@@ -11,7 +11,12 @@ describe("target box from the ratio", () => {
     expect(targetFor(undefined).name).toBe("Normale");
   });
 
-  it("matches DiFluid's espresso standards", () => {
+  it("puts the box on the shot's own ratio line", () => {
+    expect(targetFor(2)).toMatchObject({ ey: [18, 23], tds: [9, 11.5] });
+    expect(targetFor(2.5).tds).toEqual([7.2, 9.2]);
+  });
+
+  it("matches DiFluid's espresso standards without a ratio", () => {
     expect(TARGETS.normale).toMatchObject({ ey: [18, 22], tds: [8, 12] });
     expect(TARGETS.lungo.tds).toEqual([5, 8]);
     expect(TARGETS.ristretto.tds).toEqual([12, 18]);
@@ -28,7 +33,7 @@ describe("brewVerdict", () => {
   it("under-extracted points to more extraction", () => {
     const v = brewVerdict(9, 17, box);
     expect(v.text).toBe("Under-extracted · strength OK");
-    expect(v.hint).toMatch(/warmer/);
+    expect(v.hint).toMatch(/finer/);
   });
 
   it("over-extracted and strong", () => {

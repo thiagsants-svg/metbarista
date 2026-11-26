@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+import { AnalyticsBeacon } from "@/components/analytics-beacon";
 import "./globals.css";
 import { AppFrame } from "@/components/app-shell/app-frame";
 import { BASE_PATH } from "@/lib/base-path";
@@ -58,15 +58,8 @@ export default function RootLayout({
       <body className="min-h-full bg-background overflow-x-hidden">
         {/* Station-style header and menu on every page (the Station has its own) */}
         <AppFrame>{children}</AppFrame>
-        {/* Cloudflare Web Analytics (cookieless; the token is public, it only names the site) */}
-        {process.env.NODE_ENV === "production" && (
-          <Script
-            defer
-            src="https://static.cloudflareinsights.com/beacon.min.js"
-            data-cf-beacon={`{"token": "${CF_BEACON_TOKEN}"}`}
-            strategy="afterInteractive"
-          />
-        )}
+        {/* Cloudflare Web Analytics, unless "Don't count my use" is on */}
+        {process.env.NODE_ENV === "production" && <AnalyticsBeacon token={CF_BEACON_TOKEN} />}
       </body>
     </html>
   );

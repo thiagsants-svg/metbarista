@@ -13,5 +13,8 @@ describe("kettle readings", () => {
   it("accepts only a local address", () => {
     expect(validKettleHost("192.168.1.20")).toBe(true);
     expect(validKettleHost("evil.com/x")).toBe(false);
+    expect(validKettleHost("8.8.8.8")).toBe(false);
+    expect(validKettleHost("999.1.1.1")).toBe(false);
+    expect(validKettleHost("10.0.0.7")).toBe(true);
   });
 });

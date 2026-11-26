@@ -66,7 +66,7 @@ export default function UsagePage() {
             ))}
           </ol>
           <p className="mt-2 text-xs text-[var(--ink)]/60">
-            Yellow: devices · dark: with a machine on the Station
+            Light bar: devices · darker bar inside it: with a machine on the Station
           </p>
         </>
       )}
@@ -82,13 +82,14 @@ export default function UsagePage() {
         </div>
       </div>
       <p className="mt-2 text-xs text-[var(--ink)]/65">
-        Since the count began (Nov 2026). A machine sends only a short code made from its serial number: 4 characters out of 65,536,
-        shared by many serials, so it can&apos;t be turned back into yours. Nothing is kept with it: no date, time or IP. A home with a
-        tablet, a phone and a computer on one machine counts as one machine. A device counts once (clearing the browser counts it again).
+        Since the count began (Nov 2026). A machine sends only a short code made from its serial number: 2 characters, one of 256,
+        each shared by many Meticulous machines, so it can&apos;t point to yours. Nothing is kept with it: no date or time, and no IP is kept.
+        A home with a tablet, a phone and a computer on one machine counts as one machine. A device counts once (clearing the browser counts
+        it again). These numbers can&apos;t be verified: anyone could send made-up counts.
       </p>
-      <label className="mt-4 flex items-center gap-2 text-sm">
-        <input type="checkbox" className="h-5 w-5" checked={off} onChange={(e) => { setOff(e.target.checked); setCountingOff(e.target.checked); }} />
-        Don&apos;t count my use on this device
+      <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
+        <input type="checkbox" className="h-6 w-6" checked={off} onChange={(e) => { setOff(e.target.checked); setCountingOff(e.target.checked); }} />
+        Don&apos;t count my use on this device (also turns off Cloudflare&apos;s page analytics here)
       </label>
     </div>
   );

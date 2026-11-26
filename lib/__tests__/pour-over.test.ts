@@ -35,10 +35,26 @@ describe("pour detection", () => {
   });
 });
 
+describe("bumps", () => {
+  it("a hand pressing the brewer and letting go is not a pour", () => {
+    let d = newDetector();
+    for (let i = 0; i < 80; i++) {
+      const t = i / 10;
+      const w = t > 1 && t < 3 ? Math.min(8, (t - 1) * 8) : 0;
+      d = step(d, { t, w });
+    }
+    expect(d.pours).toHaveLength(0);
+    expect(d.t0).toBeNull();
+  });
+});
+
 describe("recipes", () => {
   it("scales the water to the dose and guides pour by pour", () => {
     const r = scaleRecipe(DEFAULT_RECIPES[0], 20);
     expect(r.pours.map((p) => p.grams)).toEqual([60, 140, 120]);
+    // Same flow as the original, later pours pushed back
+    expect(r.pours.map((p) => p.seconds)).toEqual([13, 27, 27]);
+    expect(r.pours.map((p) => p.at)).toEqual([0, 48, 100]);
     expect(guide(r, 5, 10)).toMatchObject({ index: 0, phase: "pour", stopAt: 60 });
     expect(guide(r, 20, 60)).toMatchObject({ index: 1, phase: "wait", stopAt: 200 });
     expect(guide(r, 50, 120)).toMatchObject({ index: 1, phase: "pour" });

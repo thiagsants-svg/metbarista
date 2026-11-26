@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bluetooth, Coffee, Droplet, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
+import { Bluetooth, Coffee, Droplet, GlassWater, History, Info, Layers, Loader2, Menu, Tablet, Target, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { getMachineInfo } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
@@ -21,6 +21,7 @@ export const PAGES = [
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
   { href: "/pour-over", label: "Pour-over", icon: Droplet },
+  { href: "/water", label: "Water", icon: GlassWater },
   { href: "/profiles", label: "Profiles", icon: Layers },
   { href: "/stats", label: "Stats", icon: Target },
   { href: "/community", label: "Community", icon: Users },
@@ -72,7 +73,7 @@ function StationMenu({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2.5">
           <BrandMark className="h-8 w-8" />
           <p className="flex-1 text-lg font-bold">{APP_NAME}</p>
-          <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--ink)]/60">
+          <button onClick={onClose} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--ink)]/70">
             <X className="h-5 w-5" />
           </button>
         </div>

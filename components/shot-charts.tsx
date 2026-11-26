@@ -369,7 +369,7 @@ export const HeatingProgress = memo(function HeatingProgress({
           {eta && <p className="mt-1 text-lg font-semibold text-[var(--ink)]/85">{eta}</p>}
           {barDownEta && (
             barDownEta.startsWith("Ready")
-              ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1 text-base font-bold text-white">{barDownEta}</p>
+              ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--good)] px-3 py-1 text-base font-bold text-[var(--paper)]">{barDownEta}</p>
               : <p className="inline-flex items-center gap-1.5 text-base font-semibold text-[var(--ink)]/85">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--h4)" }} />{barDownEta}
               </p>
@@ -382,7 +382,7 @@ export const HeatingProgress = memo(function HeatingProgress({
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
             <span className="text-[var(--ink)]/60">{s.label}</span>
-            <span className="font-mono font-bold" style={{ color: s.color }}>
+            <span className="font-mono font-bold text-[var(--ink)]">
               {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
             </span>
           </span>
@@ -425,7 +425,7 @@ export const HeatingProgress = memo(function HeatingProgress({
  */
 export function heatEta(samples: HeatPoint[], target: number | null, current: number | null): string | null {
   if (target == null || current == null || samples.length < 4) return null;
-  if (current >= target - 0.3) return "At temperature";
+  if (current >= target - 0.3) return "Water at temperature";
   const last = samples[samples.length - 1];
   const from = samples.find((p) => last.t - p.t <= 30) ?? samples[0];
   const dt = last.t - from.t;
@@ -433,7 +433,7 @@ export function heatEta(samples: HeatPoint[], target: number | null, current: nu
   const rate = (last.temp - from.temp) / dt; // °C per second
   if (rate < 0.03) return null;
   const left = (target - current) / rate;
-  return left < 60 ? `Under a minute to ${target} °C` : `About ${Math.round(left / 60)} min to ${target} °C`;
+  return left < 60 ? `Water: under a minute to ${target} °C` : `Water: about ${Math.round(left / 60)} min to ${target} °C`;
 }
 
 /** How close the Bar down must be to the target to count as ready, °C */
@@ -451,14 +451,19 @@ export function barDownReady(samples: HeatPoint[], target: number | null, margin
   if (!pts.length) return null;
   const last = pts[pts.length - 1];
   const goal = target - margin;
-  if (last.barDown >= goal) return `Ready: Bar down within ${margin} °C (${last.barDown.toFixed(1)})`;
+  if (last.barDown >= goal) return `Ready: group within ${margin} °C (Bar down ${last.barDown.toFixed(1)})`;
   const from = pts.find((p) => last.t - p.t <= 60) ?? pts[0];
   const dt = last.t - from.t;
   if (dt < 15) return null;
   const rate = (last.barDown - from.barDown) / dt;
-  if (rate < 0.005) return `Bar down ${last.barDown.toFixed(1)} °C, not climbing yet`;
+  if (rate < 0.005 && dt < 110) return `Group (Bar down) ${last.barDown.toFixed(1)} °C, not climbing yet`;
+  // Settled: barely climbing any more (under 0.1 °C a minute over 2 min), whatever the gap
+  const early = pts.find((p) => last.t - p.t <= 120) ?? pts[0];
+  if (last.t - early.t >= 110 && ((last.barDown - early.barDown) / (last.t - early.t)) * 60 < 0.1) {
+    return `Ready: group settled (Bar down ${last.barDown.toFixed(1)} °C, ${(target - last.barDown).toFixed(1)} below)`;
+  }
   const left = (goal - last.barDown) / rate;
-  return left < 60 ? `Bar down: under a minute to ${goal} °C` : `Bar down: about ${Math.round(left / 60)} min to ${goal} °C`;
+  return left < 60 ? `Group (Bar down): under a minute to ${goal} °C` : `Group (Bar down): about ${Math.round(left / 60)} min to ${goal} °C`;
 }
 
 /**
@@ -549,7 +554,7 @@ export const GroupTemperatures = memo(function GroupTemperatures({ samples, targ
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3.5 self-center rounded-full`} style={{ backgroundColor: s.color }} />
             <span className="text-[var(--ink)]/60">{s.label}</span>
-            <span className="font-mono font-bold" style={{ color: s.color }}>
+            <span className="font-mono font-bold text-[var(--ink)]">
               {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
             </span>
           </span>

@@ -9,40 +9,49 @@
  * shot (no TDS yet) it's drawn empty, with the ratio the shot will sit on.
  */
 
+import { useId } from "react";
 import type { BrewTarget } from "@/lib/brew-control";
 import { formatRatio } from "@/lib/recipe";
 
 export interface BrewPoint { tds: number; ey: number }
 
 const RATIOS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+/** Filter coffee: its ratios, and TDS in tenths (about 1–2 %) */
+const FILTER_RATIOS = [12, 13, 14, 15, 16, 17, 18, 20];
 const W = 372, H = 250;
 const PAD = { l: 30, r: 62, t: 22, b: 30 };
 const PW = W - PAD.l - PAD.r, PH = H - PAD.t - PAD.b;
 
 /** past: newest first (as the shot list) */
-export function BrewChart({ shot, past = [], target, ratio }: {
+export function BrewChart({ shot, past = [], target, ratio, filter = false }: {
   shot: BrewPoint | null;
   past?: BrewPoint[];
   target: BrewTarget;
   /** Without a shot: the ratio line to draw darker (where the shot will sit) */
   ratio?: number;
+  /** Filter coffee (pour-over): filter ratios and a finer TDS scale */
+  filter?: boolean;
 }) {
+  const clipId = `brew-plot-${useId().replace(/:/g, "")}`;
   const all = shot ? [shot, ...past] : past;
+  const ratios = filter ? FILTER_RATIOS : RATIOS;
+  const yPad = filter ? 0.35 : 3, yStep = filter ? 0.2 : 2;
   const x0 = Math.floor(Math.min(14, ...all.map((p) => p.ey - 1)));
   const x1 = Math.ceil(Math.max(26, ...all.map((p) => p.ey + 1)));
-  const y0 = Math.max(0, Math.floor(Math.min(target.tds[0] - 3, ...all.map((p) => p.tds - 1))));
-  const y1 = Math.ceil(Math.max(target.tds[1] + 3, ...all.map((p) => p.tds + 1)));
+  const fl = (v: number) => Math.floor(v / yStep) * yStep, ce = (v: number) => Math.ceil(v / yStep) * yStep;
+  const y0 = Math.max(0, fl(Math.min(target.tds[0] - yPad, ...all.map((p) => p.tds - yPad / 3))));
+  const y1 = ce(Math.max(target.tds[1] + yPad, ...all.map((p) => p.tds + yPad / 3)));
   const sx = (ey: number) => PAD.l + ((ey - x0) / (x1 - x0)) * PW;
   const sy = (tds: number) => PAD.t + PH - ((tds - y0) / (y1 - y0)) * PH;
   const xTicks = range(Math.ceil(x0 / 2) * 2, x1, 2);
-  const yTicks = range(Math.ceil(y0 / 2) * 2, y1, 2);
+  const yTicks = range(ce(y0), y1, yStep).map((v) => Math.round(v * 100) / 100);
 
   // The ratio line closest to this shot (or to the ratio given) gets drawn darker
   const shotRatio = shot ? shot.ey / shot.tds : ratio;
-  const nearR = shotRatio == null ? null : RATIOS.reduce((b, r) => (Math.abs(r - shotRatio) < Math.abs(b - shotRatio) ? r : b));
+  const nearR = shotRatio == null ? null : ratios.reduce((b, r) => (Math.abs(r - shotRatio) < Math.abs(b - shotRatio) ? r : b));
 
   // Ratio lines that cross the plot; label where each leaves it (top or right edge)
-  const lines = RATIOS.flatMap((r) => {
+  const lines = ratios.flatMap((r) => {
     const a = { ey: x0, tds: x0 / r };
     const b = { ey: x1, tds: x1 / r };
     if (b.tds < y0 || a.tds > y1) return [];
@@ -60,7 +69,7 @@ export function BrewChart({ shot, past = [], target, ratio }: {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img"
       aria-label={shot ? `Brew chart: TDS ${shot.tds.toFixed(2)}%, EY ${shot.ey.toFixed(1)}%, target ${target.name}` : `Brew chart, no TDS yet: target ${target.name}`}>
       <defs>
-        <clipPath id="brew-plot"><rect x={PAD.l} y={PAD.t} width={PW} height={PH} /></clipPath>
+        <clipPath id={clipId}><rect x={PAD.l} y={PAD.t} width={PW} height={PH} /></clipPath>
       </defs>
 
       {/* Zone names: extraction along the top, strength down the right */}
@@ -76,12 +85,12 @@ export function BrewChart({ shot, past = [], target, ratio }: {
         <text key={`x${v}`} x={sx(v)} y={H - PAD.b + 15} textAnchor="middle" fontSize={10} fill="var(--ink)" fillOpacity={0.6}>{v}</text>
       ))}
       {yTicks.map((v) => (
-        <text key={`y${v}`} x={PAD.l - 6} y={sy(v) + 4} textAnchor="end" fontSize={10} fill="var(--ink)" fillOpacity={0.6}>{v}</text>
+        <text key={`y${v}`} x={PAD.l - 6} y={sy(v) + 4} textAnchor="end" fontSize={10} fill="var(--ink)" fillOpacity={0.6}>{filter ? v.toFixed(1) : v}</text>
       ))}
       <text x={PAD.l + PW} y={H - 2} textAnchor="end" fontSize={11} fontWeight={600} fill="var(--ink)" fillOpacity={0.7}>EY %</text>
       <text x={2} y={PAD.t - 8} fontSize={11} fontWeight={600} fill="var(--ink)" fillOpacity={0.7}>TDS %</text>
 
-      <g clipPath="url(#brew-plot)">
+      <g clipPath={`url(#${clipId})`}>
         {/* Bands through the target box split the chart into zones */}
         <rect x={bx0} y={PAD.t} width={bx1 - bx0} height={PH} fill="var(--primary)" fillOpacity={0.07} />
         <rect x={PAD.l} y={by0} width={PW} height={by1 - by0} fill="var(--primary)" fillOpacity={0.07} />

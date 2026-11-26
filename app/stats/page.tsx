@@ -236,7 +236,7 @@ export default function StatsPage() {
             )}
 
             {/* The machine itself: seal friction over the months */}
-            <BarDownCard tick={readTick} shots={inPeriod.map((h) => ({ id: h.id, face: faces[h.id] ?? null, ey: parseShotNote(getShotNote(h.time)?.note).ey ?? null }))} />
+            <BarDownCard tick={readTick} shots={inPeriod.map((h) => ({ id: h.id, coffee: shotSummary(h).coffee, face: faces[h.id] ?? null, ey: parseShotNote(getShotNote(h.time)?.note).ey ?? null }))} />
             <PistonCard onRead={bumpRead} />
           </>
         )}

@@ -31,22 +31,23 @@ export function setCountingOff(off: boolean): void {
   try { if (off) localStorage.setItem(OPT_OUT, "1"); else localStorage.removeItem(OPT_OUT); } catch { /* storage blocked */ }
 }
 
-function counting(): boolean {
+export function counting(): boolean {
   if (typeof window === "undefined" || window.location.hostname !== SITE_HOST) return false;
   if (new URLSearchParams(window.location.search).has("demo")) return false;
   return !countingOff();
 }
 
 /**
- * The machine's short code: the first 4 hex digits (16 bits) of
- * SHA-256("not9bar-machine-v1:" + serial). 65,536 codes only: many serials
- * share each one, so the code can't be turned back into a serial. It is
- * enough to count machines (the Worker corrects for the rare shared codes).
+ * The machine's short code: the first 2 hex digits (8 bits) of
+ * SHA-256("not9bar-machine-v1:" + serial). Only 256 codes: Meticulous serials
+ * run to thousands, so each code is shared by many machines and can't point
+ * to one. Enough to count machines while they're a few hundred (the Worker
+ * corrects for shared codes).
  */
 export async function machineCode(serial: string): Promise<string> {
   const bytes = new TextEncoder().encode(`not9bar-machine-v1:${serial.trim()}`);
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return Array.from(hash.subarray(0, 2), (b) => b.toString(16).padStart(2, "0")).join("");
+  return hash[0].toString(16).padStart(2, "0");
 }
 
 async function postOnce(flag: string, path: string, body?: unknown): Promise<void> {
@@ -72,10 +73,15 @@ export async function countNewDevice(): Promise<void> {
 }
 
 /** This machine, once per browser: only its short code is sent (see machineCode) */
+/** Already sent from this browser (so the machine isn't even asked for its serial) */
+export function machineCounted(): boolean {
+  try { return Object.keys(localStorage).some((k) => k.startsWith("not9bar_counted_m2_")); } catch { return true; }
+}
+
 export async function countMachine(serial: string | null | undefined): Promise<void> {
   if (!serial?.trim() || !counting()) return;
   const code = await machineCode(serial);
-  await postOnce(`not9bar_counted_m_${code}`, "/hit/m", { c: code });
+  await postOnce(`not9bar_counted_m2_${code}`, "/hit/m", { c: code });
 }
 
 /** Adds this device to today's count, once a day (marked counted only when it went through) */

@@ -160,6 +160,11 @@ export function AiReviewPanel({ current, previous }: {
             </select>
           </label>
           <label className="grid gap-1 text-sm sm:col-span-2">
+            <span className="text-xs text-[var(--ink)]/70">Basket</span>
+            <input value={setup.basket ?? ""} placeholder="e.g. IMS 18 g, the Meticulous stock basket"
+              onChange={(e) => setSetup({ basket: e.target.value })} className={field} />
+          </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
             <span className="text-xs text-[var(--ink)]/70">Water</span>
             <input value={setup.water ?? ""} placeholder="e.g. filtered tap, Third Wave Water, mineral water brand"
               onChange={(e) => setSetup({ water: e.target.value })} className={field} />

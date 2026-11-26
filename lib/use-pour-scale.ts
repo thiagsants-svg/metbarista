@@ -8,27 +8,38 @@
 import { useEffect, useRef, useState } from "react";
 import { connectSocket, disconnectSocket } from "./machine-socket";
 import { readingsOf } from "./station/readings";
+import { isExtracting } from "./brew-state";
 import type { Sample } from "./pour-over";
 
 export function usePourScale(onSample: (s: Sample) => void) {
   const [weight, setWeight] = useState<number | null>(null);
   const [connected, setConnected] = useState(false);
+  /** The machine is brewing or heating: its scale belongs to the shot */
+  const [busy, setBusy] = useState(false);
   const cb = useRef(onSample);
   useEffect(() => { cb.current = onSample; }, [onSample]);
 
   useEffect(() => {
     let lastShown = 0;
-    let lastT = 0;
+    let lastT = performance.now() / 1000;
+    let batch: number[] = [];
+    // Events of one poll arrive together: spread them over the time since the last batch
+    const flush = () => {
+      const now = performance.now() / 1000;
+      const n = batch.length;
+      const span = Math.min(1.5, Math.max(0.05 * n, now - lastT));
+      batch.forEach((w, i) => cb.current({ t: now - span + (span * (i + 1)) / n, w }));
+      lastT = now;
+      if (now - lastShown >= 0.1) { lastShown = now; setWeight(batch[n - 1]); }
+      batch = [];
+    };
     const handlers = {
       status: (s: Parameters<typeof readingsOf>[0]) => {
+        setBusy(isExtracting(s));
         const w = readingsOf(s).weight;
         if (w == null) return;
-        // Several events can arrive in one poll: keep them apart in time, or the flow reads wrong
-        const t = Math.max(performance.now() / 1000, lastT + 0.05);
-        lastT = t;
-        cb.current({ t, w });
-        // The number on screen: 10 times a second is plenty
-        if (t - lastShown >= 0.1) { lastShown = t; setWeight(w); }
+        if (!batch.length) queueMicrotask(flush);
+        batch.push(w);
       },
       connect: () => setConnected(true),
       disconnect: () => setConnected(false),
@@ -50,5 +61,5 @@ export function usePourScale(onSample: (s: Sample) => void) {
     return () => disconnectSocket(handlers);
   }, []);
 
-  return { weight, connected };
+  return { weight, connected, busy };
 }

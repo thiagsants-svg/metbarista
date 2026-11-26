@@ -8,6 +8,7 @@
  */
 
 import { barDownOf } from "./bar-down";
+import { waterIdForShot } from "./water";
 import { activeTargets } from "./shot-facts";
 import { computeShotStats } from "./machine-api";
 import { getShotNote } from "./shot-notes";
@@ -152,6 +153,8 @@ export interface CoffeeLastShot {
   ey?: number;
   /** Bar down (°C) when the shot started (lib/bar-down.ts) */
   barDown?: number | null;
+  /** The water recipe in use (lib/water.ts) */
+  waterId?: string | null;
   /** The shot in the machine's history (to read its face) */
   dbKey?: number;
   /** The shot's string id on the machine (its face is read and set with it) */
@@ -237,6 +240,7 @@ function summarize(shot: ShotEntry, notes: { coffee?: string; grind?: string }, 
     dbKey: shot.db_key,
     shotId: shot.id,
     barDown: barDownOf(shot),
+    waterId: waterIdForShot(shot.time),
   };
 }
 

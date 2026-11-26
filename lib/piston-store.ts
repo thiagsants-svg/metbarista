@@ -10,7 +10,7 @@
 
 import { getHistoryLight, searchHistory } from "./machine-api";
 import { afterShotLift, type LiftReading } from "./piston";
-import { hasBarDown, rememberBarDown } from "./bar-down";
+import { barDownIds, rememberBarDown } from "./bar-down";
 
 const READINGS_KEY = "not9bar_piston_v1";
 const LOG_KEY = "metbarista_maintenance";
@@ -47,7 +47,9 @@ export async function updateReadings(
   const cache = readCache();
   const shots = await getHistoryLight(100_000);
   // Also read once the shots whose Bar down at start isn't known yet (lib/bar-down.ts)
-  const missing = shots.filter((s) => !(s.id in cache) || !hasBarDown(s.id)).map((s) => s.time).sort((a, b) => a - b);
+  const seen = barDownIds();
+  const missingShots = shots.filter((s) => !(s.id in cache) || !seen.has(s.id)).sort((a, b) => a.time - b.time);
+  const missing = missingShots.map((s) => s.time).sort((a, b) => a - b);
   const total = missing.length;
   let done = 0;
   onProgress(0, total, cachedReadings());
@@ -60,8 +62,12 @@ export async function updateReadings(
       const lift = afterShotLift(shot.data ?? []);
       cache[shot.id] = [shot.time, lift ? lift.current : null];
     }
+    // Shots of this window the search didn't return: marked, so they're not asked for on every visit
+    const gotIds = new Set(got.map((s) => s.id));
+    const absent = missingShots.filter((s) => s.time >= start && s.time < end && !gotIds.has(s.id));
+    for (const s of absent) if (!(s.id in cache)) cache[s.id] = [s.time, null];
     writeCache(cache);
-    rememberBarDown(got);
+    rememberBarDown(got, absent);
     while (i < missing.length && missing[i] < end) { i++; done++; }
     onProgress(done, total, cachedReadings());
     await new Promise((r) => setTimeout(r, 300));

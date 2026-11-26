@@ -22,8 +22,6 @@ describe("Bar down at start", () => {
     expect(warm.ey).toBe(20);
     const cold = estimateTds({ coffee: "X", dose: 20, ratio: 2, cupWeight: 40, barDown: 85 }, refs)!;
     expect(cold.ey).toBe(16);
-    const odd = estimateTds({ coffee: "X", dose: 20, ratio: 2, cupWeight: 40, barDown: 75 }, refs)!;
-    expect(odd.basis).toBe("coffee");
-    expect(odd.differs.join()).toMatch(/Bar down/);
+    expect(estimateTds({ coffee: "X", dose: 20, ratio: 2, cupWeight: 40, barDown: 75 }, refs)).toBeNull();
   });
 });

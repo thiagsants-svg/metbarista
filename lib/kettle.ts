@@ -9,6 +9,8 @@
  * web page to read it (CORS): then the reading fails and the log says so.
  */
 
+import { localNetworkRequestInit } from "./local-network";
+
 const IP_KEY = "metbarista_kettle_ip";
 
 export interface KettleReading {
@@ -28,9 +30,15 @@ export function setKettleIp(ip: string): void {
   if (v) localStorage.setItem(IP_KEY, v); else localStorage.removeItem(IP_KEY);
 }
 
-/** A plain local address only ("192.168.1.20" or a .local name): nothing else is ever requested */
+/** A home-network address only (10.x, 172.16–31.x, 192.168.x, 169.254.x, or a .local name): nothing else is ever requested */
 export function validKettleHost(ip: string): boolean {
-  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip.trim()) || /^[a-z0-9-]+\.local$/i.test(ip.trim());
+  const v = ip.trim();
+  if (/^[a-z0-9-]+\.local$/i.test(v)) return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(v);
+  if (!m) return false;
+  const [a, b, c, d] = m.slice(1).map(Number);
+  if ([a, b, c, d].some((n) => n > 255)) return false;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
 }
 
 const num = (v: unknown): number | null => {
@@ -57,7 +65,8 @@ export function parseCliState(text: string): KettleReading | null {
 }
 
 async function getText(url: string): Promise<{ status: number; text: string }> {
-  const res = await fetch(url, { method: "GET", credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", signal: AbortSignal.timeout(5000) });
+  // Marked as a home-network request, as the machine's are (Chrome asks once to allow it)
+  const res = await fetch(url, localNetworkRequestInit({ method: "GET", credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", signal: AbortSignal.timeout(5000) }));
   return { status: res.status, text: await res.text() };
 }
 

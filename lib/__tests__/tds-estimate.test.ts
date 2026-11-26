@@ -9,9 +9,8 @@ describe("TDS estimate from measured shots", () => {
     expect(e).toMatchObject({ ey: 20, n: 3, basis: "similar" });
     expect(e!.tds).toBeCloseTo(9, 2);
   });
-  it("falls back to every shot of the coffee, and says so", () => {
-    const e = estimateTds({ coffee: "Etiópia", dose: 15, ratio: 2, cupWeight: 30 }, [ref(19), ref(20), ref(21)]);
-    expect(e?.basis).toBe("coffee");
+  it("gives none when no shots were made alike (other doses or ratios mix extractions)", () => {
+    expect(estimateTds({ coffee: "Etiópia", dose: 15, ratio: 2, cupWeight: 30 }, [ref(19), ref(20), ref(21)])).toBeNull();
   });
   it("gives none with too few readings, another coffee, or no cup weight", () => {
     expect(estimateTds({ coffee: "Etiópia", dose: 18, cupWeight: 40 }, [ref(19), ref(20)])).toBeNull();
@@ -28,11 +27,8 @@ describe("TDS estimate: grind, time and margin", () => {
     expect(e).toMatchObject({ basis: "similar", n: 3, ey: 20, differs: [] });
     expect(e!.margin).toBeCloseTo(0.5, 2);
   });
-  it("warns when this shot's grind or time is outside the measured ones", () => {
+  it("gives none when this shot's grind or time is outside the measured ones", () => {
     const refs = [r(19, 140, 30), r(20, 141, 31), r(21, 142, 29)];
-    const e = estimateTds({ coffee: "Kenya", dose: 18, ratio: 2, cupWeight: 36, grind: 120, seconds: 45 }, refs);
-    expect(e?.basis).toBe("coffee");
-    expect(e?.differs.join(" ")).toMatch(/grind 120 µm vs 140–142 µm/);
-    expect(e?.differs.join(" ")).toMatch(/time 45 s/);
+    expect(estimateTds({ coffee: "Kenya", dose: 18, ratio: 2, cupWeight: 36, grind: 120, seconds: 45 }, refs)).toBeNull();
   });
 });

@@ -25,7 +25,7 @@ import {
 import { extractionYield, formatRatio, RATIO_PRESETS, type Recipe } from "@/lib/recipe";
 
 export type Face = "like" | "dislike";
-export type PlanChoice = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grind" | "grindWas">;
+export type PlanChoice = Pick<NextPlan, "taste" | "temperature" | "ratio" | "grind" | "grindWas" | "point">;
 
 const TEMPS = Array.from({ length: 31 }, (_, i) => 70 + i);
 const nearest = (items: number[], v: number) => items.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), items[0]);
@@ -91,6 +91,7 @@ export function ShotRating({
 
   const plan: PlanChoice | null = taste && {
     taste,
+    ...(point ? { point: { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 } } : {}),
     ...(temp !== shotRecipe.temperature ? { temperature: temp } : {}),
     ...(ratio !== shotRecipe.ratio ? { ratio } : {}),
     ...(grind ? { grind, ...(grindWas ? { grindWas } : {}) } : {}),
@@ -178,15 +179,19 @@ export function ShotRating({
               <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
               <p className="min-w-0 text-right text-sm text-[var(--ink)]/75">
                 {ey != null
-                  ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b> <span className="text-[var(--ink)]/60">({weight.toFixed(1)} g ÷ {shotRecipe.dose} g)</span></>
-                  : tdsEstimate ? (
-                    <span title={`Typical EY ${tdsEstimate.ey}% of ${tdsEstimate.n} measured shots ${tdsEstimate.basis === "similar" ? "made the same way" : "of this coffee"}`}>
+                  ? <>EY <b className="text-lg tabular-nums text-[var(--ink)]">{ey.toFixed(1)}%</b> <span className="text-[var(--ink)]/60">({weight.toFixed(1)} g ÷ {shotRecipe.dose} g)</span>
+                    {/* The useful direction: a real reading off from the shots made the same way */}
+                    {tdsEstimate && Math.abs(ey - tdsEstimate.ey) > 1 && (
+                      <span className="block whitespace-normal text-sm font-semibold text-[var(--accent)]">
+                        {Math.abs(ey - tdsEstimate.ey).toFixed(1)} {ey < tdsEstimate.ey ? "less" : "more"} than usual ({tdsEstimate.ey}% on {tdsEstimate.n} alike shots): grinder drift, a channel, the water?
+                      </span>
+                    )}</>
+                  : tdsEstimate && point ? (
+                    // Only after tasting, so it doesn't steer the taste
+                    <span title={`Typical EY ${tdsEstimate.ey}% of ${tdsEstimate.n} measured shots made the same way`}>
                       ≈ TDS <b className="tabular-nums text-[var(--ink)]">{tdsEstimate.tds.toFixed(2)}%</b>
                       <span className="tabular-nums text-[var(--ink)]/70"> ±{tdsEstimate.margin.toFixed(2)}</span>{" "}
-                      <span className="text-[var(--ink)]/60">estimated · {tdsEstimate.n} measured {tdsEstimate.basis === "similar" ? "alike" : "shots"}</span>
-                      {tdsEstimate.differs.length > 0 && (
-                        <span className="block whitespace-normal text-xs font-semibold text-[var(--accent)]">Unlike the measured shots: {tdsEstimate.differs.join(", ")}</span>
-                      )}
+                      <span className="text-[var(--ink)]/60">expected if it extracted as the {tdsEstimate.n} alike shots</span>
                     </span>
                   ) : "Optional"}
               </p>

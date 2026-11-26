@@ -17,6 +17,8 @@ import { formatRatio } from "./recipe";
 import type { TdsEstimate } from "./tds-estimate";
 import type { AiSetup } from "./ai";
 import { PREP_OPTIONS } from "./ai";
+import { firstDropsAt } from "./shot-facts";
+import { waterById, waterText } from "./water";
 import type { Profile, ShotFrame } from "./types";
 
 export interface ReviewShot {
@@ -24,7 +26,7 @@ export interface ReviewShot {
   sum: CoffeeLastShot;
   notes: ShotNoteParts;
   face?: "like" | "dislike" | null;
-  plan?: Pick<NextPlan, "taste" | "temperature" | "ratio" | "grind" | "grindWas"> | null;
+  plan?: Pick<NextPlan, "taste" | "temperature" | "ratio" | "grind" | "grindWas" | "point"> | null;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -41,17 +43,23 @@ export function shotDigest(x: ReviewShot, opts: { stages?: boolean; tdsEstimate?
   lines.push(`Recipe: dose ${p.dose ?? "?"} g · ratio ${p.ratio != null ? formatRatio(p.ratio) : "?"} · temperature ${p.temperature ?? "?"} °C · grind ${grind}`);
   const actual = p.dose ? ` (1:${(sum.weight / p.dose).toFixed(2)})` : "";
   lines.push(`Result: ${r1(sum.weight)} g in the cup${actual} in ${clock(sum.seconds)}`);
-  if (sum.barDown != null) lines.push(`Group's lowest thermometer (Bar down, by the puck) when the shot started: ${sum.barDown.toFixed(1)} °C${p.temperature != null ? ` (target ${p.temperature} °C)` : ""}`);
+  const water = waterById(sum.waterId ?? null);
+  if (water) lines.push(`Water: ${waterText(water)}${water.ca != null || water.mg != null ? `, Ca ${water.ca ?? "?"} / Mg ${water.mg ?? "?"} mg/L` : ""}${water.ph != null ? `, pH ${water.ph}` : ""}`);
+  const drops = firstDropsAt(shot.data ?? []);
+  if (drops != null) lines.push(`First drops (2 g in the cup) at ${drops} s`);
+  if (sum.barDown != null) lines.push(`Group's lowest thermometer (Bar down, by the puck) when the shot started: ${sum.barDown.toFixed(1)} °C${p.temperature != null ? ` (target ${p.temperature} °C)` : ""}. The barista suspects a cold group gives worse shots; it is a hypothesis under test, not an established cause: don't blame a shot on it without other signs.`);
   if (notes.tds != null) lines.push(`Refractometer: TDS ${notes.tds}%${notes.ey != null ? `, EY ${notes.ey}%` : ""}`);
   // Only a real reading goes to the AI: the on-screen estimate is our own idea, not a recognised measure
   const verdict = [x.face === "like" ? "liked it" : x.face === "dislike" ? "didn't like it" : null, compassText(notes.taste, notes.body) || null]
     .filter(Boolean).join(" · ");
   if (verdict) lines.push(`Barista's verdict: ${verdict}`);
+  const pt = x.plan?.point;
+  if (pt) lines.push(`Compass point (-1…1): ${pt.x < 0 ? "sour" : "bitter"} ${Math.abs(pt.x).toFixed(2)}, ${pt.y < 0 ? "weak" : "strong"} ${Math.abs(pt.y).toFixed(2)} (0 is balanced, 1 the edge)`);
   if (notes.text) lines.push(`Barista's notes: ${notes.text}`);
   if (x.plan) {
     const parts = [x.plan.temperature != null ? `temperature ${x.plan.temperature} °C` : null, x.plan.ratio != null ? `ratio ${formatRatio(x.plan.ratio)}` : null,
       x.plan.grind ? `grind ${x.plan.grind}${x.plan.grindWas ? ` than ${x.plan.grindWas}` : ""}` : null].filter(Boolean);
-    lines.push(`Planned for the next shot: ${parts.length ? parts.join(", ") : "same recipe"}`);
+    lines.push(`The barista's own guess for the next shot, not tested yet (don't just confirm it): ${parts.length ? parts.join(", ") : "same recipe"}`);
   }
   if (opts.stages !== false && shot.data?.length) {
     const st = stageSummary(shot.data, shot.profile);
@@ -92,10 +100,11 @@ export function traceForAi(frames: ShotFrame[]): string | null {
   for (const f of frames) {
     if (f.time / 1000 < next) continue;
     const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
-    rows.push([Math.round(f.time / 1000), n(f.shot?.pressure), n(f.shot?.flow), n(f.shot?.weight), n(f.shot?.gravimetric_flow)]);
+    const sens = f.sensors as Record<string, unknown> | undefined;
+    rows.push([Math.round(f.time / 1000), n(f.shot?.pressure), n(f.shot?.flow), n(f.shot?.weight), n(f.shot?.gravimetric_flow), n((f.shot as unknown as Record<string, unknown> | undefined)?.temperature ?? sens?.tube), n(sens?.bar_down)]);
     next = Math.floor(f.time / 1000) + 1;
   }
-  return `columns: t_s, pressure_bar, flow_ml_s, cup_g, cup_flow_g_s\n${rows.map((r) => r.join(",")).join("\n")}`;
+  return `columns: t_s, pressure_bar, flow_ml_s, cup_g, cup_flow_g_s, water_temp_c, bar_down_c\n${rows.map((r) => r.join(",")).join("\n")}`;
 }
 
 /** What's missing, so the AI says "can't tell" instead of guessing */
@@ -105,6 +114,7 @@ export function dataGaps(x: ReviewShot): string[] {
   if (p.grindUm == null && p.grindSetting == null) g.push("grind not recorded");
   if (!(x.sum.weight > 0)) g.push("no cup weight (the scale read nothing)");
   if (x.notes.tds == null) g.push("no refractometer reading (TDS / EY unknown)");
+  if (!x.sum.waterId) g.push("water not recorded");
   if (!x.face && !x.notes.taste && !x.notes.text) g.push("no verdict from the barista (taste unknown)");
   if (x.sum.seconds > 0 && x.sum.seconds < 15) g.push(`very short shot (${Math.round(x.sum.seconds)} s): maybe a flush or stopped`);
   if ((x.shot.data?.length ?? 0) < 20) g.push("few samples recorded");
@@ -114,16 +124,16 @@ export function dataGaps(x: ReviewShot): string[] {
 
 /** The coffee's shots side by side, oldest first: what changed and what came out */
 export function seriesTable(shots: ReviewShot[]): string {
-  const head = "| when | grind | dose g | temp °C | Bar down at start °C | ratio set | cup g | ratio out | time | TDS % | EY % | verdict |";
+  const head = "| when | grind | dose g | temp °C | Bar down at start °C | ratio set | cup g | ratio out | first drops s | time | TDS % | EY % | water | verdict |";
   const rows = shots.map((x) => {
     const p = x.sum.patch;
     const when = new Date(x.sum.when).toISOString().slice(5, 16).replace("T", " ");
     const grind = p.grindUm != null ? `${p.grindUm} µm` : p.grindSetting != null ? String(p.grindSetting) : "?";
     const out = p.dose ? `1:${(x.sum.weight / p.dose).toFixed(2)}` : "?";
     const verdict = [x.face === "like" ? "liked" : x.face === "dislike" ? "disliked" : "", compassText(x.notes.taste, x.notes.body)].filter(Boolean).join(", ") || "-";
-    return `| ${when} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${x.sum.barDown != null ? x.sum.barDown.toFixed(1) : "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${verdict} |`;
+    return `| ${when} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${x.sum.barDown != null ? x.sum.barDown.toFixed(1) : "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${firstDropsAt(x.shot.data ?? []) ?? "?"} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${waterById(x.sum.waterId ?? null)?.name ?? "-"} | ${verdict} |`;
   });
-  return [head, "|" + " --- |".repeat(12), ...rows].join("\n");
+  return [head, "|" + " --- |".repeat(14), ...rows].join("\n");
 }
 
 /** The setup, as sentences */
@@ -131,6 +141,7 @@ export function setupText(setup: AiSetup | undefined): string | null {
   if (!setup) return null;
   const s: string[] = [];
   if (setup.grindStepUm) s.push(`The grinder changes in steps of ${setup.grindStepUm} µm: grind suggestions must be whole steps.`);
+  if (setup.basket?.trim()) s.push(`Basket: ${setup.basket.trim()}.`);
   if (setup.water?.trim()) s.push(`Water: ${setup.water.trim()}.`);
   if (setup.prep?.length) s.push(`Puck preparation: ${setup.prep.map((k) => PREP_OPTIONS[k] ?? k).join(", ")}.`);
   if (setup.drink) s.push(`The barista drinks it ${setup.drink === "espresso" ? "as a straight espresso" : setup.drink === "milk" ? "with milk" : "sometimes straight, sometimes with milk"}.`);
@@ -168,6 +179,15 @@ export function reviewPrompt(
   opts: { setup?: AiSetup; question?: string } = {},
 ): { system: string; user: string } {
   const system = `You are an experienced espresso coach reviewing a shot pulled on a Meticulous espresso machine (a lever-style machine: a motor-driven piston, profiles of stages controlled by pressure or flow, each stage ending on triggers like time, weight or pressure). Read the numbers carefully, never invent data that isn't given, and say when something can't be known from the numbers (the "Data gaps" list says what is missing). Taste beats numbers: when the barista's verdict and the numbers disagree, trust the verdict and explain. The machine runs as its maker designed: suggest only changes the barista can make (grind, dose, ratio, temperature, profile choice or its variables).
+
+How to coach, like a champion would:
+- Extraction (sour ↔ bitter on the compass) is fixed with the grind first, then temperature in 1–2 °C steps.
+- Strength (weak ↔ strong) is fixed with the ratio, in steps of about 0.25.
+- Change the dose only when the basket fit or headspace calls for it.
+- Change one thing at a time, sized to how far the compass point is from the centre.
+- Give each suggestion its expected effect (for example "about +4 s to the first drops, EY about +0.5"), so the next shot tests a prediction.
+- A dry or astringent finish is not over-extraction: think fines, channelling or puck prep before going coarser.
+- The curve has the water temperature and the Bar down over time: say whether the temperature held.
 
 ${OUTLINE[language]}`;
   const parts: string[] = ["Review this shot."];

@@ -17,9 +17,15 @@ export const READY_MARGIN = 2;
 /** shot id → [unix s, Bar down at start °C | null, target °C | null] */
 type Cache = Record<string, [number, number | null, number | null]>;
 
+/** Parsed once and kept in memory (the Shots page asks for it once per shot) */
+let memo: { raw: string; cache: Cache } | null = null;
 function read(): Cache {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(KEY) ?? "{}") as Cache; } catch { return {}; }
+  try {
+    const raw = localStorage.getItem(KEY) ?? "{}";
+    if (memo?.raw !== raw) memo = { raw, cache: JSON.parse(raw) as Cache };
+    return memo.cache;
+  } catch { return {}; }
 }
 
 /** Bar down (°C) at the shot's first sample, or null */
@@ -37,17 +43,27 @@ export function shotTarget(shot: ShotEntry): number | null {
   return Number.isFinite(t) && t > 0 ? t : null;
 }
 
-export function hasBarDown(id: string): boolean {
-  return id in read();
+/** Ids already looked at (with or without a value): read once, not per shot */
+export function barDownIds(): Set<string> {
+  return new Set(Object.keys(read()));
 }
 
-/** Remembers the shots' Bar down (from shots read with their curves) */
-export function rememberBarDown(shots: ShotEntry[]): void {
-  const c = read();
+/**
+ * Remembers the shots' Bar down (from shots read with their curves). Every
+ * shot looked at gets an entry, even without a value (no curve, not found),
+ * so it is never asked for again.
+ */
+export function rememberBarDown(shots: ShotEntry[], notFound: { id: string; time: number }[] = []): void {
+  const c = { ...read() };
   let changed = false;
   for (const s of shots) {
-    if (!s.data?.length || s.id in c) continue;
+    if (s.id in c) continue;
     c[s.id] = [s.time, barDownAtStart(s.data), shotTarget(s)];
+    changed = true;
+  }
+  for (const s of notFound) {
+    if (s.id in c) continue;
+    c[s.id] = [s.time, null, null];
     changed = true;
   }
   if (changed) try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* storage full: read again next time */ }

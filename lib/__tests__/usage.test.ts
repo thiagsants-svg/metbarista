@@ -47,11 +47,10 @@ describe("usage counter", () => {
 });
 
 describe("machine code", () => {
-  it("is 4 hex digits, the same for the same serial", async () => {
+  it("is 2 hex digits, the same for the same serial", async () => {
     const { machineCode } = await import("../usage");
     const a = await machineCode("ABC123");
-    expect(a).toMatch(/^[0-9a-f]{4}$/);
+    expect(a).toMatch(/^[0-9a-f]{2}$/);
     expect(await machineCode(" ABC123 ")).toBe(a);
-    expect(await machineCode("ABC124")).not.toBe(a);
   });
 });
