@@ -1,7 +1,7 @@
 {
   "name": "Not Nine Bar",
   "short_name": "Not9Bar",
-  "description": "A station for your Meticulous. Because espresso is not nine bar.",
+  "description": "A station for your Meticulous. Because espresso shouldn't be nine bar.",
   "start_url": "./station/",
   "scope": "./",
   "display": "standalone",

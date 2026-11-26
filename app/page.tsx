@@ -15,7 +15,8 @@ import { UsageStrip } from "@/components/usage-strip";
 import { BrandMark } from "@/components/brand-mark";
 import { getSavedIp, saveIp, getIpFromUrlParam } from "@/lib/connection-store";
 import { testConnection } from "@/lib/machine-api";
-import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { APP_NAME, CONTACT, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { DiscordContact } from "@/components/discord-contact";
 import { ShotDemo } from "@/components/home/shot-demo";
 
 const STATION = "/station";
@@ -81,7 +82,7 @@ export default function HomePage() {
           <BrandMark className="mx-auto mb-6 h-16 w-16" />
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight mb-5">{APP_NAME}</h1>
           <p className="text-xl text-[var(--ink)]/85 max-w-xl mx-auto mb-3 leading-snug">
-            Espresso is not nine bar.
+            Espresso shouldn&apos;t be nine bar.
           </p>
           <p className="text-base text-[var(--ink)]/75 max-w-xl mx-auto mb-10 leading-relaxed">
             A station for the Meticulous: recipe, grinder, refractometer and every shot&apos;s curve,
@@ -151,6 +152,18 @@ export default function HomePage() {
           The shot charts, profiles and machine connection come from his work, under the MIT License. Our code is on{" "}
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">GitHub</a>.
         </p>
+      </section>
+
+      {/* Talk to the maintainer */}
+      <section className="border-t border-[var(--ink)]/15">
+        <div className="mx-auto max-w-2xl px-6 py-10 text-center">
+          <h2 className="text-lg font-semibold">Let&apos;s talk</h2>
+          <p className="mt-1 text-sm text-[var(--ink)]/75">
+            Ideas, bugs, profiles? I&apos;m {CONTACT.name} on Discord. Add the username as a friend, or
+            find me on the Meticulous server.
+          </p>
+          <DiscordContact />
+        </div>
       </section>
 
       {/* Ecosystem */}

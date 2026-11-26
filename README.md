@@ -1,6 +1,6 @@
 # Not Nine Bar
 
-**Espresso is not nine bar.** A station for the [Meticulous](https://meticuloushome.com) espresso machine: recipe, grinder, refractometer and every shot's curve, on a tablet next to the machine.
+**Espresso shouldn't be nine bar.** A station for the [Meticulous](https://meticuloushome.com) espresso machine: recipe, grinder, refractometer and every shot's curve, on a tablet next to the machine.
 
 Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the browser talks straight to your machine on the local network.
 
@@ -118,6 +118,10 @@ For a boiler machine:
     - the retraction set before each shot, with `retractionFor()` and `updateSettings({ partial_retraction })`.
 - **Piston health:** [`lib/piston.ts`](lib/piston.ts) and [`lib/piston-store.ts`](lib/piston-store.ts) read the motor current from the machine's shot history.
 - **History, profiles, like/dislike and machine messages:** `getHistory()`, `listProfiles()` and `rateShot()` in [`lib/machine-api.ts`](lib/machine-api.ts), and [`lib/station/use-machine-notices.ts`](lib/station/use-machine-notices.ts). The Shots, Stats and Profiles pages read the Meticulous's shot and profile formats (`ShotEntry`, `Profile` in [`lib/types.ts`](lib/types.ts)).
+
+## Let's talk
+
+Ideas, bugs, profiles? Find me on Discord as **propofol9495** (Pava). Add the username as a friend, or look me up on the Meticulous Discord server. Issues and pull requests here on GitHub are welcome too.
 
 ## Credits and license
 

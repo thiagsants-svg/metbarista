@@ -4,10 +4,13 @@
  */
 
 export const APP_NAME = "Not Nine Bar";
-export const APP_TAGLINE = "A station for your Meticulous. Because espresso is not nine bar.";
+export const APP_TAGLINE = "A station for your Meticulous. Because espresso shouldn't be nine bar.";
 export const SITE_URL = "https://not9bar.com";
 export const REPO = "thiagsants-svg/not-nine-bar";
 export const REPO_URL = `https://github.com/${REPO}`;
+
+/** Who to talk to about Not Nine Bar: the maintainer on Discord (add as a friend by username) */
+export const CONTACT = { name: "Pava", discord: "propofol9495" } as const;
 
 /** The project this one is built on: always credited */
 export const UPSTREAM = {
