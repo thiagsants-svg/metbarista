@@ -3,11 +3,11 @@ import { resistanceOf } from "../resistance";
 import { estimateTds } from "../tds-estimate";
 
 describe("puck resistance", () => {
-  it("is pressure over cup flow squared, only after the first drops", () => {
+  it("is pressure over cup flow, only after the first drops", () => {
     const pts = Array.from({ length: 40 }, (_, i) => ({ t: i * 200, pressure: 9, grav: i < 10 ? 0 : 1.5, weight: i < 12 ? 1 : 2 + i * 0.3 }));
     const r = resistanceOf(pts);
     expect(r.slice(0, 12).every((x) => x == null)).toBe(true);
-    expect(r[39]).toBeCloseTo(9 / 2.25, 1);
+    expect(r[39]).toBeCloseTo(9 / 1.5, 1);
   });
 });
 

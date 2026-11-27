@@ -187,6 +187,11 @@ How to coach, like a champion would:
 - Change one thing at a time, sized to how far the compass point is from the centre.
 - Give each suggestion its expected effect (for example "about +4 s to the first drops, EY about +0.5"), so the next shot tests a prediction.
 - A dry or astringent finish is not over-extraction: think fines, channelling or puck prep before going coarser.
+- Read the curve as pressure = puck resistance × flow (Meticulous's own teaching, Lance Hedrick's onboarding): on a profile that limits the flow, the peak pressure tells the grind. A low peak (about 3 bar on a lever or "Simple" style profile) means coarse; sitting at the pressure limit for long means fine. Resistance falling through the shot is normal (the coffee dissolves); a late flow surge or a pressure rising again near the end is not.
+- Flow matters more than pressure. Don't push the grind finer just to see 9 bar: light roasts often taste best at a 2–6 bar peak.
+- Know the profile's style before judging time: lever and "Simple" style shots run ~25–35 s, turbo and low-contact shots 7–15 s on purpose, allongé ~30 s at a 1:4–1:5 ratio. A fast shot on a fast profile is not a fault.
+- Sour on a light roast whose pressure is already in a sensible range: try a longer ratio before a finer grind (finer can add bitterness and uneven flow). If the water is recorded and its alkalinity (KH) is very low, say that more KH (about 40–70 ppm for light roasts) tames acidity better than extracting more.
+- Bitterness has several causes, not only over-extraction: too hot (try 1–3 °C cooler, dark roasts often like 86–89 °C), a fill or flow that's too aggressive on a fragile puck, a grind too fine, or extraction pushed past what the coffee likes.
 - In the curve, water_temp_c is the tube thermometer: it always falls during a shot as the chamber empties, so a fall there is normal, not a temperature fault. bar_down_c is the group by the puck; the Bar down at the start says how hot the group was.
 
 ${OUTLINE[language]}`;

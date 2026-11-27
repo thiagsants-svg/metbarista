@@ -43,9 +43,11 @@ import { getSavedHostname, saveHostname } from "@/lib/machine-ip";
 import { readingsOf, type Readings } from "@/lib/station/readings";
 import { applyDemo, useStationDemoPlayback } from "@/lib/station/use-station-demo";
 import { profileTips } from "@/lib/profile-tip";
-import { listMaintenance, loadIntervals, maintenanceCounts, type MaintenanceCount } from "@/lib/piston-store";
+import { cachedReadings, daySec, listMaintenance } from "@/lib/piston-store";
+import { outlook } from "@/lib/piston";
+import type { PistonDue } from "@/components/recent-shots";
 import { refreshNow } from "@/lib/machine-socket";
-import { executeAction, getHistoryLight, getHistoryPicked, getMachineInfo, getSettings, getShotTimes, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
+import { executeAction, getHistoryLight, getHistoryPicked, getMachineInfo, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { pickRecentShots } from "@/lib/coffee-history";
 import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
@@ -84,7 +86,7 @@ export default function StationPage() {
   const [demoPressure, setDemoPressure] = useState<number | null>(null);
   const demoPurgeOn = demoPurge !== null;
   /** Grease past its interval (Stats → Piston health): one line on the idle screen */
-  const [maintenanceDue, setMaintenanceDue] = useState<MaintenanceCount[]>([]);
+  const [maintenanceDue, setMaintenanceDue] = useState<PistonDue | null>(null);
   /** /station/?demo=pour: the simulated shot still to be played, point by point */
   const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
   /** Auto brew: off by default and on every page load, on purpose. */
@@ -144,18 +146,17 @@ export default function StationPage() {
   }, [rateOpen]);
 
 
-  // Shots since the last grease, from the machine's list of shots (light: no curves);
-  // again after each new shot
+  // Grease reminder from the measured piston effort; checked again after each new shot
   const newestShot = recentShots?.[0]?.dbKey;
   useEffect(() => {
     if (!getSavedIp() || new URLSearchParams(window.location.search).has("demo")) return;
     let alive = true;
-    // Only the newest shots are read: the rest are kept on the tablet
-    getShotTimes()
-      .then((times) => {
-        if (alive) setMaintenanceDue(maintenanceCounts(times, listMaintenance(), loadIntervals()).filter((c) => c.due && c.lastDay != null)); // never logged: Stats says it, the Station doesn't nag
-      })
-      .catch(() => { /* the line just doesn't show */ });
+    // The piston's measured effort since the last grease (readings kept on the tablet by Stats → Piston health)
+    Promise.resolve().then(() => {
+      const last = listMaintenance().filter((m) => m.kind !== "descale").at(-1);
+      const out = outlook(cachedReadings(), last ? daySec(last.day) : null);
+      if (alive) setMaintenanceDue(out && out.status !== "ok" ? { status: out.status, change: out.change, lastDay: last?.day ?? null } : null);
+    });
     return () => { alive = false; };
   }, [newestShot]);
 

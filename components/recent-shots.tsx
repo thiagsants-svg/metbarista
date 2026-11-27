@@ -12,7 +12,8 @@ import { shotGrindLabel } from "@/lib/coffee-history";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Frown, Smile, Wrench, X } from "lucide-react";
-import type { MaintenanceCount } from "@/lib/piston-store";
+/** The piston's measured effort past the "soon" or "due" level (Stats → Piston health) */
+export interface PistonDue { status: "soon" | "due"; change: number; lastDay: string | null }
 import { ShotPlot } from "@/components/shot-charts";
 import type { CoffeeLastShot } from "@/lib/coffee-history";
 import { planLines, TASTE_LABEL, type NextPlan } from "@/lib/next-plan";
@@ -44,8 +45,8 @@ function hideMaintenance(): void {
 export function RecentShots({
   coffee, shots, temp, target, plan, profileTip, maintenanceDue,
 }: {
-  /** Grease past the interval set on Stats → Piston health */
-  maintenanceDue?: MaintenanceCount[];
+  /** Grease reminder from the measured piston effort */
+  maintenanceDue?: PistonDue | null;
   /** The dial-in tip in the chosen profile's description, in its author's words */
   profileTip?: { name: string; tips: string[] } | null;
   coffee?: string;
@@ -85,20 +86,16 @@ export function RecentShots({
         </button>
       )}
 
-      {!!maintenanceDue?.length && !maintHidden && (
+      {maintenanceDue && !maintHidden && (
         <div className="mt-2 flex shrink-0 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-[var(--bad)]/10 pr-1 text-sm">
         <Link href="/stats/#piston-title"
           className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 active:bg-[var(--bad)]/20">
           <Wrench className="h-4 w-4 shrink-0 text-[var(--bad)]" />
           <span className="min-w-0 tabular-nums text-[var(--ink)]/85">
-            {maintenanceDue.map((c, i) => (
-              <span key={c.kind}>
-                {i > 0 && " · "}
-                <b>{c.kind === "grease" ? "Grease" : "Descale"}</b>: {c.shots} shots since {c.lastDay
-                  ? new Date(`${c.lastDay}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : "the first shot"} (every {c.every})
-              </span>
-            ))}
+            <b>{maintenanceDue.status === "due" ? "Time to grease" : "Grease soon"}</b>: the piston works{" "}
+            {Math.round(maintenanceDue.change)}% harder than {maintenanceDue.lastDay
+              ? `after the ${new Date(`${maintenanceDue.lastDay}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} service`
+              : "at the first shots"}
           </span>
         </Link>
         {/* Hidden for 3 days (the grease is on its way), then it comes back until it's logged */}

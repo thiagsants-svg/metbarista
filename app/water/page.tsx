@@ -96,6 +96,9 @@ export default function WaterPage() {
         <p className="mt-1">Hardness (GH) about {SCA_WATER.hardness.target} ppm (fine from {SCA_WATER.hardness.range[0]} to {SCA_WATER.hardness.range[1]}) ·
           alkalinity (KH) about {SCA_WATER.alkalinity.target} ppm ({SCA_WATER.alkalinity.range[0]}–{SCA_WATER.alkalinity.range[1]}) ·
           TDS about {SCA_WATER.tds.target} ppm ({SCA_WATER.tds.range[0]}–{SCA_WATER.tds.range[1]}) · pH {SCA_WATER.ph.target} ({SCA_WATER.ph.range[0]}–{SCA_WATER.ph.range[1]}).</p>
+        <p className="mt-1">Alkalinity by style (Lance Hedrick, Meticulous onboarding): about 20 ppm for traditional espresso,
+          40–70 ppm for light roasts and fast, high-flow shots, about 60 ppm to tame acidity in short dark-roast shots
+          (potassium bicarbonate preferred). Sour without being under-extracted? Raise the KH rather than extracting more.</p>
         <p className="mt-1 text-[var(--ink)]/70">Magnesium tends to bring out brighter, fruitier notes; calcium a rounder body.</p>
       </section>
     </div>

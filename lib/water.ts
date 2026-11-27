@@ -91,7 +91,8 @@ export function waterText(w: WaterRecipe | null): string {
 export function waterAdvice(w: WaterRecipe): string[] {
   const out: string[] = [];
   if (w.kh != null && w.kh > 75) out.push("High alkalinity (KH): buffers the acidity, can taste flat or chalky.");
-  if (w.kh != null && w.kh < 20) out.push("Very low alkalinity (KH): acidity can turn sharp or sour.");
+  if (w.kh != null && w.kh < 20) out.push("Very low alkalinity (KH): acidity can turn sharp or sour. For light roasts, about 40–70 ppm tames it.");
+  else if (w.kh != null && w.kh < 40) out.push("Low alkalinity (KH): fine for traditional espresso (about 20 ppm); light roasts often want 40–70 ppm.");
   if (w.gh != null && w.gh > 150) out.push("Very hard (GH): the body can turn heavy and the acidity muted.");
   if (w.gh != null && w.gh < 17) out.push("Very soft (GH): extraction may feel thin.");
   if (w.tds != null && (w.tds < SCA_WATER.tds.range[0] || w.tds > SCA_WATER.tds.range[1])) out.push(`TDS outside the SCA range (${SCA_WATER.tds.range[0]}–${SCA_WATER.tds.range[1]} ppm).`);

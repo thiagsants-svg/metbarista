@@ -58,12 +58,14 @@ describe("piston outlook", () => {
   // 1.50 A rising 0.01 A a day for 60 days, 3 shots a day
   const rising = Array.from({ length: 180 }, (_, i) => ({ t: 1_000_000 + Math.floor(i / 3) * DAY + (i % 3) * 3600, a: 1.5 + Math.floor(i / 3) * 0.01 }));
 
-  it("reads the pace and when it gets due", () => {
-    const o = outlook(rising, null, rising.at(-1)!.t)!;
-    expect(o.base).toBeCloseTo(1.52, 1);
+  it("reads the pace and when it gets due (soon at +10 %, due at +15 %)", () => {
+    const three = rising.slice(0, 75); // 25 days: about +13 %
+    const o = outlook(three, null, three.at(-1)!.t)!;
+    expect(o.base).toBeCloseTo(1.51, 1);
     expect(o.perMonth!).toBeGreaterThan(15);
     expect(o.status).toBe("soon");
-    expect(o.dueIn!.days).toBeGreaterThan(10);
+    expect(o.dueIn!.days).toBeGreaterThan(0);
+    expect(outlook(rising, null, rising.at(-1)!.t)!.status).toBe("due");
     expect(o.dueIn!.shots).toBeCloseTo(o.dueIn!.days * 3, -1);
   });
 
@@ -80,9 +82,14 @@ describe("piston outlook", () => {
 describe("maintenance counter", () => {
   const times = [daySec("2026-10-01"), daySec("2026-10-05"), daySec("2026-10-06"), daySec("2026-10-07") + 3600];
   it("counts shots since the last grease logged, or since the first shot; no descale counter", () => {
-    const counts = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 2, descale: 10 });
+    const now = daySec("2026-10-08");
+    const counts = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 2, descale: 10 }, now);
     expect(counts).toHaveLength(1);
-    expect(counts[0]).toMatchObject({ kind: "grease", lastDay: "2026-10-06", shots: 2, due: true });
-    expect(maintenanceCounts(times, [], { grease: 10, descale: 10 })[0]).toMatchObject({ lastDay: null, shots: 4, due: false });
+    expect(counts[0]).toMatchObject({ kind: "grease", lastDay: "2026-10-06", shots: 2, days: 2, due: false });
+    expect(maintenanceCounts(times, [], { grease: 10, descale: 10 }, now)[0]).toMatchObject({ lastDay: null, shots: 4, days: 7, due: false });
+  });
+  it("is only a reference: the reminder comes from the measured effort", () => {
+    const c = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 1, descale: 10 }, daySec("2027-01-05"))[0];
+    expect(c).toMatchObject({ days: 91, due: false });
   });
 });

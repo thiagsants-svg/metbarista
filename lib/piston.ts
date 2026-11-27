@@ -116,9 +116,13 @@ export function beforeAfter(readings: LiftReading[], fromSec: number, span = 15)
 
 // ── Trend and forecast (idea from ha-meticulous-cards by cjborchert, MIT; our own code) ──
 
-/** Over the level right after the last maintenance: plan it, then do it */
-export const SOON_RISE = 0.3;
-export const DUE_RISE = 0.5;
+/**
+ * Over the level right after the last maintenance: plan it, then do it. The owner greases by the
+ * measured effort rather than by the calendar. On his machine it climbs about 4 % a month, so +15 %
+ * lands near Meticulous's "every 3 months"; ha-meticulous's +30/+50 % waited far too long.
+ */
+export const SOON_RISE = 0.1;
+export const DUE_RISE = 0.15;
 const DAY_S = 86_400;
 
 export interface PistonOutlook {

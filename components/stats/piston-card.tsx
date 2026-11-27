@@ -12,7 +12,7 @@ import { Loader2, Wrench, X } from "lucide-react";
 import { beforeAfter, DUE_RISE, outlook, SOON_RISE, summarise, weekly, type LiftReading } from "@/lib/piston";
 import {
   addMaintenance, cachedReadings, daySec, deleteMaintenance, listMaintenance, loadIntervals, maintenanceCounts,
-  saveIntervals, shotTimes, updateReadings, LOGGABLE, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
+  shotTimes, updateReadings, LOGGABLE, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
 } from "@/lib/piston-store";
 
 import { dayShort as fmtDay, dayYear as fmtDayYear } from "@/lib/format-date";
@@ -32,7 +32,7 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
   const [adding, setAdding] = useState(false);
   const [day, setDay] = useState(today);
   const [kind, setKind] = useState<MaintenanceKind>("grease");
-  const [intervals, setIntervals] = useState<Intervals>(() => (typeof window === "undefined" ? { grease: 100, descale: 200 } : loadIntervals()));
+  const [intervals] = useState<Intervals>(() => (typeof window === "undefined" ? { grease: 270, descale: 200 } : loadIntervals()));
 
   const onReadRef = useRef(onRead);
   useEffect(() => { onReadRef.current = onRead; }, [onRead]);
@@ -57,11 +57,6 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
   // Every shot read, measured or not (read again as the readings come in)
   const times = useMemo(() => (typeof window === "undefined" || !readings.length ? [] : shotTimes()), [readings]);
   const counts = useMemo(() => maintenanceCounts(times, log, intervals), [times, log, intervals]);
-  const setEvery = (k: keyof Intervals, v: number) => {
-    const next = { ...intervals, [k]: Math.max(10, Math.min(2000, v)) };
-    setIntervals(next);
-    saveIntervals(next);
-  };
   const STATUS = {
     ok: { text: "OK", cls: "bg-[var(--good)]/15 text-[var(--good)]" },
     soon: { text: "Maintenance soon", cls: "bg-[var(--warn)]/15 text-[var(--warn)]" },
@@ -200,22 +195,14 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
         <div className="mt-4 space-y-1.5">
           {counts.map((c) => (
             <div key={c.kind} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-              <span className={`w-20 font-semibold ${c.due ? "text-[var(--bad)]" : ""}`}>{c.kind === "grease" ? "Grease" : "Descale"}</span>
+              <span className="w-20 font-semibold">{c.kind === "grease" ? "Grease" : "Descale"}</span>
               <span className="tabular-nums">
-                <b className={`text-lg ${c.due ? "text-[var(--bad)]" : ""}`}>{c.shots}</b> shots since {c.lastDay ? fmtDay(daySec(c.lastDay) * 1000) : "the first shot (never logged)"}
-              </span>
-              <span className="ml-auto flex items-center gap-1 tabular-nums text-[var(--ink)]/75">
-                every
-                <button type="button" onClick={() => setEvery(c.kind, c.every - 10)} aria-label={`Fewer shots between each ${c.kind}`}
-                  className="h-8 w-8 rounded-full border border-[var(--ink)]/25 font-bold active:scale-95">−</button>
-                <b className="w-10 text-center text-[var(--ink)]">{c.every}</b>
-                <button type="button" onClick={() => setEvery(c.kind, c.every + 10)} aria-label={`More shots between each ${c.kind}`}
-                  className="h-8 w-8 rounded-full border border-[var(--ink)]/25 font-bold active:scale-95">+</button>
+                <b className="text-lg">{c.shots}</b> shots and {c.days} days since {c.lastDay ? fmtDay(daySec(c.lastDay) * 1000) : "the first shot (never logged)"}
               </span>
             </div>
           ))}
           <p className="text-xs text-[var(--ink)]/60">
-            Starting intervals: set your own. It only counts shots; when in doubt, follow{" "}
+            For reference. The reminder comes from the measured effort above. When in doubt, follow{" "}
             <a href="https://meticuloushome.com/pages/maintenance-and-repairs" target="_blank" rel="noreferrer" className="underline underline-offset-2">Meticulous&apos;s maintenance advice</a>.
           </p>
         </div>

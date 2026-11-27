@@ -85,8 +85,9 @@ export function shotTimes(): number[] {
 // ── Maintenance counter (idea from ha-meticulous-cards by cjborchert, MIT) ──
 
 const INTERVALS_KEY = "metbarista_maintenance_intervals";
-/** Shots between greasing and between descaling: starting values, set your own */
-export const DEFAULT_INTERVALS = { grease: 100, descale: 200 };
+/** Shots between greasings (about 3 months at 3 shots a day): starting value, set your own */
+export const DEFAULT_INTERVALS = { grease: 270, descale: 200 };
+
 export type Intervals = typeof DEFAULT_INTERVALS;
 
 export function loadIntervals(): Intervals {
@@ -101,17 +102,22 @@ export interface MaintenanceCount {
   /** The last one logged (YYYY-MM-DD), or null: counted from the first shot */
   lastDay: string | null;
   shots: number;
+  /** Days since then (the first shot when never logged) */
+  days: number;
   every: number;
   due: boolean;
 }
 
 /** Shots since the last grease, against its interval (no descale counter: fresh water every shot leaves little scale) */
-export function maintenanceCounts(times: number[], log: Maintenance[], intervals: Intervals): MaintenanceCount[] {
+export function maintenanceCounts(times: number[], log: Maintenance[], intervals: Intervals, nowSec = Date.now() / 1000): MaintenanceCount[] {
   return (["grease"] as const).map((kind) => {
     const lastDay = log.filter((m) => m.kind === kind).map((m) => m.day).sort().at(-1) ?? null;
     const from = lastDay ? daySec(lastDay) : -Infinity;
     const shots = times.filter((t) => t >= from).length;
-    return { kind, lastDay, shots, every: intervals[kind], due: shots >= intervals[kind] };
+    const since = lastDay ? daySec(lastDay) : times.length ? Math.min(...times) : nowSec;
+    const days = Math.max(0, Math.floor((nowSec - since) / 86400));
+    // For reference: the reminder comes from the measured effort (lib/piston.ts), not from a count
+    return { kind, lastDay, shots, days, every: intervals[kind], due: false };
   });
 }
 
