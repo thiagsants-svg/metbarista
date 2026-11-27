@@ -14,7 +14,7 @@ import Link from "next/link";
 import { ArrowLeft, Frown, GitCompareArrows, Loader2, Smile } from "lucide-react";
 import { ShotPlot } from "@/components/shot-charts";
 import { BrewChart, type BrewPoint } from "@/components/brew-chart";
-import { targetFor } from "@/lib/brew-control";
+import { likedBand, targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
 import { FACT_LABEL, shotFacts, firstDropsAt } from "@/lib/shot-facts";
@@ -34,7 +34,9 @@ import { loadWaters, setShotWater, waterText, type WaterRecipe } from "@/lib/wat
 
 type Face = "like" | "dislike";
 
-export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack, others, compareId, onCompare, eyRefs = [], faces }: {
+export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack, others, compareId, onCompare, eyRefs = [], faces, likedEys = [] }: {
+  /** EYs of the coffee's other liked shots: the brew chart's target */
+  likedEys?: number[];
   /** Likes of the other shots (for the AI review's table) */
   faces?: Record<string, "like" | "dislike" | null>;
   /** Measured shots (EY) of all coffees, for the TDS estimate */
@@ -66,7 +68,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
   const [picking, setPicking] = useState(false);
-  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null, waterId: s.waterId ?? null }, eyRefs);
+  const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null, waterId: s.waterId ?? null, profile: s.profileName || null, temperature: p.temperature ?? null }, eyRefs);
 
   const tile = (label: string, value: string, sub?: string | null) => (
     <div className="min-w-0 border-t-2 border-[var(--ink)] pt-1.5">
@@ -115,11 +117,11 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
       ) : points.length > 1 && (
         <div>
           <div className="relative h-64">
-            <ShotPlot data={points} targetWeight={null} currentStage={null}
+            <ShotPlot data={points} targetWeight={null} currentStage={null} resistance
               marks={facts.map((f) => ({ t: f.at, label: FACT_LABEL[f.kind] }))} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following (pressure or flow)</p>
+            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following. Inner left scale: flow (ml/s, g/s). Thin line: puck resistance (pressure ÷ cup flow², after the first drops)</p>
             {!picking && others.length > 0 && (
               <button type="button" onClick={() => setPicking(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold active:scale-[0.97]">
@@ -149,7 +151,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
 
       {/* Remount when another shot opens, so the fields start from its notes */}
       <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved}
-        tdsEstimate={tdsEstimate} />
+        tdsEstimate={tdsEstimate} likedEys={likedEys} />
 
       <StageTable summary={stages} />
 
@@ -173,7 +175,8 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   );
 }
 
-function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate }: {
+function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate, likedEys }: {
+  likedEys: number[];
   /** TDS estimated from this coffee's other measured shots, shown while no TDS is entered */
   tdsEstimate: TdsEstimate | null;
   shot: ShotEntry;
@@ -265,7 +268,7 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate 
             <span className="text-sm text-[var(--ink)]/70">%</span>
           </label>
           <div className="mt-2 flex flex-1 items-center">
-            <BrewChart shot={tds != null && ey != null ? { tds, ey } : null} past={pastBrews} target={targetFor(row.sum.patch.ratio)}
+            <BrewChart shot={tds != null && ey != null ? { tds, ey } : null} past={pastBrews} target={targetFor(row.sum.patch.ratio, likedBand(likedEys))}
               ratio={row.sum.patch.dose ? row.sum.weight / row.sum.patch.dose : row.sum.patch.ratio} />
           </div>
           {pastBrews.length > 0 && (

@@ -83,7 +83,7 @@ export default function StationPage() {
   /** The demo purge's pressure, bar */
   const [demoPressure, setDemoPressure] = useState<number | null>(null);
   const demoPurgeOn = demoPurge !== null;
-  /** Grease or descale past its interval (Stats → Piston health): one line on the idle screen */
+  /** Grease past its interval (Stats → Piston health): one line on the idle screen */
   const [maintenanceDue, setMaintenanceDue] = useState<MaintenanceCount[]>([]);
   /** /station/?demo=pour: the simulated shot still to be played, point by point */
   const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
@@ -142,7 +142,7 @@ export default function StationPage() {
   }, [rateOpen]);
 
 
-  // Shots since the last grease and descale, from the machine's list of shots (light: no curves);
+  // Shots since the last grease, from the machine's list of shots (light: no curves);
   // again after each new shot
   const newestShot = recentShots?.[0]?.dbKey;
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function StationPage() {
     // Only the newest shots are read: the rest are kept on the tablet
     getShotTimes()
       .then((times) => {
-        if (alive) setMaintenanceDue(maintenanceCounts(times, listMaintenance(), loadIntervals()).filter((c) => c.due));
+        if (alive) setMaintenanceDue(maintenanceCounts(times, listMaintenance(), loadIntervals()).filter((c) => c.due && c.lastDay != null)); // never logged: Stats says it, the Station doesn't nag
       })
       .catch(() => { /* the line just doesn't show */ });
     return () => { alive = false; };
@@ -409,7 +409,7 @@ export default function StationPage() {
           deviceTds={deviceTds} difluid={difluid} difluidMeasuring={difluidMeasuring} difluidNoReply={difluidNoReply} onDifluid={difluidTap}
           pastBrews={(recentShots ?? []).flatMap((s) => (s.tds != null && s.ey != null ? [{ tds: s.tds, ey: s.ey }] : []))} // Saved or skipped: back to the coffee's last shots, with the plan just decided
           facts={lastFacts}
-          tdsEstimate={estimateTds({ coffee: recipe.coffee, dose: recipe.dose, ratio: recipe.ratio, cupWeight: w, grind: recipe.grindUm ?? recipe.grindSetting ?? null, seconds: last ? last.t / 1000 : null, barDown: data.find((d) => typeof d.barDown === "number")?.barDown ?? null, waterId: currentWaterId() }, eyRefs)}
+          tdsEstimate={estimateTds({ coffee: recipe.coffee, dose: recipe.dose, ratio: recipe.ratio, cupWeight: w, grind: recipe.grindUm ?? recipe.grindSetting ?? null, seconds: last ? last.t / 1000 : null, barDown: data.find((d) => typeof d.barDown === "number")?.barDown ?? null, waterId: currentWaterId(), profile: profiles.find((x) => x.id === recipe.baseProfileId)?.name ?? null, temperature: recipe.temperature }, eyRefs)}
           top={rateTop}
           aside={pistonPanel ? <PurgePiston {...pistonProps} className="min-h-0 min-w-0 flex-1 gap-3 p-3 landscape:flex-col portrait:gap-6" /> : undefined}
           onSkip={() => { skipRating(); setData([]); }}

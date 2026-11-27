@@ -101,12 +101,25 @@ export const TEMPLATES: Template[] = [
     ],
   },
   {
+    key: "lever",
+    label: "Lever (decline)",
+    description: "Fill, soak at 3 bar, up to 9, then pressure falls like a spring lever: the light-roast workhorse.",
+    basics: { temperature: 94, targetWeight: 40, accentColor: "#a16207" },
+    stages: [
+      { name: "Fill",          type: "flow",     mode: "constant", value: 4,   fromValue: 0, toValue: 0, duration: 6,  limitEnabled: true,  limitValue: 3 },
+      { name: "Infuse",        type: "pressure", mode: "constant", value: 3,   fromValue: 0, toValue: 0, duration: 12, limitEnabled: true,  limitValue: 6 },
+      { name: "Pressure Up",   type: "pressure", mode: "ramp",     value: 0,   fromValue: 3, toValue: 9, duration: 5,  limitEnabled: false, limitValue: 4 },
+      { name: "Pressure Decline", type: "pressure", mode: "ramp",  value: 0,   fromValue: 9, toValue: 5, duration: 30, limitEnabled: true,  limitValue: 2.8 },
+    ],
+  },
+  {
     key: "turbo",
     label: "Turbo",
-    description: "High-flow, low-pressure for bright and fast extractions.",
-    basics: { temperature: 88, targetWeight: 40, accentColor: "#f43f5e" },
+    description: "Coarse grind, high flow capped at 6 bar: bright and fast, 1:2.5–3 in about 15 s.",
+    basics: { temperature: 88, targetWeight: 50, accentColor: "#f43f5e" },
     stages: [
-      { name: "Turbo",type: "flow", mode: "constant", value: 6, fromValue: 0, toValue: 0, duration: 18, limitEnabled: true, limitValue: 6 },
+      { name: "Ramp",  type: "flow", mode: "ramp",     value: 0,   fromValue: 0, toValue: 4.5, duration: 4,  limitEnabled: true, limitValue: 6 },
+      { name: "Turbo", type: "flow", mode: "constant", value: 4.5, fromValue: 0, toValue: 0,   duration: 16, limitEnabled: true, limitValue: 6 },
     ],
   },
   {

@@ -7,7 +7,7 @@
  */
 
 import { BrewChart } from "@/components/brew-chart";
-import { targetFor } from "@/lib/brew-control";
+import { likedBand, targetFor } from "@/lib/brew-control";
 import { loadPlan, planLines, TASTE_LABEL } from "@/lib/next-plan";
 import { grindText, type ShotRowData } from "@/components/shots/shot-row";
 
@@ -51,7 +51,7 @@ export function CoffeeOverview({ coffee, rows, faces }: {
         <div className="mt-3">
           <BrewChart shot={{ tds: newest.sum.tds!, ey: newest.sum.ey! }}
             past={older.map((r) => ({ tds: r.sum.tds!, ey: r.sum.ey! }))}
-            target={targetFor(newest.sum.patch.ratio)} />
+            target={targetFor(newest.sum.patch.ratio, likedBand(real.filter((r) => faces[r.id] === "like" && r.sum.ey != null).map((r) => r.sum.ey!)))} />
           {older.length > 0 && (
             <p className="text-xs text-[var(--ink)]/60">Big dot: latest reading · open dots: earlier shots, joined in order</p>
           )}

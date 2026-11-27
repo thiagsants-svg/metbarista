@@ -21,6 +21,8 @@ export interface ShotRowData {
   flushWhy?: string;
   /** Pressure and weight over the shot, each 0..1, for the small curve */
   spark?: { p: number[]; w: number[] };
+  /** Seconds to the first drops (2 g in the cup), when the curve was read */
+  firstDrops?: number | null;
 }
 
 /** The shot's curve in a few pixels: pressure (accent) and the cup filling (weight color) */
@@ -74,6 +76,11 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = 
           {s.weight.toFixed(1)}<span className="ml-0.5 text-xs font-medium text-[var(--ink)]/70">g</span>
         </span>
         <span className="text-lg font-extrabold tabular-nums">{fmtClock(s.seconds)}</span>
+        {row.firstDrops != null && (
+          <span className="text-sm font-semibold tabular-nums text-[var(--ink)]/80" title="First drops: 2 g in the cup">
+            drops {Math.round(row.firstDrops)} s
+          </span>
+        )}
         {grind && (
           <span className="text-lg font-extrabold tabular-nums">
             {grind}
@@ -104,7 +111,8 @@ export function ShotRow({ row, face, showCoffee, selected, onSelect, timeOnly = 
       <span className={`truncate ${timeOnly ? "pl-[4.5rem]" : "pl-[7.5rem]"} text-sm text-[var(--ink)]/70`}>
         {[
           showCoffee ? s.coffee || "No coffee" : null,
-          p.dose != null && p.ratio != null ? `${p.dose}g ${formatRatio(p.ratio)} ${p.temperature ?? ""}°C` : s.profileName,
+          s.profileName || null,
+          p.dose != null && p.ratio != null ? `${p.dose}g ${formatRatio(p.ratio)}${p.temperature != null ? ` ${p.temperature}°C` : ""}` : null,
           notes.text || null,
         ].filter(Boolean).join(" · ")}
       </span>

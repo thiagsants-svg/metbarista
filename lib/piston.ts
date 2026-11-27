@@ -4,7 +4,7 @@
  * Right after every shot the machine pulls the piston up at full drive with the
  * pressure back at 0 bar. The drive is the same every time, so the only load
  * that changes from shot to shot is the seal's friction, and it shows up as
- * motor current. It creeps up as the seal dries or scale builds, and drops
+ * motor current. It creeps up as the seal dries, and drops
  * after greasing or descaling. Method and thresholds from hessius/ha-meticulous
  * (MIT), measured there over ~500 shots.
  *

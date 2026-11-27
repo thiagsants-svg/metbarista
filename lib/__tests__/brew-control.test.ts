@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brewVerdict, targetFor, TARGETS } from "../brew-control";
+import { likedBand, targetFor, TARGETS } from "../brew-control";
 
 describe("target box from the ratio", () => {
   it("ristretto up to 1:1.5, lungo from 1:3, normale between", () => {
@@ -12,8 +12,8 @@ describe("target box from the ratio", () => {
   });
 
   it("puts the box on the shot's own ratio line", () => {
-    expect(targetFor(2)).toMatchObject({ ey: [18, 23], tds: [9, 11.5] });
-    expect(targetFor(2.5).tds).toEqual([7.2, 9.2]);
+    expect(targetFor(2)).toMatchObject({ ey: [18, 24], tds: [9, 12] });
+    expect(targetFor(2.5).tds).toEqual([7.2, 9.6]);
   });
 
   it("matches DiFluid's espresso standards without a ratio", () => {
@@ -23,24 +23,11 @@ describe("target box from the ratio", () => {
   });
 });
 
-describe("brewVerdict", () => {
-  const box = TARGETS.normale;
-
-  it("inside the box", () => {
-    expect(brewVerdict(10, 20, box)).toMatchObject({ extraction: "ideal", strength: "ideal", hint: null });
-  });
-
-  it("under-extracted points to more extraction", () => {
-    const v = brewVerdict(9, 17, box);
-    expect(v.text).toBe("Under-extracted · strength OK");
-    expect(v.hint).toMatch(/finer/);
-  });
-
-  it("over-extracted and strong", () => {
-    expect(brewVerdict(13, 23, box)).toMatchObject({ extraction: "over", strength: "strong" });
-  });
-
-  it("weak but well extracted suggests a shorter ratio", () => {
-    expect(brewVerdict(7, 20, box).hint).toMatch(/shorter ratio/);
+describe("the coffee's own target", () => {
+  it("learns the box from 3 or more liked shots, at least 2 % wide", () => {
+    expect(likedBand([22, 23.5])).toBeNull();
+    expect(likedBand([22, 23.5, 24.1])).toEqual([21.5, 24.6]);
+    expect(likedBand([22, 22.2, 22.4])).toEqual([21.2, 23.2]);
+    expect(targetFor(2, [21.5, 24.6])).toMatchObject({ name: "Your liked shots", ey: [21.5, 24.6], tds: [10.75, 12.3] });
   });
 });

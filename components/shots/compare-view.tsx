@@ -6,7 +6,7 @@
  * Metic (hessius/MeticAI).
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { X } from "lucide-react";
 import { COLORS } from "@/components/shot-charts";
@@ -24,15 +24,28 @@ const when = (ms: number) => {
   return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 };
 
-const CompareChart = memo(function CompareChart({ a, b }: { a: ShotCurvePoint[]; b: ShotCurvePoint[] }) {
-  // Both from their own start
-  const zero = (pts: ShotCurvePoint[]) => pts.map((p) => ({ ...p, t: p.t - (pts[0]?.t ?? 0) }));
+/** ms from the start to the first drops (2 g in the cup), or 0 */
+const dropsAt = (pts: ShotCurvePoint[]) => {
+  const hit = pts.find((p) => (p.weight ?? 0) >= 2);
+  return hit ? hit.t - (pts[0]?.t ?? 0) : 0;
+};
+
+const CompareChart = memo(function CompareChart({ a, b, align }: { a: ShotCurvePoint[]; b: ShotCurvePoint[]; align: "start" | "drops" }) {
+  // From their own start, or lined up at the first drops (pre-infusions of different lengths overlay)
+  const zero = (pts: ShotCurvePoint[]) => {
+    const off = (pts[0]?.t ?? 0) + (align === "drops" ? dropsAt(pts) : 0);
+    return pts.map((p) => ({ ...p, t: p.t - off }));
+  };
   const A = zero(a), B = zero(b);
+  const tMin = Math.min(0, A[0]?.t ?? 0, B[0]?.t ?? 0);
+  // Flow scale fitted to the extraction (90th percentile): the fill's spike may run off the top
+  const fl = [...A, ...B].filter((p) => (p.pressure ?? 0) > 1).map((p) => p.flow ?? 0).filter((v) => v > 0).sort((x, y) => x - y);
+  const flowTop = Math.min(8, Math.max(3, Math.ceil((fl.length ? fl[Math.floor(fl.length * 0.9)] : 2) * 1.4)));
   const maxW = Math.max(10, ...A.map((p) => p.weight ?? 0), ...B.map((p) => p.weight ?? 0));
   const weightTop = Math.ceil((maxW * 1.15) / 10) * 10;
   const tMax = Math.max(A.at(-1)?.t ?? 1, B.at(-1)?.t ?? 1);
   const line = (data: ShotCurvePoint[], key: "pressure" | "flow" | "weight", color: string, dashed: boolean) => (
-    <Line data={data} yAxisId={key === "weight" ? "w" : "l"} type="linear" dataKey={key} stroke={color}
+    <Line data={data} yAxisId={key === "weight" ? "w" : key === "flow" ? "f" : "l"} type="linear" dataKey={key} stroke={color}
       strokeWidth={dashed ? 2 : 2.5} strokeDasharray={dashed ? "6 4" : undefined} strokeOpacity={dashed ? 0.75 : 1}
       dot={false} isAnimationActive={false} connectNulls />
   );
@@ -40,9 +53,11 @@ const CompareChart = memo(function CompareChart({ a, b }: { a: ShotCurvePoint[];
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart margin={{ top: 10, right: 4, bottom: 0, left: 0 }}>
         <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
-        <XAxis dataKey="t" type="number" domain={[0, tMax]} allowDuplicatedCategory={false}
+        <XAxis dataKey="t" type="number" domain={[tMin, tMax]} allowDuplicatedCategory={false}
           tickFormatter={(v) => `${Math.round(v / 1000)}s`} tick={AXIS_TICK} tickLine={false} axisLine={false} />
         <YAxis yAxisId="l" domain={[0, 12]} ticks={[0, 2, 4, 6, 8, 10, 12]} width={28} tick={AXIS_TICK} tickLine={false} axisLine={false} />
+        <YAxis yAxisId="f" domain={[0, flowTop]} ticks={Array.from({ length: flowTop + 1 }, (_, i) => i)} allowDataOverflow width={22}
+          tick={{ ...AXIS_TICK, fontSize: 11, fill: COLORS.flow, fillOpacity: 0.55 }} tickLine={false} axisLine={false} />
         <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
           tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
         {line(B, "weight", COLORS.weight, true)}
@@ -82,6 +97,7 @@ function delta(a: number | null, b: number | null, unit: string, digits = 1): st
 }
 
 export function CompareView({ a, b, onClose }: { a: ShotPick; b: ShotPick; onClose: () => void }) {
+  const [align, setAlign] = useState<"start" | "drops">("start");
   const A = factsOf(a), B = factsOf(b);
   const rows: [string, string, string, string][] = [
     ["Grind", A.grind ?? "—", B.grind ?? "—", delta(A.grindN, B.grindN, a.row.sum.patch.grindUm != null ? " µm" : "", 0)],
@@ -111,7 +127,16 @@ export function CompareView({ a, b, onClose }: { a: ShotPick; b: ShotPick; onClo
         </button>
       </div>
       <div className="relative h-64">
-        <CompareChart a={shotPoints(a.shot)} b={shotPoints(b.shot)} />
+        <CompareChart a={shotPoints(a.shot)} b={shotPoints(b.shot)} align={align} />
+      </div>
+      <div className="flex items-center gap-2 text-sm" role="group" aria-label="Line the shots up">
+        <span className="text-[var(--ink)]/70">Line up at</span>
+        {(["start", "drops"] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={align === k} onClick={() => setAlign(k)}
+            className={`h-9 rounded-full border px-3 font-semibold active:scale-[0.97] ${align === k ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/25"}`}>
+            {k === "start" ? "the start" : "the first drops"}
+          </button>
+        ))}
       </div>
       <table className="w-full text-sm tabular-nums">
         <thead>

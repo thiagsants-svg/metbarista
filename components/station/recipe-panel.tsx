@@ -48,13 +48,24 @@ export function RecipePanel({
   /** Full list of recent coffees (the keyboard's suggestions only show matches) */
   const [beansOpen, setBeansOpen] = useState(false);
   const motto = isMotto80(recipe.grinder);
+  // The temperature the profile was designed for, shown when the recipe runs it at another
+  const profileTemp = Number.isFinite(Number(base?.temperature)) ? Math.round(Number(base?.temperature)) : null;
   return (
     <div className="order-1 portrait:col-span-2 space-y-2 border-t-2 border-[var(--ink)] pt-2.5">
       <ProfilePicker
         profiles={profiles}
         selected={base}
         disabled={!editable}
-        onSelect={(id) => onChange({ baseProfileId: id })}
+        onSelect={(id) => {
+          // A profile is designed for its own temperature and yield: switching takes them (the wheels can change them after)
+          const pr = profiles.find((x) => x.id === id);
+          const patch: Partial<Recipe> = { baseProfileId: id };
+          const t = Number(pr?.temperature);
+          if (Number.isFinite(t) && t >= TEMPS[0] && t <= TEMPS[TEMPS.length - 1]) patch.temperature = Math.round(t);
+          const fw = Number(pr?.final_weight);
+          if (Number.isFinite(fw) && fw > 0 && recipe.dose > 0) patch.ratio = nearest(RATIO_PRESETS, fw / recipe.dose);
+          onChange(patch);
+        }}
       />
       {/* Dose, ratio and temperature: each tile opens its own wheel; the value applies when the wheel stops */}
       <div className="grid grid-cols-3 gap-2">
@@ -62,7 +73,7 @@ export function RecipePanel({
           { key: "dose", label: "Dose", val: fmtDose(recipe.dose), unit: "g", wheelLabel: "Dose (g)", items: DOSES, format: fmtDose },
           { key: "ratio", label: overCapacity(recipe) ? `⚠ max ~${maxYieldFor(recipe.dose)} g` : "Ratio", val: formatRatio(recipe.ratio), unit: `= ${beverageWeight(recipe)} g`, wheelLabel: "Ratio",
             items: RATIO_PRESETS, format: (v: number) => `${formatRatio(v)}${overCapacity({ dose: recipe.dose, ratio: v }) ? " ⚠" : ""}` },
-          { key: "temperature", label: "Temp", val: String(recipe.temperature), unit: "°C", wheelLabel: "Temp (°C)", items: TEMPS, format: String },
+          { key: "temperature", label: profileTemp != null && Math.abs(profileTemp - recipe.temperature) >= 1 ? `Temp · profile ${profileTemp}` : "Temp", val: String(recipe.temperature), unit: "°C", wheelLabel: "Temp (°C)", items: TEMPS, format: String },
         ] as const).map((t) => (
           <div key={t.key} className="relative min-w-0">
             <button type="button" disabled={!editable} onClick={() => setWheel(wheel === t.key ? null : t.key)}

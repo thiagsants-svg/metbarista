@@ -79,9 +79,10 @@ describe("piston outlook", () => {
 
 describe("maintenance counter", () => {
   const times = [daySec("2026-10-01"), daySec("2026-10-05"), daySec("2026-10-06"), daySec("2026-10-07") + 3600];
-  it("counts shots since the last one logged, or since the first shot", () => {
-    const [grease, descale] = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 2, descale: 10 });
-    expect(grease).toMatchObject({ lastDay: "2026-10-06", shots: 2, due: true });
-    expect(descale).toMatchObject({ lastDay: null, shots: 4, due: false });
+  it("counts shots since the last grease logged, or since the first shot; no descale counter", () => {
+    const counts = maintenanceCounts(times, [{ id: "a", day: "2026-10-06", kind: "grease" }], { grease: 2, descale: 10 });
+    expect(counts).toHaveLength(1);
+    expect(counts[0]).toMatchObject({ kind: "grease", lastDay: "2026-10-06", shots: 2, due: true });
+    expect(maintenanceCounts(times, [], { grease: 10, descale: 10 })[0]).toMatchObject({ lastDay: null, shots: 4, due: false });
   });
 });

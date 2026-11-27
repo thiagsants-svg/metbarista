@@ -198,7 +198,8 @@ export function checkedRecipe(r: Pick<Recipe, "dose" | "ratio" | "temperature">)
 }
 
 /** The ratios on the wheel (the user's shortcuts). */
-export const RATIO_PRESETS = [1, 1.5, 1.8, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10];
+/** Ratio wheel: 0.1 steps where espresso is dialled in (1.5–3), then whole steps */
+export const RATIO_PRESETS = [1, 1.2, ...Array.from({ length: 16 }, (_, i) => Math.round((1.5 + i * 0.1) * 10) / 10), 3.5, 4, 5, 6, 7, 8, 9, 10];
 
 const STORAGE_KEY = "metbarista_recipe";
 

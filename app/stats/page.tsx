@@ -125,8 +125,9 @@ export default function StatsPage() {
               {tile("Coffee used", `${Math.round(stats.grams)} g`, stats.dosed < stats.shots
                 ? `only the ${stats.dosed} of ${stats.shots} shots with a dose (Station)`
                 : stats.grams >= 250 ? `≈ ${(stats.grams / 250).toFixed(1)} bags of 250 g` : undefined)}
-              {tile("Liked", stats.rated ? `${Math.round((stats.liked / stats.rated) * 100)}%` : "—",
-                stats.rated ? `${stats.liked} liked of ${stats.rated} rated · ${stats.shots - stats.rated} not rated` : "no shots rated")}
+              {/* Counts, not a percentage: few shots get rated, so "100 % liked" would say more than it knows */}
+              {tile("Liked", stats.rated ? `${stats.liked} of ${stats.rated}` : "—",
+                stats.rated ? `rated shots · ${stats.shots - stats.rated} of ${stats.shots} not rated` : "no shots rated")}
               {tile("Average EY", stats.ey ? `${stats.ey.avg.toFixed(1)}%` : "—",
                 stats.ey ? `${stats.ey.n} reading${stats.ey.n === 1 ? "" : "s"}` : "no TDS readings")}
             </div>

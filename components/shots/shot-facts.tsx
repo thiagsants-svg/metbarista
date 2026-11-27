@@ -14,7 +14,7 @@ export function ShotFactsList({ facts, quietWhenEmpty = false }: {
 }) {
   if (facts.length === 0) {
     return quietWhenEmpty ? null : (
-      <p className="text-sm text-[var(--ink)]/70">Nothing unusual in the curves: no channeling, choking or limits hit.</p>
+      <p className="text-sm text-[var(--ink)]/70">No sudden channel, choke or limit hit in the curves. A puck giving way slowly shows as the resistance line falling early: compare it with a shot you liked.</p>
     );
   }
   return (

@@ -44,7 +44,7 @@ function hideMaintenance(): void {
 export function RecentShots({
   coffee, shots, temp, target, plan, profileTip, maintenanceDue,
 }: {
-  /** Grease or descale past the interval set on Stats → Piston health */
+  /** Grease past the interval set on Stats → Piston health */
   maintenanceDue?: MaintenanceCount[];
   /** The dial-in tip in the chosen profile's description, in its author's words */
   profileTip?: { name: string; tips: string[] } | null;

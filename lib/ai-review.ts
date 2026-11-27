@@ -124,16 +124,16 @@ export function dataGaps(x: ReviewShot): string[] {
 
 /** The coffee's shots side by side, oldest first: what changed and what came out */
 export function seriesTable(shots: ReviewShot[]): string {
-  const head = "| when | grind | dose g | temp °C | Bar down at start °C | ratio set | cup g | ratio out | first drops s | time | TDS % | EY % | water | verdict |";
+  const head = "| when | profile | grind | dose g | temp °C | Bar down at start °C | ratio set | cup g | ratio out | first drops s | time | TDS % | EY % | water | verdict |";
   const rows = shots.map((x) => {
     const p = x.sum.patch;
     const when = new Date(x.sum.when).toISOString().slice(5, 16).replace("T", " ");
     const grind = p.grindUm != null ? `${p.grindUm} µm` : p.grindSetting != null ? String(p.grindSetting) : "?";
     const out = p.dose ? `1:${(x.sum.weight / p.dose).toFixed(2)}` : "?";
     const verdict = [x.face === "like" ? "liked" : x.face === "dislike" ? "disliked" : "", compassText(x.notes.taste, x.notes.body)].filter(Boolean).join(", ") || "-";
-    return `| ${when} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${x.sum.barDown != null ? x.sum.barDown.toFixed(1) : "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${firstDropsAt(x.shot.data ?? []) ?? "?"} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${waterById(x.sum.waterId ?? null)?.name ?? "-"} | ${verdict} |`;
+    return `| ${when} | ${x.sum.profileName || x.shot.profile?.name || "?"} | ${grind} | ${p.dose ?? "?"} | ${p.temperature ?? "?"} | ${x.sum.barDown != null ? x.sum.barDown.toFixed(1) : "?"} | ${p.ratio != null ? formatRatio(p.ratio) : "?"} | ${r1(x.sum.weight)} | ${out} | ${firstDropsAt(x.shot.data ?? []) ?? "?"} | ${clock(x.sum.seconds)} | ${x.notes.tds ?? "-"} | ${x.notes.ey ?? "-"} | ${waterById(x.sum.waterId ?? null)?.name ?? "-"} | ${verdict} |`;
   });
-  return [head, "|" + " --- |".repeat(14), ...rows].join("\n");
+  return [head, "|" + " --- |".repeat(15), ...rows].join("\n");
 }
 
 /** The setup, as sentences */
@@ -178,7 +178,7 @@ export function reviewPrompt(
   current: ReviewShot, previous: ReviewShot[], language: "pt-BR" | "en",
   opts: { setup?: AiSetup; question?: string } = {},
 ): { system: string; user: string } {
-  const system = `You are an experienced espresso coach reviewing a shot pulled on a Meticulous espresso machine (a lever-style machine: a motor-driven piston, profiles of stages controlled by pressure or flow, each stage ending on triggers like time, weight or pressure). Read the numbers carefully, never invent data that isn't given, and say when something can't be known from the numbers (the "Data gaps" list says what is missing). Taste beats numbers: when the barista's verdict and the numbers disagree, trust the verdict and explain. The machine runs as its maker designed: suggest only changes the barista can make (grind, dose, ratio, temperature, profile choice or its variables).
+  const system = `You are an experienced espresso coach reviewing a shot pulled on a Meticulous espresso machine (a piston machine: a motor drives a piston through a heated chamber, profiles of stages controlled by pressure or flow, each stage ending on triggers like time, weight or pressure). Read the numbers carefully, never invent data that isn't given, and say when something can't be known from the numbers (the "Data gaps" list says what is missing). Taste beats numbers: when the barista's verdict and the numbers disagree, trust the verdict and explain. The machine runs as its maker designed: suggest only changes the barista can make (grind, dose, ratio, temperature, profile choice or its variables).
 
 How to coach, like a champion would:
 - Extraction (sour ↔ bitter on the compass) is fixed with the grind first, then temperature in 1–2 °C steps.
@@ -187,7 +187,7 @@ How to coach, like a champion would:
 - Change one thing at a time, sized to how far the compass point is from the centre.
 - Give each suggestion its expected effect (for example "about +4 s to the first drops, EY about +0.5"), so the next shot tests a prediction.
 - A dry or astringent finish is not over-extraction: think fines, channelling or puck prep before going coarser.
-- The curve has the water temperature and the Bar down over time: say whether the temperature held.
+- In the curve, water_temp_c is the tube thermometer: it always falls during a shot as the chamber empties, so a fall there is normal, not a temperature fault. bar_down_c is the group by the puck; the Bar down at the start says how hot the group was.
 
 ${OUTLINE[language]}`;
   const parts: string[] = ["Review this shot."];

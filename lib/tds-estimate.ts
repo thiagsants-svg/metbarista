@@ -35,7 +35,15 @@ export interface EyReference {
   barDown?: number | null;
   /** Water recipe id */
   waterId?: string | null;
+  /** The profile it was pulled with (base name): EY from different profiles doesn't compare */
+  profile?: string | null;
+  /** Brew temperature set, °C */
+  temperature?: number | null;
 }
+
+/** Same profile, ignoring case and accents; unknown on either side counts as the same */
+const sameProfile = (a: string | null | undefined, b: string | null | undefined) =>
+  !a || !b || a.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === b.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 export interface TdsEstimate {
   tds: number;
@@ -73,6 +81,7 @@ export function estimateTds(
   shot: {
     coffee: string | null | undefined; dose: number; ratio?: number | null; cupWeight: number;
     grind?: number | null; seconds?: number | null; barDown?: number | null; waterId?: string | null;
+    profile?: string | null; temperature?: number | null;
   },
   refs: EyReference[],
 ): TdsEstimate | null {
@@ -85,6 +94,8 @@ export function estimateTds(
     && close(r.ratio, shot.ratio, 0.3)
     && close(r.grind, shot.grind, grindTol)
     && close(r.barDown, shot.barDown, BAR_DOWN_TOL)
+    && sameProfile(r.profile, shot.profile)
+    && close(r.temperature, shot.temperature, 1)
     && (r.seconds == null || shot.seconds == null || Math.abs(r.seconds - shot.seconds) <= 0.2 * r.seconds));
   // Only shots made the same way: the whole coffee mixes ratios, and EY moves with the ratio
   const pool = similar.length >= MIN_SHOTS ? similar : null;
@@ -132,6 +143,8 @@ export function eyReferences(shots: CoffeeLastShot[]): EyReference[] {
       grind: s.patch.grindUm ?? s.patch.grindSetting ?? null, seconds: s.seconds > 0 ? s.seconds : null,
       barDown: s.barDown ?? null,
       waterId: s.waterId ?? null,
+      profile: s.profileName || null,
+      temperature: s.patch.temperature ?? null,
     }]
     : []));
 }

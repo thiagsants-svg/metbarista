@@ -105,9 +105,9 @@ export interface MaintenanceCount {
   due: boolean;
 }
 
-/** Shots since the last grease and the last descale, against their intervals */
+/** Shots since the last grease, against its interval (no descale counter: fresh water every shot leaves little scale) */
 export function maintenanceCounts(times: number[], log: Maintenance[], intervals: Intervals): MaintenanceCount[] {
-  return (["grease", "descale"] as const).map((kind) => {
+  return (["grease"] as const).map((kind) => {
     const lastDay = log.filter((m) => m.kind === kind).map((m) => m.day).sort().at(-1) ?? null;
     const from = lastDay ? daySec(lastDay) : -Infinity;
     const shots = times.filter((t) => t >= from).length;
@@ -116,6 +116,9 @@ export function maintenanceCounts(times: number[], log: Maintenance[], intervals
 }
 
 export type MaintenanceKind = "grease" | "descale" | "other";
+/** What can be logged now ("descale" stays readable in old logs, not offered) */
+export const LOGGABLE: MaintenanceKind[] = ["grease", "other"];
+
 export const MAINTENANCE_LABEL: Record<MaintenanceKind, string> = {
   grease: "Greased the piston",
   descale: "Descaled",

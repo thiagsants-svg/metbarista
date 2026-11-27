@@ -92,7 +92,7 @@ export function waterAdvice(w: WaterRecipe): string[] {
   const out: string[] = [];
   if (w.kh != null && w.kh > 75) out.push("High alkalinity (KH): buffers the acidity, can taste flat or chalky.");
   if (w.kh != null && w.kh < 20) out.push("Very low alkalinity (KH): acidity can turn sharp or sour.");
-  if (w.gh != null && w.gh > 150) out.push("Hard water (GH): watch for scale in the machine.");
+  if (w.gh != null && w.gh > 150) out.push("Very hard (GH): the body can turn heavy and the acidity muted.");
   if (w.gh != null && w.gh < 17) out.push("Very soft (GH): extraction may feel thin.");
   if (w.tds != null && (w.tds < SCA_WATER.tds.range[0] || w.tds > SCA_WATER.tds.range[1])) out.push(`TDS outside the SCA range (${SCA_WATER.tds.range[0]}–${SCA_WATER.tds.range[1]} ppm).`);
   if (w.ph != null && (w.ph < SCA_WATER.ph.range[0] || w.ph > SCA_WATER.ph.range[1])) out.push("pH outside 6.5–7.5.");

@@ -12,7 +12,7 @@ import { Loader2, Wrench, X } from "lucide-react";
 import { beforeAfter, DUE_RISE, outlook, SOON_RISE, summarise, weekly, type LiftReading } from "@/lib/piston";
 import {
   addMaintenance, cachedReadings, daySec, deleteMaintenance, listMaintenance, loadIntervals, maintenanceCounts,
-  saveIntervals, shotTimes, updateReadings, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
+  saveIntervals, shotTimes, updateReadings, LOGGABLE, MAINTENANCE_LABEL, type Intervals, type Maintenance, type MaintenanceKind,
 } from "@/lib/piston-store";
 
 import { dayShort as fmtDay, dayYear as fmtDayYear } from "@/lib/format-date";
@@ -92,8 +92,8 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
     <section aria-labelledby="piston-title">
       <p id="piston-title" className={section}>Piston health</p>
       <p className="mt-1 text-sm text-[var(--ink)]/75">
-        How hard the motor works to lift the piston after each shot. It rises as the seal dries or scale builds up, and drops
-        after greasing or descaling. Read from the shots the machine keeps; nothing is sent to it.
+        How hard the motor works to lift the piston after each shot. It rises as the seal dries, and drops
+        after greasing. Read from the shots the machine keeps; nothing is sent to it.
       </p>
 
       {progress && (
@@ -195,7 +195,7 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
         <p className="mt-2 text-sm text-[var(--ink)]/70">Not enough shots measured yet.</p>
       )}
 
-      {/* Shots since the last grease and descale, against intervals you set */}
+      {/* Shots since the last grease, against the interval you set */}
       {times.length > 0 && (
         <div className="mt-4 space-y-1.5">
           {counts.map((c) => (
@@ -242,7 +242,7 @@ export function PistonCard({ onRead }: { onRead?: () => void } = {}) {
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--ink)]/20 p-2">
             <input type="date" value={day} max={today()} onChange={(e) => setDay(e.target.value)} aria-label="Day"
               className="h-10 rounded-md border border-[var(--ink)]/25 bg-transparent px-2 text-sm" />
-            {(Object.keys(MAINTENANCE_LABEL) as MaintenanceKind[]).map((k) => (
+            {LOGGABLE.map((k) => (
               <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
                 className={`h-10 rounded-full border px-3 text-sm font-semibold ${kind === k ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/25"}`}>
                 {MAINTENANCE_LABEL[k]}

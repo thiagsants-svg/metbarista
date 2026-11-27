@@ -15,6 +15,7 @@ import { getHistory, getHistoryLight, getShotRating, searchHistory } from "@/lib
 import { useRequireConnection } from "@/lib/connection-store";
 import { shotSummary } from "@/lib/coffee-history";
 import { isThrowaway } from "@/lib/throwaway";
+import { firstDropsAt } from "@/lib/shot-facts";
 import { getShotNote } from "@/lib/shot-notes";
 import { parseShotNote } from "@/lib/shot-record";
 import { sameCoffee } from "@/lib/recipe";
@@ -53,6 +54,7 @@ function buildRows(shots: ShotEntry[]): ShotRowData[] {
       grindDelta: null as number | null, flush: throwaway || tiny,
       flushWhy: throwaway ? "flush" : tiny ? `only ${sum.weight.toFixed(1)} g` : undefined,
       spark: sparkOf(shot),
+      firstDrops: shot.data?.length ? firstDropsAt(shot.data) : null,
     };
   });
   // Grind change against the same coffee's previous (older) shot
@@ -263,6 +265,8 @@ function ShotsContent() {
                   && r.sum.tds != null && r.sum.ey != null)
                 .map((r) => ({ tds: r.sum.tds!, ey: r.sum.ey! }))}
               faces={faces}
+              likedEys={rows.filter((r) => r.id !== selected.id && !r.flush && faces[r.id] === "like" && r.sum.ey != null
+                && r.sum.coffee && selected.sum.coffee && sameCoffee(r.sum.coffee, selected.sum.coffee)).map((r) => r.sum.ey!)}
               eyRefs={eyReferences(rows.filter((r) => r.id !== selected.id && !r.flush).map((r) => r.sum))}
               onFace={(f) => setFaces((cur) => ({ ...cur, [selected.id]: f }))}
               onSaved={() => setVersion((v) => v + 1)}
