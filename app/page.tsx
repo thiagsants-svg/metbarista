@@ -9,7 +9,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Activity, ArrowRight, Bluetooth, Bot, ClipboardList, Droplets, Filter, HardDriveDownload, Loader2, Tablet, Thermometer } from "lucide-react";
+import { Activity, ArrowRight, Bluetooth, Bot, Filter, HardDriveDownload, History, Loader2, SlidersHorizontal, Tablet, Thermometer } from "lucide-react";
 import { ConnectDialog } from "@/components/connect-dialog";
 import { UsageStrip } from "@/components/usage-strip";
 import { BrandMark } from "@/components/brand-mark";
@@ -21,16 +21,17 @@ import { ShotDemo } from "@/components/home/shot-demo";
 
 const STATION = "/station";
 
+/** In the order of what owners and reviewers miss most: following the machine, quick recipe changes, the heating */
 const FEATURES = [
-  { icon: Tablet, title: "A station by the machine", desc: "Full screen on a tablet: recipe wheels, slide to heat, live curve with the stage the shot is in and what it aims for." },
-  { icon: Bluetooth, title: "Grinder on the record", desc: "The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot." },
-  { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow." },
-  { icon: ClipboardList, title: "Next shot, decided at the cup", desc: "Taste, then set temperature and ratio for next time. The plan waits for you when you pick that coffee again." },
+  { icon: Tablet, title: "Everything the machine does, on one screen", desc: "Full screen on a tablet by the machine: pressure, flow, weight and the cup live, the stage the shot is in and which condition ends it. Skip a stage with a tap." },
+  { icon: SlidersHorizontal, title: "Change the recipe in seconds", desc: "Dose, ratio and temperature on big wheels, the coffee and grind beside them, then slide to heat. The profile goes with your recipe, and the retraction follows the dose." },
+  { icon: Thermometer, title: "The heating, sensor by sensor", desc: "Every thermometer in the machine on one chart, with the water and the group's lowest one (Bar down, by the puck) as bars and the time left. Auto brew can wait for the Bar down. Each heating is logged, hot or cold water, to sharpen the forecast." },
+  { icon: History, title: "Every shot, read from the machine", desc: "Straight from the machine's own history: each coffee's last shots, compare two, rate in one tap and set what to change next time. The plan waits for you." },
+  { icon: Activity, title: "Machine health", desc: "How hard the motor works to lift the piston after every shot: see the seal dry out and the grease bring it back. A choked shot is flagged." },
+  { icon: HardDriveDownload, title: "No app, no account", desc: "It runs in the tablet's browser and talks straight to the machine on your Wi-Fi: no pairing, no cloud. A backup file keeps your coffees and notes." },
+  { icon: Bluetooth, title: "Grinder and refractometer", desc: "The BOOKOO Motto 80's grind goes with each shot over Bluetooth; the DiFluid R2 fills the TDS by itself, and extraction follows." },
+  { icon: Filter, title: "Pour-over on the same scale", desc: "Free pour or a guided recipe on the machine's own scale: the ratio never gets lost." },
   { icon: Bot, title: "AI review, your key", desc: "Ask Claude, ChatGPT, Gemini or Grok about a shot: profile, curve and the coffee's last shots go along. The key stays on your tablet." },
-  { icon: Thermometer, title: "The group's heat, not just the water", desc: "While heating, every group thermometer is on screen and it says when the one by the puck (Bar down) is ready. Each heating is logged, hot or cold water, to make the forecast better." },
-  { icon: Filter, title: "Pour-over on the same scale", desc: "Free pour or a guided recipe on the machine's own scale: the ratio never gets lost. TDS, extraction and the compass, in a history of its own." },
-  { icon: Activity, title: "Machine health", desc: "How hard the motor works to lift the piston after every shot, read from the shots the machine keeps: see the seal dry out and the grease bring it back." },
-  { icon: HardDriveDownload, title: "Yours, on your tablet", desc: "No account, no cloud: it talks straight to the machine. A backup file keeps your coffees and notes." },
 ];
 
 export default function HomePage() {
@@ -120,12 +121,12 @@ export default function HomePage() {
 
       <UsageStrip />
 
-      {/* What it looks like: the Station's live chart on a tablet, playing the demo shot on a loop */}
+      {/* What it looks like: the Station's live chart on a tablet, playing a real shot on a loop */}
       <section className="border-t border-[var(--ink)]/15">
         <figure className="mx-auto max-w-4xl px-6 py-12">
           <ShotDemo />
           <figcaption className="mt-3 text-center text-sm text-[var(--ink)]/70">
-            The Station&apos;s live chart during a shot: pressure, flow and the cup filling, stage by stage (a demo shot).
+            The Station&apos;s live chart during a shot: pressure, flow and the cup filling, stage by stage (a real shot, LRv2 at 20 g 1:2).
           </figcaption>
         </figure>
       </section>

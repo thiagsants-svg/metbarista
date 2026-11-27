@@ -61,10 +61,13 @@ function endReason(e: StageEnd, skipped: boolean): { kind: LogKind; text: string
 
 /** The Station's samples in the machine's history shape (enough for stageSummary) */
 function toFrames(points: ShotPoint[]): ShotFrame[] {
-  return points.filter((p) => p.stage).map((p) => ({
+  // Points without a stage after the shot are the last drops (the machine retracting): they count for the cup
+  const first = points.findIndex((p) => p.stage);
+  if (first < 0) return [];
+  return points.slice(first).map((p) => ({
     time: p.t,
     profile_time: p.t,
-    status: p.stage!,
+    status: p.stage ?? "retracting",
     shot: {
       pressure: p.pressure ?? 0, flow: p.flow ?? 0, weight: p.weight ?? 0, gravimetric_flow: p.grav ?? 0,
       setpoints: { active: p.fTarget != null && p.pTarget == null ? "flow" : "pressure" },
