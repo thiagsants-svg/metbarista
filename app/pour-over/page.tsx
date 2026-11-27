@@ -112,6 +112,9 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
   const [liftSince, setLiftSince] = useState<number | null>(null);
   const [drainedAt, setDrainedAt] = useState<number | null>(null);
   const [kettleAtStart, setKettleAtStart] = useState<number | null>(null);
+  /** Valve brewer (Hario Switch): s from the first pour when the valve was closed and opened */
+  const [valveClosedAt, setValveClosedAt] = useState<number | null>(null);
+  const [valveOpenedAt, setValveOpenedAt] = useState<number | null>(null);
   const [busyNow, setBusyNow] = useState(false);
 
   const brewing = stage === "ready" || stage === "brewing";
@@ -158,7 +161,9 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
   const baseRecipe = recipes.find((r) => r.id === setup.recipeId) ?? null;
   const recipe = baseRecipe && dose > 0 ? scaleRecipe(baseRecipe, dose) : baseRecipe;
   const target = recipe ? recipeWater(recipe) : null;
-  const g = recipe && stage === "brewing" ? guide(recipe, clock, water) : null;
+  const g = recipe && stage === "brewing" ? guide(recipe, clock, water, valveClosedAt, valveOpenedAt) : null;
+  /** A valve brewer: the recipe has a valve, or the brewer typed is a Switch */
+  const hasValve = !!recipe?.valve || /switch/i.test(setup.brewer);
 
   // Brewer lifted: the low reading must hold 3 s and look like a server with a drink, else it was a swirl
   useEffect(() => {
@@ -191,12 +196,17 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
   }, []);
   // First pour seen: the brew is on, and the kettle's reading at that moment is kept
   useEffect(() => {
-    if (stage === "ready" && det.t0 != null) { setStage("brewing"); setKettleAtStart(kettleTemp); } // eslint-disable-line react-hooks/set-state-in-effect
-  }, [stage, det.t0, kettleTemp]);
+    if (stage === "ready" && det.t0 != null) {
+      setStage("brewing"); setKettleAtStart(kettleTemp); // eslint-disable-line react-hooks/set-state-in-effect
+      // A recipe that starts with the valve closed: closed from the first pour
+      if (recipe?.valve?.closeAt === 0) setValveClosedAt(0);
+    }
+  }, [stage, det.t0, kettleTemp, recipe?.valve?.closeAt]);
 
   const reset = () => {
     setStage("setup"); setDet(newDetector()); setAll([]); setEndAt(null); setDrink(null); setTypedDose("");
     setOffset(0); setLiftSince(null); setDrainedAt(null); setKettleAtStart(null);
+    setValveClosedAt(null); setValveOpenedAt(null);
   };
   const cancel = () => { if (window.confirm("Stop this brew? Nothing will be saved.")) reset(); };
   const finishNow = () => { setEndAt(Math.max(now, wall)); setStage("result"); };
@@ -250,7 +260,7 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
             <ModeCard active={!setup.recipeId} title="Free pour" text="Pour your way: the pours are found from the weight." onClick={() => editSetup({ recipeId: "" })} />
             {recipes.map((r) => (
               <ModeCard key={r.id} active={setup.recipeId === r.id} title={r.name}
-                text={`${r.dose} g · 1:${recipeRatio(r).toFixed(1)} · ${r.pours.length} pour${r.pours.length > 1 ? "s" : ""} · ${r.temperature} °C`}
+                text={`${r.dose} g · 1:${recipeRatio(r).toFixed(1)} · ${r.pours.length} pour${r.pours.length > 1 ? "s" : ""} · ${r.temperature} °C${r.valve ? ` · valve, steep to ${fmtClock(r.valve.openAt)}` : ""}`}
                 onClick={() => editSetup({ recipeId: r.id, temperature: r.temperature })} />
             ))}
           </div>
@@ -331,6 +341,10 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
           </div>
           {stage === "ready" && <Cue tone="info" text={recipe ? `Start the first pour: ${recipe.pours[0].grams} g. The clock starts with it.` : "Start pouring: the clock starts with the first pour."} />}
           {stage === "lift" && <Cue tone="info" text="Brewer off the server: weighing the drink in a moment. Swirling? Put it back and the brew carries on." />}
+          {g?.valve && (g.valve.action === "close"
+            ? <Cue tone="go" blink={g.valve.inS <= 5} text={g.valve.inS > 0.5 ? `Close the valve in ${Math.ceil(g.valve.inS)} s` : "Close the valve now"} />
+            : valveClosedAt != null && <Cue tone={g.valve.inS <= 5 ? "go" : "info"} blink={g.valve.inS <= 5}
+              text={g.valve.inS > 0.5 ? `Steeping, valve closed · open it in ${fmtClock(g.valve.inS)}` : "Open the valve now"} />)}
           {g && g.phase === "wait" && <Cue tone={g.startsIn <= 5 ? "go" : "info"} blink={g.startsIn <= 5}
             text={`${prevAction(recipe!, g.index)}Pour ${g.index + 1} of ${recipe!.pours.length} in ${Math.ceil(g.startsIn)} s · up to ${g.stopAt} g`} />}
           {g && g.phase === "pour" && <Cue tone="go" text={`Pour ${g.index + 1} of ${recipe!.pours.length}: up to ${g.stopAt} g · ${Math.max(0, g.stopAt - water).toFixed(0)} g to go`} />}
@@ -344,7 +358,14 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
               tEnd={Math.max(clock + 20, ...(recipe?.pours.map((p) => p.at + p.seconds + 20) ?? []))}
               target={recipe ? planSteps(recipe) : undefined} />
           )}
-          {stage === "brewing" && det.pours.length > 0 && !det.pouring && (
+          {stage === "brewing" && hasValve && valveOpenedAt == null && (
+            // The scale can't see the valve (the water only moves from the brewer to the server): a tap marks it
+            <button className={`${btn} min-h-14 w-full border-2 border-[var(--accent)] text-lg`}
+              onClick={() => (valveClosedAt == null ? setValveClosedAt(Math.round(clock)) : setValveOpenedAt(Math.round(clock)))}>
+              {valveClosedAt == null ? "Valve closed" : `Valve opened · steeping since ${fmtClock(valveClosedAt)}`}
+            </button>
+          )}
+          {stage === "brewing" && det.pours.length > 0 && !det.pouring && (hasValve ? valveOpenedAt != null : true) && (
             <button className={`${btn} min-h-14 w-full border-2 border-[var(--ink)] text-lg`} onClick={() => setDrainedAt(Math.round(clock))}>
               {drainedAt != null ? `Bed drained at ${fmtClock(drainedAt)} · tap again to change` : "Bed drained"}
             </button>
@@ -355,7 +376,7 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
           </div>
         </div>
         <div className="h-72 lg:h-96">
-          <PourScene pouring={det.pouring} dripping={stage === "brewing" && !det.pouring} water={Math.max(0, water)} target={target} kettleTemp={kettleTemp} />
+          <PourScene pouring={det.pouring} dripping={stage === "brewing" && !det.pouring && !(hasValve && valveClosedAt != null && valveOpenedAt == null)} water={Math.max(0, water)} target={target} kettleTemp={kettleTemp} />
         </div>
       </div>
     );
@@ -371,6 +392,8 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
         seconds: Math.round(clock),
         ...(drainedAt != null ? { drained: drainedAt } : {}),
         ...(kettleAtStart != null ? { kettleTemp: kettleAtStart } : {}),
+        ...(valveClosedAt != null ? { valveClosedAt } : {}),
+        ...(valveOpenedAt != null ? { valveOpenedAt } : {}),
         ...(setup.brewer.trim() ? { brewer: setup.brewer.trim() } : {}),
         ...(setup.filter.trim() ? { filter: setup.filter.trim() } : {}),
         ...(() => {
@@ -385,6 +408,14 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
       onSave={(b) => { onSaved(saveBrew(b)); reset(); }}
     />
   );
+}
+
+/** "Steeped 1:45 (valve closed 0:00 → 1:45), drained 0:50 after opening" */
+function steepText(b: { valveClosedAt?: number; valveOpenedAt?: number; drained?: number }): string {
+  if (b.valveClosedAt == null) return "";
+  if (b.valveOpenedAt == null) return `Valve closed at ${fmtClock(b.valveClosedAt)}, opening not marked`;
+  const steep = `Steeped ${fmtClock(b.valveOpenedAt - b.valveClosedAt)} (valve closed ${fmtClock(b.valveClosedAt)} → opened ${fmtClock(b.valveOpenedAt)})`;
+  return b.drained != null && b.drained > b.valveOpenedAt ? `${steep}, drained ${fmtClock(b.drained - b.valveOpenedAt)} after opening` : steep;
 }
 
 /** "Swirl the brewer. " after the pour before `index`, when the recipe asks for it */
@@ -501,6 +532,7 @@ function ResultForm({ base, plan, past = [], onSave, onCancel, onResume }: {
         <Big label="Drink" value={drink ? `${drink.toFixed(0)} g` : "—"} sub={drink ? `${(base.water - drink).toFixed(0)} g kept by the bed` : null} />
       </div>
       {base.kettleTemp != null && <p className="text-sm text-[var(--ink)]/70">Kettle read {base.kettleTemp}° when the first pour began.</p>}
+      {base.valveClosedAt != null && <p className="text-sm text-[var(--ink)]/70">{steepText(base)}</p>}
       {base.curve.length > 3 && <BrewCurve curve={base.curve} pours={base.pours} target={plan} />}
       <div className="grid grid-cols-2 gap-2">
         <label className="grid gap-1 text-sm">Drink (g){base.drink == null ? ": weigh the server, or type it" : ""}
@@ -590,7 +622,7 @@ function HistoryTab({ brews, onDelete }: { brews: PourBrew[]; onDelete: (id: str
               )}
               <p>{[b.recipe ?? "Free pour", b.brewer, b.filter, b.grinder && `${b.grinder}${b.grind ? ` ${b.grind}` : ""}`,
                 b.temperature && `${b.temperature} °C set`, b.kettleTemp != null && `kettle ${b.kettleTemp}°`, b.waterNote && `water ${b.waterNote}`,
-                b.bypass && `bypass ${b.bypass} g`, `${b.pours.length} pours`].filter(Boolean).join(" · ")}</p>
+                b.bypass && `bypass ${b.bypass} g`, `${b.pours.length} pours`, b.valveClosedAt != null && steepText(b)].filter(Boolean).join(" · ")}</p>
               {(b.compass || b.dry) && <p>Taste: {[b.compass && compassText(compassTaste(b.compass), compassBody(b.compass)), b.dry && "dry finish"].filter(Boolean).join(" · ")}</p>}
               {b.notes && <p className="whitespace-pre-wrap">{b.notes}</p>}
               <button className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md px-2 text-[var(--bad)]"
@@ -631,6 +663,20 @@ function RecipesTab({ recipes, onChange }: { recipes: PourRecipe[]; onChange: (r
                 <label className="grid gap-1">Dose g<input className={input} inputMode="decimal" value={r.dose} onChange={(e) => edit(r.id, (x) => ({ ...x, dose: num(e.target.value) || 1 }))} /></label>
                 <label className="grid gap-1">°C<input className={input} inputMode="numeric" value={r.temperature} onChange={(e) => edit(r.id, (x) => ({ ...x, temperature: num(e.target.value) }))} /></label>
               </div>
+              <label className="flex min-h-11 items-center gap-3">
+                <input type="checkbox" className="h-6 w-6" checked={!!r.valve}
+                  onChange={(e) => edit(r.id, (x) => (e.target.checked ? { ...x, valve: { closeAt: 0, openAt: 120 } } : (() => { const y = { ...x }; delete y.valve; return y; })()))} />
+                Valve brewer (Hario Switch): closed it steeps, open it drains
+              </label>
+              {r.valve && (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid gap-1">Close at (s; 0: closed from the start)<input className={input} inputMode="numeric" value={r.valve.closeAt}
+                    onChange={(e) => edit(r.id, (x) => ({ ...x, valve: { ...x.valve!, closeAt: num(e.target.value) } }))} /></label>
+                  <label className="grid gap-1">Open at (s)<input className={input} inputMode="numeric" value={r.valve.openAt}
+                    onChange={(e) => edit(r.id, (x) => ({ ...x, valve: { ...x.valve!, openAt: Math.max(num(e.target.value), x.valve!.closeAt + 5) } }))} /></label>
+                  <p className="col-span-2 text-[var(--ink)]/65">All the water with the valve closed is a plain immersion. Pours before closing or after opening make it a hybrid.</p>
+                </div>
+              )}
               <p className="mt-1 text-sm text-[var(--ink)]/70">Each pour: start (s from the first) · grams · seconds · then</p>
               {r.pours.map((p, i) => (
                 <div key={i} className="grid grid-cols-[auto_1fr_1fr_1fr_1.3fr_auto] items-center gap-2">

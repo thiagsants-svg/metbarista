@@ -132,9 +132,19 @@ export interface RecipePour {
   then?: "swirl" | "stir";
 }
 
+/**
+ * A valve brewer (Hario Switch): closed it steeps (immersion), open it drains
+ * through the bed (percolation). Closed from `closeAt` (0: from the start) to
+ * `openAt`, seconds from the first pour. All the water and a time is a plain
+ * immersion; pours before closing or after opening make it a hybrid.
+ */
+export interface Valve { closeAt: number; openAt: number }
+
 export interface PourRecipe {
   id: string;
   name: string;
+  /** Valve brewer: when to close and open it (absent: an open dripper) */
+  valve?: Valve;
   /** g of coffee the recipe was written for: other doses scale the water */
   dose: number;
   temperature: number;
@@ -163,6 +173,23 @@ export const DEFAULT_RECIPES: PourRecipe[] = [
   },
 ];
 
+/** Valve recipes, offered next to the drippers ones */
+export const SWITCH_RECIPES: PourRecipe[] = [
+  {
+    id: "switch-immersion", name: "Switch: all in, steep, drain", dose: 15, temperature: 96,
+    valve: { closeAt: 0, openAt: 120 },
+    pours: [{ at: 0, grams: 240, seconds: 20, then: "stir" }],
+    notes: "1:16, valve closed. All the water, a gentle stir, steep until 2:00, then open: it drains through the bed. A plain immersion: forgiving and full-bodied.",
+  },
+  {
+    id: "switch-hybrid", name: "Switch: open first, then steep", dose: 15, temperature: 95,
+    valve: { closeAt: 75, openAt: 135 },
+    pours: [{ at: 0, grams: 45, seconds: 10, then: "swirl" }, { at: 40, grams: 105, seconds: 20 }, { at: 75, grams: 90, seconds: 15, then: "stir" }],
+    notes: "1:16, hybrid. Bloom and one pour with the valve open (percolation, clarity), close it, pour the rest and steep (sweetness, body), open at 2:15 to drain.",
+  },
+];
+DEFAULT_RECIPES.push(...SWITCH_RECIPES);
+
 export function loadRecipes(): PourRecipe[] {
   if (typeof window === "undefined") return DEFAULT_RECIPES;
   try {
@@ -185,13 +212,20 @@ export const recipeRatio = (r: PourRecipe) => recipeWater(r) / r.dose;
 export function scaleRecipe(r: PourRecipe, dose: number): PourRecipe {
   const k = dose > 0 ? dose / r.dose : 1;
   let shift = 0;
+  // The valve moves with the pours before it (a longer pour pushes the close and the open back)
+  const shiftBefore: number[] = [];
   const pours = r.pours.map((p) => {
     const seconds = Math.max(1, Math.round(p.seconds * k));
     const out = { ...p, at: Math.round(p.at + shift), grams: Math.round(p.grams * k), seconds };
     shift += seconds - p.seconds;
+    shiftBefore.push(shift);
     return out;
   });
-  return { ...r, dose, pours };
+  const moved = (t: number) => {
+    const i = r.pours.reduce((n, p, j) => (p.at < t ? j : n), -1);
+    return Math.round(t + (i >= 0 ? shiftBefore[i] : 0));
+  };
+  return { ...r, dose, pours, ...(r.valve ? { valve: { closeAt: r.valve.closeAt === 0 ? 0 : moved(r.valve.closeAt), openAt: moved(r.valve.openAt) } } : {}) };
 }
 
 export interface Guide {
@@ -199,6 +233,8 @@ export interface Guide {
   index: number;
   /** "wait": before its start · "pour": its time · "done": all poured */
   phase: "wait" | "pour" | "done";
+  /** Valve brewer: what to do with the valve now, and in how many s (null: nothing) */
+  valve?: { action: "close" | "open"; inS: number } | null;
   /** s until this pour starts (wait) */
   startsIn: number;
   /** Water the scale should read when this pour stops (g) */
@@ -211,7 +247,8 @@ export interface Guide {
  * Where the recipe is at, from the clock and the water so far. A pour is
  * finished when its stop weight is reached (within 2 g), whatever the clock.
  */
-export function guide(r: PourRecipe, clock: number, water: number): Guide {
+export function guide(r: PourRecipe, clock: number, water: number, valveClosedAt: number | null = null, valveOpenedAt: number | null = null): Guide {
+  const valve = valveStep(r, clock, valveClosedAt, valveOpenedAt);
   let total = 0;
   for (let i = 0; i < r.pours.length; i++) {
     const p = r.pours[i];
@@ -219,10 +256,23 @@ export function guide(r: PourRecipe, clock: number, water: number): Guide {
     if (water >= total - 2) continue;
     const flow = p.seconds > 0 ? p.grams / p.seconds : 0;
     return clock < p.at
-      ? { index: i, phase: "wait", startsIn: p.at - clock, stopAt: total, flow }
-      : { index: i, phase: "pour", startsIn: 0, stopAt: total, flow };
+      ? { index: i, phase: "wait", startsIn: p.at - clock, stopAt: total, flow, valve }
+      : { index: i, phase: "pour", startsIn: 0, stopAt: total, flow, valve };
   }
-  return { index: r.pours.length, phase: "done", startsIn: 0, stopAt: total, flow: 0 };
+  return { index: r.pours.length, phase: "done", startsIn: 0, stopAt: total, flow: 0, valve };
+}
+
+/**
+ * The valve's next move: close it (a hybrid, open first) or open it (end of the
+ * steep), with the seconds to go; null once it has been opened (tapped) or
+ * without a valve. Shown from 20 s before.
+ */
+export function valveStep(r: PourRecipe, clock: number, closedAt: number | null, openedAt: number | null): Guide["valve"] {
+  if (!r.valve || openedAt != null) return null;
+  const { closeAt, openAt } = r.valve;
+  // Not closed yet (a hybrid that starts open): the close comes first, even if late
+  if (closedAt == null && closeAt > 0) return closeAt - clock <= 20 ? { action: "close", inS: closeAt - clock } : null;
+  return { action: "open", inS: openAt - clock };
 }
 
 // ── Brews ───────────────────────────────────────────────────
@@ -240,6 +290,9 @@ export interface PourBrew {
   kettleTemp?: number;
   /** V60, flat-bottom, Chemex… */
   brewer?: string;
+  /** Valve brewer: s from the first pour when the valve was closed and opened (the steep is between) */
+  valveClosedAt?: number;
+  valveOpenedAt?: number;
   /** The filter: Hario paper, Cafec Abaca, Sibarist, metal… */
   filter?: string;
   /** Water used: its recipe (lib/water.ts) and, as text, what it was then */

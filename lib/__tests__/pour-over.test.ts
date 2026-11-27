@@ -65,3 +65,27 @@ describe("recipes", () => {
     expect(brewerLifted(240, 250, 120, 15)).toBe(false);
   });
 });
+
+import { valveStep, SWITCH_RECIPES } from "../pour-over";
+
+describe("valve brewers (Hario Switch)", () => {
+  const immersion = SWITCH_RECIPES[0], hybrid = SWITCH_RECIPES[1];
+  it("an immersion: open the valve at the end of the steep", () => {
+    expect(valveStep(immersion, 60, 0, null)).toEqual({ action: "open", inS: 60 });
+    expect(valveStep(immersion, 130, 0, null)?.inS).toBeLessThan(0);
+    expect(valveStep(immersion, 130, 0, 121)).toBeNull();
+    expect(guide(immersion, 60, 240, 0, null)).toMatchObject({ phase: "done", valve: { action: "open" } });
+  });
+  it("a hybrid: close first (shown 20 s ahead, even if late), then open", () => {
+    expect(valveStep(hybrid, 30, null, null)).toBeNull();
+    expect(valveStep(hybrid, 60, null, null)).toEqual({ action: "close", inS: 15 });
+    expect(valveStep(hybrid, 90, null, null)?.action).toBe("close");
+    expect(valveStep(hybrid, 90, 76, null)).toEqual({ action: "open", inS: 45 });
+  });
+  it("a bigger dose pushes the valve back with the pours", () => {
+    const big = scaleRecipe(hybrid, 20);
+    expect(big.valve!.closeAt).toBeGreaterThan(hybrid.valve!.closeAt);
+    expect(big.valve!.openAt).toBeGreaterThan(hybrid.valve!.openAt);
+    expect(scaleRecipe(immersion, 20).valve!.closeAt).toBe(0);
+  });
+});
