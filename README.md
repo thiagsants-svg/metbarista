@@ -4,15 +4,13 @@
 
 Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the browser talks straight to your machine on the local network.
 
-Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)** by **[Asaf Nakash](https://nakashon.com)**, the open control center for Meticulous machines (MIT License). The shot charts, profiles and machine connection come from his work.
-
 ---
 
 ## What it does
 
 | | |
 |---|---|
-| **Station** | Full screen on a tablet, either orientation, no scrolling. Pick a profile, set dose, ratio and temperature on wheels, *slide to heat*. Live curve with the stage the shot is in and what it aims for. The piston's retraction is set from the recipe. During the purge, the piston on screen follows the real one, and a bar follows the pressure down to rest (0.4 bar). The idle screen shows the profile's own dial-in tip above the last shots. |
+| **Station** | Full screen on a tablet, either orientation, no scrolling. Pick a profile, set dose, ratio and temperature on wheels, *slide to heat*. While heating, every group thermometer is on screen with how long is left for the water and for the Bar down (the group's lowest thermometer, by the puck) to get within 2 °C of the target, and a green cue when it's ready. Live curve with the stage the shot is in and what it aims for. The piston's retraction is set from the recipe. During the purge, the piston on screen follows the real one, and a bar follows the pressure down to rest (0.4 bar). The idle screen shows the profile's own dial-in tip above the last shots. |
 | **Grinder** | The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot. Other grinders: type the setting. |
 | **Refractometer** | The DiFluid R2 Extract fills the TDS by itself; extraction yield and a brew control chart (EY × TDS, ratio lines, target box) follow. No reading? After 3 measured shots of a coffee, the TDS is estimated (≈, with its margin) from the shots made alike; it's never saved as a reading. |
 | **After the shot** | Like / dislike (saved on the machine, the official app shows it), taste on the espresso compass (sour ↔ bitter, weak ↔ strong), TDS, notes, and the plan for the next shot (temperature and ratio; grind as a reminder). The plan waits for you when you pick that coffee again. If the curves show something, it's there too. |
@@ -23,8 +21,11 @@ Not Nine Bar is built on **[MetBarista](https://github.com/nakashon/metbarista)*
 | **Shots** | Every shot with its coffee, grind, TDS / EY, taste and the plan decided after it, its curve with the target the machine was following (dotted) and its shot facts. Per coffee: likes, EY range, grind now, the plan waiting and the brew chart of all its readings. Notes editable afterwards. |
 | **Coffees** | The shelf: bag photos, in use / frozen / finished. Freezer as single doses (counted down per shot) or a whole bag (off the Station until thawed). |
 | **Stats** | Shots, coffee used, likes, EY, taste and each coffee's story, by week or month. No scores, levels or badges. |
+| **Heating log** | Every heating the Station sees is kept on the tablet: the curve every 5 s, what the forecast said every 30 s and when the water and the Bar down really got there, how warm the machine already was, and whether the water went in hot or cold (worked out from the dip it makes, nothing to tap). Stats shows how far off the forecast was, hot and cold apart, so it can be calibrated. The machine's own shot history has no heating: it starts at the first stage. |
+| **Bar down at the start** | Stats groups the shots by how far below the target the Bar down was when they started, with the likes and each coffee's extraction: does waiting for the group pay off? |
 | **Piston health** | How hard the motor works to lift the piston after every shot, by week since the machine's first shot: it rises as the seal dries or scale builds up and drops after greasing or descaling. Log your maintenance and see before and after. Read from the shots the machine already keeps. |
 | **Profiles** | Browse, load, create and share profiles. |
+| **Devices** | Pair and test the grinder, the DiFluid and the kettle outside a shot, with a debug log always on. The Fellow Stagg EKG Pro kettle is read over Wi-Fi (its temperature only; nothing is sent to it). |
 | **Backup** | Everything lives in the tablet's browser; one file (with the bag photos) saves and restores it. |
 
 ### Which devices
@@ -124,6 +125,8 @@ For a boiler machine:
 Ideas, bugs, profiles? Find me on Discord as **propofol9495** (Pava). Add the username as a friend, or look me up on the Meticulous Discord server. Issues and pull requests here on GitHub are welcome too.
 
 ## Credits and license
+
+Not Nine Bar started as a fork of [MetBarista](https://github.com/nakashon/metbarista) by [Asaf Nakash](https://nakashon.com), an open control center for Meticulous machines (MIT License): the first machine connection, shot charts and profile pages came from there.
 
 Ideas from the community, with thanks:
 

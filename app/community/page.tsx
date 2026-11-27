@@ -237,7 +237,7 @@ function FeedSection({ label, url, icon: Icon, color, onItems }: {
 // ─── Static resource links ────────────────────────────────────────────────────
 
 const RESOURCES = [
-  { icon: Coffee,   label: UPSTREAM.name,             href: UPSTREAM.siteUrl,                                           desc: `The open control center for Meticulous by ${UPSTREAM.author}: ${APP_NAME} is built on it` },
+  { icon: Coffee,   label: UPSTREAM.name,             href: UPSTREAM.siteUrl,                                           desc: `The open control center for Meticulous by ${UPSTREAM.author}: where ${APP_NAME} started` },
   { icon: GitBranch, label: `${APP_NAME} on GitHub`, href: REPO_URL,                                                    desc: "This app's source code" },
   { icon: BookOpen, label: "Quick Start Guide",      href: "https://meticuloushome.com/pages/quick-start-guide",      desc: "Unboxing, WiFi setup, first shot" },
   { icon: Wrench,   label: "Maintenance & Repairs",  href: "https://meticuloushome.com/pages/maintenance-and-repairs", desc: "Cleaning schedule, piston removal, deep clean" },

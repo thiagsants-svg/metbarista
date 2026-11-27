@@ -9,7 +9,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Bluetooth, Bot, ClipboardList, Droplets, HardDriveDownload, Loader2, Tablet } from "lucide-react";
+import { Activity, ArrowRight, Bluetooth, Bot, ClipboardList, Droplets, Filter, HardDriveDownload, Loader2, Tablet, Thermometer } from "lucide-react";
 import { ConnectDialog } from "@/components/connect-dialog";
 import { UsageStrip } from "@/components/usage-strip";
 import { BrandMark } from "@/components/brand-mark";
@@ -27,6 +27,9 @@ const FEATURES = [
   { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow. Skipped a reading? The TDS is estimated from the coffee's measured shots." },
   { icon: ClipboardList, title: "Next shot, decided at the cup", desc: "Taste, then set temperature and ratio for next time. The plan waits for you when you pick that coffee again." },
   { icon: Bot, title: "AI review, your key", desc: "Ask Claude, ChatGPT, Gemini or Grok about a shot: profile, curve and the coffee's last shots go along. The key stays on your tablet." },
+  { icon: Thermometer, title: "The group's heat, not just the water", desc: "While heating, every group thermometer is on screen and it says when the one by the puck (Bar down) is ready. Each heating is logged, hot or cold water, to make the forecast better." },
+  { icon: Filter, title: "Pour-over on the same scale", desc: "Free pour or a guided recipe on the machine's own scale: the ratio never gets lost. TDS, extraction and the compass, in a history of its own." },
+  { icon: Activity, title: "Machine health", desc: "How hard the motor works to lift the piston after every shot, read from the shots the machine keeps: see the seal dry out and the grease bring it back." },
   { icon: HardDriveDownload, title: "Yours, on your tablet", desc: "No account, no cloud: it talks straight to the machine. A backup file keeps your coffees and notes." },
 ];
 
@@ -142,18 +145,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Credits */}
-      <section className="border-t border-[var(--ink)]/15">
-        <p className="mx-auto max-w-2xl px-6 py-12 text-center text-sm leading-relaxed text-[var(--ink)]/75">
-          {APP_NAME} is built on{" "}
-          <a href={UPSTREAM.siteUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">{UPSTREAM.name}</a>,
-          the open control center for Meticulous machines by{" "}
-          <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">{UPSTREAM.author}</a>.
-          The shot charts, profiles and machine connection come from his work, under the MIT License. Our code is on{" "}
-          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--ink)]/85 underline underline-offset-2 hover:text-[var(--accent)]">GitHub</a>.
-        </p>
-      </section>
-
       {/* Talk to the maintainer */}
       <section className="border-t border-[var(--ink)]/15">
         <div className="mx-auto max-w-2xl px-6 py-10 text-center">
@@ -188,6 +179,18 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Where it started: credited, quietly */}
+      <footer className="border-t border-[var(--ink)]/15">
+        <p className="mx-auto max-w-2xl px-6 py-8 text-center text-xs leading-relaxed text-[var(--ink)]/65">
+          {APP_NAME} started as a fork of{" "}
+          <a href={UPSTREAM.repoUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">{UPSTREAM.name}</a>{" "}
+          by{" "}
+          <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">{UPSTREAM.author}</a>{" "}
+          (MIT License). Our code is on{" "}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">GitHub</a>.
+        </p>
+      </footer>
 
       <ConnectDialog
         open={showConnect}
