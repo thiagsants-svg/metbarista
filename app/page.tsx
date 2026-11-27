@@ -189,6 +189,10 @@ export default function HomePage() {
           <a href={UPSTREAM.authorUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">{UPSTREAM.author}</a>{" "}
           (MIT License). Our code is on{" "}
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">GitHub</a>.
+          <br />
+          An independent, unofficial app: not affiliated with or endorsed by Meticulous Home, Inc. Meticulous is their trademark.
+          For problems with the machine itself, contact{" "}
+          <a href="https://meticuloushome.com/pages/support" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--accent)]">Meticulous support</a>.
         </p>
       </footer>
 

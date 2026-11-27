@@ -2,6 +2,8 @@
 
 **Espresso shouldn't be nine bar.** A station for the [Meticulous](https://meticuloushome.com) espresso machine: recipe, grinder, refractometer and every shot's curve, on a tablet next to the machine.
 
+*An independent, unofficial app: not affiliated with or endorsed by Meticulous Home, Inc. "Meticulous" is their trademark. For problems with the machine itself, contact [Meticulous support](https://meticuloushome.com/pages/support).*
+
 Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the browser talks straight to your machine on the local network.
 
 ---
@@ -40,6 +42,13 @@ Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the 
 **Why not iPhone or iPad.** The site is served over https (not9bar.com) and the machine answers over plain http on your Wi-Fi (`http://192.168.x.x`). Chrome lets a site reach devices on the local network once you allow it (it asks the first time: allow it). Safari doesn't: it blocks an https page from talking to an http device on the local network, and it has no way to ask for permission. On iPhone and iPad every browser (Chrome, Edge, Firefox too) is Safari underneath, because Apple requires its engine, so none of them can reach the machine. Safari also has no Web Bluetooth, so the Motto 80 grinder and the DiFluid refractometer can't connect either.
 
 The only way around it on iOS would be an app of its own, outside the browser.
+
+**What it changes on the machine:** only what you ask for, and nothing for good.
+- When you slide to heat, the recipe is loaded as an unsaved copy of the profile. The machine's profiles stay as they were. The copy says "Loaded by Not Nine Bar" in its description, so a shot in the history shows it came from here.
+- The piston's retraction is set for the recipe: yield + 1.25 × dose + 30 ml, within the machine's 80–150 ml. Once the shot is over, the machine gets its own value back.
+- Like and dislike are saved on the machine, where the official app shows them.
+- The buttons you tap (tare, purge, stop and the rest) are sent to the machine.
+- Firmware, calibration, Wi-Fi and the other settings are never touched.
 
 **Privacy:** your data stays in your browser. The site counts, anonymously, how many devices open it each day (and how many use the Station with a machine): a +1 on the project's own counter, plus, once, a +1 for a new browser and a 2-character code for each machine (the first 2 hex digits of a SHA-256 of its serial number: 256 possible codes, each shared by many Meticulous machines, so it can't point to one; kept without date or time, and no IP is kept, only to count different machines). The counter is a Cloudflare Worker, [cloudflare/count-worker.js](cloudflare/count-worker.js). "Don't count my use" on the Usage page turns all of it off, Cloudflare Web Analytics included. The counts can't be verified (anyone could send made-up hits). The AI review, when you use it with your own key, sends the shot's data (profile, curve, your notes and setup, the coffee's last shots) from your browser to the AI you chose, and nowhere else. The site also loads Cloudflare Web Analytics, which tells Cloudflare the page visited, the referrer and the browser, without cookies. The Community page reads Meticulous's news through MetBarista's feed proxy (a Cloudflare Worker run by MetBarista's author), which sees the visitor's IP address. Daily numbers: [not9bar.com/usage](https://not9bar.com/usage).
 

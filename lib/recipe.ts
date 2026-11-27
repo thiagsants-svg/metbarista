@@ -129,7 +129,7 @@ export const retractionMlToMm = (ml: number) => Math.round((ml * 1000 * 100) / P
  * draws (150 ml), minus what the puck keeps and the safety margin.
  */
 export function maxYieldFor(dose: number): number {
-  return Math.min(MAX_FINAL_WEIGHT, Math.floor(RETRACTION_MAX_ML - 1.25 * dose - 10));
+  return Math.min(MAX_FINAL_WEIGHT, Math.floor(RETRACTION_MAX_ML - 1.25 * dose - 30));
 }
 
 /** The official profile editor caps the final weight at 100 g: the Station does too */
@@ -142,12 +142,14 @@ export function overCapacity(r: Pick<Recipe, "dose" | "ratio">): boolean {
 
 /**
  * Water to draw for this recipe: the yield, plus what the puck keeps
- * (~1.25 × dose: 100 ml used to give ~75 g with 20 g), plus 10 ml of margin.
+ * (~1.25 × dose: 100 ml used to give ~75 g with 20 g), plus 30 ml of margin.
  * Less water for short shots = less air in the chamber (no "pop" at the end).
  */
 export function retractionFor(r0: Pick<Recipe, "dose" | "ratio">): number {
   const r = { ...r0, ...checkedRecipe({ ...r0, temperature: LIMITS.temperature.min }) };
-  const ml = Math.ceil(Math.min(MAX_FINAL_WEIGHT, r.dose * r.ratio) + 1.25 * r.dose + 10);
+  // +30 ml: at +10 the chamber ran dry before the end on 4 of 13 shots (20 g, 1:2–1:2.5); Meticulous
+  // recommends 100 ml by default, less for small doses (headspace draws air), more for big yields
+  const ml = Math.ceil(Math.min(MAX_FINAL_WEIGHT, r.dose * r.ratio) + 1.25 * r.dose + 30);
   return Math.min(RETRACTION_MAX_ML, Math.max(RETRACTION_MIN_ML, ml));
 }
 
@@ -291,6 +293,9 @@ export function baseName(name: string): string {
   return name.replace(SHOT_NAME_RE, "");
 }
 
+/** Tag on every profile the Station loads (plain ASCII, like the rest of the description) */
+export const LOADED_BY = "Loaded by Not Nine Bar (unofficial app, not9bar.com)";
+
 /** Copy of the base profile with this shot's temperature and yield. */
 export function buildShotProfile(base: Profile, r0: Recipe): Profile {
   // Whatever the recipe came from (wheels, a plan, a backup), only sane numbers reach the machine
@@ -300,8 +305,9 @@ export function buildShotProfile(base: Profile, r0: Recipe): Profile {
   copy.final_weight = Math.min(MAX_FINAL_WEIGHT, beverageWeight(r));
   // Plain ASCII: the dial's font may not have "·" or "°"
   copy.name = `${base.name} - ${r.dose}g ${formatRatio(r.ratio)} ${r.temperature}C${nameTag(r)}`;
-  const notes = shotNotesText(r);
-  if (notes) copy.display = { ...(copy.display ?? {}), shortDescription: notes };
+  // Says where it came from, so anyone reading the shot (Meticulous support too) knows a third-party app loaded it
+  const notes = [shotNotesText(r), LOADED_BY].filter(Boolean).join(" | ");
+  copy.display = { ...(copy.display ?? {}), shortDescription: notes };
   // Fields that describe the saved file, not the shot
   delete copy.isLast;
   delete copy.last_changed;

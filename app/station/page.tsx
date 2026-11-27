@@ -98,6 +98,8 @@ export default function StationPage() {
   const { theme, style: themeStyle, toggle: toggleTheme } = useStationTheme();
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   const startedAtRef = useRef(0);
+  /** The machine's own retraction (mm) before the Station changed it for a shot: put back once the shot is over */
+  const retractionBackRef = useRef<number | null>(null);
   /** The readouts row: the rating popup leaves it undimmed (the pressure tells when the portafilter can come off) */
   const readoutsRef = useRef<HTMLDivElement>(null);
   const [rateTop, setRateTop] = useState(0);
@@ -246,6 +248,8 @@ export default function StationPage() {
       try {
         const current = (await getSettings()).partial_retraction;
         if (typeof current !== "number" || retractionMmToMl(current) !== ml) {
+          // Remember the machine's own value (the first one, if a restore is still pending)
+          if (retractionBackRef.current == null && typeof current === "number") retractionBackRef.current = current;
           await updateSettings({ partial_retraction: retractionMlToMm(ml) });
         }
       } catch (e) {
@@ -302,6 +306,14 @@ export default function StationPage() {
   /** Temperature view (chart + gauge) from heating until Brew starts the shot. */
   const tempView = demoHeat || heating || (preShot && !isExtracting(status) && !isIdle(status));
   const idle = isIdle(status);
+  // Shot over (machine idle a while after the Station started it): the machine gets its own retraction back,
+  // so shots started on the dial behave as the owner set them. Nothing is left changed for good.
+  useEffect(() => {
+    const back = retractionBackRef.current;
+    if (!idle || back == null || busy === "load" || Date.now() - startedAtRef.current < 20_000) return;
+    retractionBackRef.current = null;
+    updateSettings({ partial_retraction: back }).catch(() => { retractionBackRef.current = back; });
+  }, [idle, busy]);
   const preheating = preheatLeft > 0;
   // In demo mode the readouts show the simulated shot's final values
   const sensors: Readings = demoEnd

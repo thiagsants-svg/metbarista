@@ -207,7 +207,8 @@ function ShotsContent() {
       {shown.some((r) => r.grindDelta) && (
         <p className="text-xs text-[var(--ink)]/65">
           <b className="text-[var(--accent)]">−10 µm</b> / <b className="text-[var(--accent)]">+5 µm</b>: the grind against the same coffee&apos;s shot before (finer / coarser).
-          The small curve: pressure, and the cup filling.
+          The small curve: pressure, and the cup filling. Shots are read straight from the machine (the source of truth);
+          taste, TDS and notes stay on this tablet.
         </p>
       )}
 

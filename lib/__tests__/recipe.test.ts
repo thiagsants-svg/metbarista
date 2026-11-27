@@ -30,16 +30,17 @@ describe("retraction (written to the machine)", () => {
     }
   });
 
-  it("is yield + 1.25 x dose + 10 ml, rounded up", () => {
-    expect(retractionFor({ dose: 20, ratio: 2.5 })).toBe(85);
-    expect(retractionFor({ dose: 20, ratio: 4 })).toBe(115);
-    expect(retractionFor({ dose: 15, ratio: 5 })).toBe(104);
-    expect(retractionFor({ dose: 20, ratio: 2 })).toBe(80); // minimum
+  it("is yield + 1.25 x dose + 30 ml, rounded up (+10 ran the chamber dry)", () => {
+    expect(retractionFor({ dose: 20, ratio: 2.5 })).toBe(105);
+    expect(retractionFor({ dose: 20, ratio: 2 })).toBe(95);
+    expect(retractionFor({ dose: 20, ratio: 4 })).toBe(135);
+    expect(retractionFor({ dose: 15, ratio: 5 })).toBe(124);
+    expect(retractionFor({ dose: 12, ratio: 2 })).toBe(80); // minimum
   });
 
   it("never counts more than 100 g of yield", () => {
     expect(retractionFor({ dose: 20, ratio: 6 })).toBe(retractionFor({ dose: 20, ratio: 5 }));
-    expect(retractionFor({ dose: 20, ratio: 10 })).toBe(135);
+    expect(retractionFor({ dose: 20, ratio: 10 })).toBe(150);
   });
 });
 
@@ -51,14 +52,14 @@ describe("100 g cap and capacity warning", () => {
   });
 
   it("max yield is the smaller of 100 g and one piston of water", () => {
-    expect(maxYieldFor(20)).toBe(100);
-    expect(maxYieldFor(30)).toBe(100); // one piston would give ~102 g
+    expect(maxYieldFor(20)).toBe(95);
+    expect(maxYieldFor(30)).toBe(82); // one piston: 150 − 37.5 kept by the puck − 30 margin
     expect(maxYieldFor(10)).toBe(100);
   });
 
   it("warns only above the max", () => {
-    expect(overCapacity({ dose: 20, ratio: 5 })).toBe(false);
-    expect(overCapacity({ dose: 20, ratio: 6 })).toBe(true);
+    expect(overCapacity({ dose: 20, ratio: 4 })).toBe(false);
+    expect(overCapacity({ dose: 20, ratio: 5 })).toBe(true);
     expect(overCapacity({ dose: 10, ratio: 10 })).toBe(false);
   });
 });
@@ -72,6 +73,7 @@ describe("shot name and notes (kept in the machine's history)", () => {
     expect(p.name).toBe("Damian's LRv2 - 20g 1:2.5 94C - Etiopia Guji 150um");
     expect(p.temperature).toBe(94);
     expect(p.final_weight).toBe(50);
+    expect(p.display?.shortDescription).toMatch(/Loaded by Not Nine Bar/);
     const m = SHOT_NAME_RE.exec(p.name)!;
     expect(m.slice(1, 6)).toEqual(["20", "2.5", "94", "Etiopia Guji", "150"]);
     expect(baseName(p.name)).toBe("Damian's LRv2");
