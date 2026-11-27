@@ -17,7 +17,7 @@ import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { likedBand, targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
-import { FACT_LABEL, shotFacts, firstDropsAt } from "@/lib/shot-facts";
+import { FACT_LABEL, shotFacts, firstDropsAt, profileStyle, STYLE_LABEL } from "@/lib/shot-facts";
 import { ShotFactsList } from "@/components/shots/shot-facts";
 import { StageTable } from "@/components/shots/stage-table";
 import { CompareView, ComparePicker, type ShotPick } from "@/components/shots/compare-view";
@@ -64,6 +64,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const planText = plan ? planLines(p, plan) : [];
   const points = shotPoints(shot);
   const facts = shotFacts(shot.data ?? [], shot.profile?.stages ?? []);
+  const style = profileStyle(shot.data ?? []);
   const actualRatio = p.dose ? s.weight / p.dose : null;
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
@@ -138,6 +139,9 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
         </div>
       )}
 
+      {points.length > 1 && style && (
+        <p className="text-sm text-[var(--ink)]/70">Profile style, from how the shot ran: <b className="text-[var(--ink)]">{STYLE_LABEL[style]}</b></p>
+      )}
       {points.length > 1 && <ShotFactsList facts={facts} />}
 
       {plan && (

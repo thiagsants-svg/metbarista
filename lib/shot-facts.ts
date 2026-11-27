@@ -9,6 +9,13 @@
  *  - flow limit / pressure limit: the stage's safety limit took over (the
  *    machine switched to controlling the other one), a sign the grind was
  *    too coarse or too fine for that stage.
+ *  - late surge: the cup flow sped up a lot in the last quarter with the
+ *    target steady, the puck giving way late (texture suffers). About 2 % of
+ *    651 real shots, so it's rare on purpose.
+ *  - pressure back up: on a stage holding a flow, the pressure climbed again
+ *    late (fines settling at the bottom). Only on flow-led stages: on pressure
+ *    profiles the machine sets the pressure itself.
+ * Lance Hedrick's Meticulous onboarding (parts 3 and 6) for both.
  *
  * Idea from the "shot facts" in Metic (hessius/MeticAI); rules and thresholds
  * are our own, tuned on real shots.
@@ -16,7 +23,7 @@
 
 import type { ShotFrame, ShotSetpoints } from "./types";
 
-export type FactKind = "channeling" | "choked" | "weak" | "flowLimit" | "pressureLimit";
+export type FactKind = "channeling" | "choked" | "weak" | "flowLimit" | "pressureLimit" | "lateSurge" | "pressureBack";
 
 export interface ShotFact {
   kind: FactKind;
@@ -33,6 +40,8 @@ export const FACT_LABEL: Record<FactKind, string> = {
   weak: "Weak puck",
   flowLimit: "Flow limit hit",
   pressureLimit: "Pressure limit hit",
+  lateSurge: "Flow surged late",
+  pressureBack: "Pressure back up",
 };
 
 
@@ -75,8 +84,13 @@ const MAX_REAL_BAR = 15;
 const PREP_STAGE = /fill|bloom|soak|infus|wet|satur|landing|purge/i;
 /** Limits: on the limit this long after the first drops */
 const LIMIT_MS = 2000;
+/** Late surge: cup flow in the last quarter vs the middle (40–75 % of the time after the first drops) */
+const SURGE_RATIO = 1.5;
+const SURGE_MIN_FLOW = 0.3;
+/** Pressure back up: this much over its low, on a flow-led stage holding its flow */
+const PRESSURE_BACK_BAR = 1.5;
 
-interface Sample { t: number; p: number; f: number; w: number; stage: string; mode: "pressure" | "flow"; spP: number | null; spF: number | null }
+interface Sample { t: number; p: number; f: number; w: number; g: number | null; stage: string; mode: "pressure" | "flow"; spP: number | null; spF: number | null }
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const fmt = (v: number, d = 1) => v.toFixed(d);
@@ -91,7 +105,7 @@ function samples(frames: ShotFrame[]): Sample[] {
     if (mode !== "pressure" && mode !== "flow") continue;
     const p = num(f.shot?.pressure), fl = num(f.shot?.flow), w = num(f.shot?.weight);
     if (p == null || fl == null || w == null) continue;
-    out.push({ t: f.time, p, f: fl, w, stage: f.status ?? "", mode, spP: num(sp?.pressure), spF: num(sp?.flow) });
+    out.push({ t: f.time, p, f: fl, w, g: num(f.shot?.gravimetric_flow), stage: f.status ?? "", mode, spP: num(sp?.pressure), spF: num(sp?.flow) });
   }
   return out;
 }
@@ -173,5 +187,64 @@ export function shotFacts(frames: ShotFrame[], stages: { name: string; type: str
     facts.push({ kind: l.kind, at: l.at, stage, detail: `On the ${what} for ${sec(l.ms)}` });
   }
 
+  // After the first drops: the late surge and the pressure back up
+  const post = s.filter((x) => x.t >= firstDrip);
+  if (post.length >= 30) {
+    const t0 = post[0].t, span = post[post.length - 1].t - t0;
+    const med = (xs: number[]) => { const v = [...xs].sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
+    const cup = (from: number, to: number) => post.filter((x) => x.t >= t0 + from * span && x.t < t0 + to * span && x.g != null).map((x) => x.g!);
+    const mid = med(cup(0.4, 0.75)), end = med(cup(0.75, 1.01));
+    // The target must not be asking for more (a designed ramp isn't a fault)
+    const late = post.filter((x) => x.t >= t0 + 0.75 * span);
+    const mids = post.filter((x) => x.t >= t0 + 0.4 * span && x.t < t0 + 0.75 * span);
+    const asksMore = late.some((x) => x.mode === "flow" && x.spF != null && x.spF > Math.max(0, ...mids.filter((m) => m.spF != null).map((m) => m.spF!)) + 0.3)
+      || late.some((x) => x.mode === "pressure" && x.spP != null && x.spP > Math.max(0, ...mids.filter((m) => m.spP != null).map((m) => m.spP!)) + 0.3);
+    if (mid >= SURGE_MIN_FLOW && end >= mid * SURGE_RATIO && !asksMore) {
+      facts.push({ kind: "lateSurge", at: late[0].t, stage: late[0].stage, detail: `Cup flow ${fmt(mid)} → ${fmt(end)} g/s in the last quarter, the target steady: the puck gave way late (texture suffers)` });
+    }
+    // Pressure back up: flow-led, same stage, flow target not rising
+    let low: Sample | null = null;
+    for (const x of post.filter((x) => x.t >= t0 + 0.5 * span)) {
+      if (x.mode !== "flow" || x.spF == null) { low = null; continue; }
+      if (!low || x.stage !== low.stage || x.p < low.p) { low = x; continue; }
+      if (x.spF <= (low.spF ?? 0) + 0.3 && x.p - low.p >= PRESSURE_BACK_BAR) {
+        facts.push({ kind: "pressureBack", at: x.t, stage: x.stage, detail: `Pressure climbed ${fmt(low.p)} → ${fmt(x.p)} bar late at a steady ${fmt(x.spF)} ml/s: fines settling at the bottom?` });
+        break;
+      }
+    }
+  }
+
   return facts.sort((a, b) => a.at - b.at);
+}
+
+export type ProfileStyle = "lever" | "flow" | "fast" | "blooming";
+
+export const STYLE_LABEL: Record<ProfileStyle, string> = {
+  lever: "lever style (pressure-led, declining)",
+  flow: "flow-led (pressure follows the puck)",
+  fast: "fast, high-flow (turbo or low-contact style)",
+  blooming: "blooming (a pause to soak before extracting)",
+};
+
+/**
+ * The profile's style, from how the shot actually ran (Lance Hedrick's
+ * "mother recipes", onboarding part 5): what the machine followed after the
+ * first drops, how fast, and whether it paused to soak before them.
+ */
+export function profileStyle(frames: ShotFrame[]): ProfileStyle | null {
+  const s = samples(frames);
+  const firstIdx = s.findIndex((x) => x.w >= FIRST_DRIP_G);
+  if (s.length < 20 || firstIdx < 0) return null;
+  const pre = s.slice(0, firstIdx), post = s.slice(firstIdx);
+  if (post.length < 10) return null;
+  // A soak: 10 s or more under 1 bar with almost no flow, before the first drops
+  let soak = 0;
+  for (let i = 1; i < pre.length; i++) if (pre[i].p < 1 && pre[i].f < 0.5) soak += pre[i].t - pre[i - 1].t;
+  if (soak >= 10_000) return "blooming";
+  const flowShare = post.filter((x) => x.mode === "flow").length / post.length;
+  const secs = (post[post.length - 1].t - post[0].t) / 1000;
+  const flow = post.reduce((n, x) => n + x.f, 0) / post.length;
+  // A pressure-led shot that ran fast is still a lever shot (ground too coarse), not a turbo profile
+  if (flowShare <= 0.5) return "lever";
+  return flow >= 3.5 && secs <= 20 ? "fast" : "flow";
 }

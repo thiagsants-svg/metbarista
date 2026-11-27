@@ -51,3 +51,30 @@ describe("shot facts", () => {
     expect(activeTargets(undefined)).toEqual({ pTarget: null, fTarget: null });
   });
 });
+
+import { profileStyle } from "../shot-facts";
+
+describe("late surge, pressure back up and the profile's style", () => {
+  const frame = (t: number, p: number, f: number, w: number, g: number, active: "pressure" | "flow", sp: number, status = "Main") =>
+    ({ time: t, status, shot: { pressure: p, flow: f, weight: w, gravimetric_flow: g, setpoints: { active, [active]: sp } } });
+  it("flags the cup flow speeding up late with the target steady", () => {
+    const frames = Array.from({ length: 300 }, (_, i) => {
+      const t = i * 100, g = i < 225 ? 1.2 : 2.4;
+      return frame(t, 6, g, 2 + i * 0.15, g, "pressure", 6);
+    });
+    const facts = shotFacts(frames as never);
+    expect(facts.map((x) => x.kind)).toContain("lateSurge");
+  });
+  it("flags the pressure climbing back on a flow-led stage", () => {
+    const frames = Array.from({ length: 300 }, (_, i) => {
+      const t = i * 100, p = i < 200 ? 6 - i * 0.02 : 2 + (i - 200) * 0.04;
+      return frame(t, p, 2, 2 + i * 0.12, 2, "flow", 2);
+    });
+    expect(shotFacts(frames as never).map((x) => x.kind)).toContain("pressureBack");
+    expect(profileStyle(frames as never)).toBe("flow");
+  });
+  it("calls a pressure-led shot lever, even when it ran fast", () => {
+    const frames = Array.from({ length: 150 }, (_, i) => frame(i * 100, 9, 4, 2 + i * 0.4, 4, "pressure", 9));
+    expect(profileStyle(frames as never)).toBe("lever");
+  });
+});

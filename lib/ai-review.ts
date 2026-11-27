@@ -11,7 +11,7 @@ import type { CoffeeLastShot } from "./coffee-history";
 import type { ShotNoteParts } from "./shot-record";
 import type { NextPlan } from "./next-plan";
 import { stageSummary, endText } from "./stage-summary";
-import { shotFacts, FACT_LABEL } from "./shot-facts";
+import { shotFacts, FACT_LABEL, profileStyle, STYLE_LABEL } from "./shot-facts";
 import { compassText } from "./taste-compass";
 import { formatRatio } from "./recipe";
 import type { TdsEstimate } from "./tds-estimate";
@@ -45,6 +45,8 @@ export function shotDigest(x: ReviewShot, opts: { stages?: boolean; tdsEstimate?
   lines.push(`Result: ${r1(sum.weight)} g in the cup${actual} in ${clock(sum.seconds)}`);
   const water = waterById(sum.waterId ?? null);
   if (water) lines.push(`Water: ${waterText(water)}${water.ca != null || water.mg != null ? `, Ca ${water.ca ?? "?"} / Mg ${water.mg ?? "?"} mg/L` : ""}${water.ph != null ? `, pH ${water.ph}` : ""}`);
+  const style = profileStyle(shot.data ?? []);
+  if (style) lines.push(`Profile style, from how the shot ran: ${STYLE_LABEL[style]}`);
   const drops = firstDropsAt(shot.data ?? []);
   if (drops != null) lines.push(`First drops (2 g in the cup) at ${drops} s`);
   if (sum.barDown != null) lines.push(`Group's lowest thermometer (Bar down, by the puck) when the shot started: ${sum.barDown.toFixed(1)} °C${p.temperature != null ? ` (target ${p.temperature} °C)` : ""}. The barista suspects a cold group gives worse shots; it is a hypothesis under test, not an established cause: don't blame a shot on it without other signs.`);
