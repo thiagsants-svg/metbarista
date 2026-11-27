@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Loader2, Minus, Plus, Snowflake, Trash2, X } from "lucide-react";
+import { Camera, Loader2, Minus, Plus, Snowflake, Trash2, X, Archive, ArchiveRestore } from "lucide-react";
 import { addPhoto, deleteCoffeePhotos, deletePhoto, listPhotos, shrinkImage, type CoffeePhoto } from "@/lib/coffee-photos";
 import {
   coffeeKey, daysAgo, deleteCoffee, FREEZE_LABEL, getCoffee, saveCoffee, STATUS_LABEL, thawCoffee,
@@ -85,6 +85,14 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
     onChanged();
   }
 
+  /** Archive it (the bag is empty) or bring it back, keeping what was typed */
+  function setStatusNow(s: CoffeeStatus) {
+    setStatus(s);
+    saveCoffee({ name: coffee!.name, roaster, notes, status: s });
+    onChanged();
+    onClose();
+  }
+
   function thaw() {
     thawCoffee(coffee!.name);
     onChanged();
@@ -139,7 +147,20 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
           ))}
         </div>
         {status === "finished" && (
-          <p className="mt-1 text-sm text-[var(--ink)]/70">Finished coffees leave the Station&apos;s list; their shots stay.</p>
+          <p className="mt-1 text-sm text-[var(--ink)]/70">Archived coffees leave the Station&apos;s list; their shots stay.</p>
+        )}
+        {/* The bag is empty: one tap, no form to fill */}
+        {coffee && coffee.status !== "finished" && (
+          <button type="button" onClick={() => setStatusNow("finished")}
+            className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-[var(--ink)]/30 text-base font-bold active:scale-[0.98]">
+            <Archive className="h-5 w-5" /> Finished: archive it
+          </button>
+        )}
+        {coffee?.status === "finished" && (
+          <button type="button" onClick={() => setStatusNow("open")}
+            className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-[var(--ink)]/30 text-base font-bold active:scale-[0.98]">
+            <ArchiveRestore className="h-5 w-5" /> Back in use
+          </button>
         )}
         {status === "open" && coffee?.status === "open" && coffee.thawedAt && (
           <p className="mt-1 text-sm text-[var(--ink)]/75">Thawed {daysAgo(coffee.thawedAt)}.</p>
@@ -169,7 +190,7 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
                 </div>
                 <p className="mt-2 text-sm text-[var(--ink)]/70">
                   Stays on the Station&apos;s list; each shot of it on the Station takes one dose.
-                  {doses === "0" ? " No doses left: mark it Finished?" : ""}
+                  {doses === "0" ? " No doses left: archive it?" : ""}
                 </p>
               </>
             ) : (

@@ -2,8 +2,9 @@
 
 /**
  * Coffees: the shelf. Coffees brewed on the Station show up by themselves;
- * add new ones here with bag photos, move them to the freezer, mark them
- * finished when the bag is empty (they leave the Station's list).
+ * add new ones here with bag photos, move them to the freezer, archive them
+ * when the bag is empty (they leave the Station's list). A compact list, with
+ * the bag photo small when there is one.
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -12,8 +13,9 @@ import { getHistoryLight } from "@/lib/machine-api";
 import { shotSummary } from "@/lib/coffee-history";
 import { Plus } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
-import { coffeeKey, listCoffees, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
-import { CoffeeCard, type MachineCoffee } from "@/components/coffees/coffee-card";
+import { coffeeKey, listCoffees, setCoffeeStatus, STATUS_LABEL, type Coffee, type CoffeeStatus } from "@/lib/coffees";
+import { listPhotos } from "@/lib/coffee-photos";
+import { CoffeeRow, type MachineCoffee } from "@/components/coffees/coffee-card";
 import { CoffeeSheet } from "@/components/coffees/coffee-sheet";
 
 // The shelf lives in this device's storage: read it after the page loads
@@ -55,6 +57,18 @@ export default function CoffeesPage() {
 
   const coffees = ready ? listCoffees(brewed) : [];
   const shown = coffees.filter((c) => c.status === tab);
+
+  /** Each coffee's first bag photo (this device's), null without one */
+  const [covers, setCovers] = useState<Record<string, string | null>>({});
+  const keys = coffees.map((c) => c.key).join("|");
+  useEffect(() => {
+    if (!keys) return;
+    let alive = true;
+    Promise.all(keys.split("|").map(async (k) => [k, (await listPhotos(k).catch(() => []))[0]?.dataUrl ?? null] as const))
+      .then((pairs) => { if (alive) setCovers(Object.fromEntries(pairs)); });
+    return () => { alive = false; };
+  }, [keys, version]);
+  const archive = (c: Coffee) => { setCoffeeStatus(c.name, "finished"); setVersion((v) => v + 1); };
   const count = (s: CoffeeStatus) => coffees.filter((c) => c.status === s).length;
 
   const chip = (on: boolean) => `h-10 shrink-0 rounded-full border px-4 text-sm font-semibold active:scale-[0.97] ${
@@ -81,11 +95,14 @@ export default function CoffeesPage() {
           <p className="py-10 text-center text-base text-[var(--ink)]/70">
             {tab === "open" ? "No coffees in use. Add one, or brew one on the Station."
               : tab === "frozen" ? "Nothing in the freezer."
-              : "No finished coffees yet."}
+              : "Nothing archived yet. When a bag runs out, archive it: it leaves the Station's list, its shots stay."}
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {shown.map((c) => <CoffeeCard key={c.key} coffee={c} refresh={version} onOpen={() => setOpen(c)} machine={fromMachine[c.key]} />)}
+          <div className="rounded-md border border-[var(--ink)]/15 lg:max-w-3xl">
+            {shown.map((c) => (
+              <CoffeeRow key={c.key} coffee={c} cover={covers[c.key]} onOpen={() => setOpen(c)} machine={fromMachine[c.key]}
+                onArchive={c.status === "finished" ? undefined : () => archive(c)} />
+            ))}
           </div>
         )}
       </div>

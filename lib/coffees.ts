@@ -18,7 +18,7 @@ export type CoffeeStatus = "open" | "frozen" | "finished";
 export const STATUS_LABEL: Record<CoffeeStatus, string> = {
   open: "In use",
   frozen: "Frozen",
-  finished: "Finished",
+  finished: "Archived",
 };
 
 export type FreezeMode = "doses" | "bag";
