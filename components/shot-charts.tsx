@@ -3,9 +3,8 @@
 /**
  * Live shot chart for the Station screen, in the style of the official
  * Meticulous app (filled areas, dark panel), condensed into one chart:
- *  - left axis (0–12): pressure (bar); a second, inner one for flow (ml/s) and
- *    cup flow (g/s), scaled to the shot's flow, so 1–2 ml/s on a lever decline
- *    isn't squashed at the bottom
+ *  - left axis (0–12): pressure (bar), flow (ml/s), cup flow (g/s), the same
+ *    scale as the Meticulous's own charts
  *  - optional thin line: puck resistance (lib/resistance.ts), on the shot page
  *  - right axis: weight (g), with the recipe's target as a dashed line
  *  - no temperature line: it drops sharply during extraction (normal, but
@@ -151,7 +150,7 @@ export function ShotCharts({
           <div className="absolute inset-0">
             {glass && (
               // The plot itself, inside the axes (left 28, right 36 + 4, top 22, time axis 30)
-              <div className="pointer-events-none absolute bottom-[30px] left-[50px] right-[40px] top-[22px]">
+              <div className="pointer-events-none absolute bottom-[30px] left-[28px] right-[40px] top-[22px]">
                 {/* Stands on the time axis. Golden section both ways: as tall as 0.618 of the
                     plot, centered on the line that splits the right 0.618 of its width
                     (0.382 + 0.618 x 0.618 = 0.764), so it sits off the edge, not on it.
@@ -202,10 +201,6 @@ export const ShotPlot = memo(function ShotPlot({
 }) {
   const data = resistance ? withRes(raw) : raw;
   const maxWeight = Math.max(targetWeight ?? 0, ...data.map((d) => d.weight ?? 0));
-  // Flow axis: fitted to the extraction's flow (90th percentile, pre-infusion fill spikes may run off the top)
-  const flows = data.filter((d) => (d.pressure ?? 0) > 1).flatMap((d) => [d.flow, d.grav, d.fTarget]).filter((v): v is number => typeof v === "number" && v > 0).sort((a, b) => a - b);
-  const p90 = flows.length ? flows[Math.floor(flows.length * 0.9)] : 4;
-  const flowTop = Math.min(8, Math.max(3, Math.ceil(p90 * 1.4)));
   const resVals = resistance ? data.map((d) => (d as ShotPoint & { res?: number | null }).res).filter((v): v is number => typeof v === "number").sort((a, b) => a - b) : [];
   const resTop = resVals.length ? resVals[Math.floor(resVals.length * 0.95)] * 1.2 : 1;
   const weightTop = Math.max(10, Math.ceil((maxWeight * 1.15) / 10) * 10);
@@ -226,8 +221,6 @@ export const ShotPlot = memo(function ShotPlot({
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
               <YAxis yAxisId="l" domain={[0, 12]} ticks={[0, 2, 4, 6, 8, 10, 12]} width={28}
                 tick={AXIS_TICK} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="f" domain={[0, flowTop]} ticks={Array.from({ length: flowTop + 1 }, (_, i) => i)} allowDataOverflow width={22}
-                tick={{ ...AXIS_TICK, fontSize: 11, fill: COLORS.flow, fillOpacity: 0.55 }} tickLine={false} axisLine={false} />
               <YAxis yAxisId="r" hide domain={[0, resTop]} allowDataOverflow />
               <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
                 tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
@@ -267,11 +260,11 @@ export const ShotPlot = memo(function ShotPlot({
               )}
               <Area yAxisId="w" type="linear" dataKey="weight" stroke={COLORS.weight} strokeWidth={2.5} fill="url(#g-weight)" dot={false} isAnimationActive={false} connectNulls />
               <Area yAxisId="l" type="linear" dataKey="pressure" stroke={COLORS.pressure} strokeWidth={2.5} fill="url(#g-pressure)" dot={false} isAnimationActive={false} connectNulls />
-              <Area yAxisId="f" type="linear" dataKey="flow" stroke={COLORS.flow} strokeWidth={2.5} fill="url(#g-flow)" dot={false} isAnimationActive={false} connectNulls />
+              <Area yAxisId="l" type="linear" dataKey="flow" stroke={COLORS.flow} strokeWidth={2.5} fill="url(#g-flow)" dot={false} isAnimationActive={false} connectNulls />
               {/* Stage targets, dotted like the machine's sensor page */}
               <Line yAxisId="l" type="stepAfter" dataKey="pTarget" stroke={COLORS.pressure} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
-              <Line yAxisId="f" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
-              <Line yAxisId="f" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+              <Line yAxisId="l" type="stepAfter" dataKey="fTarget" stroke={COLORS.flow} strokeWidth={1.5} strokeOpacity={0.7} strokeDasharray="3 4" dot={false} isAnimationActive={false} />
+              <Line yAxisId="l" type="linear" dataKey="grav" stroke={COLORS.grav} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
               {resistance && (
                 <Line yAxisId="r" type="linear" dataKey="res" stroke="var(--h4)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls={false} />
               )}

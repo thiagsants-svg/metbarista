@@ -121,7 +121,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
               marks={facts.map((f) => ({ t: f.at, label: FACT_LABEL[f.kind] }))} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following. Inner left scale: flow (ml/s, g/s). Thin line: puck resistance (pressure ÷ cup flow², after the first drops)</p>
+            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following. Thin line: puck resistance (pressure ÷ cup flow², after the first drops)</p>
             {!picking && others.length > 0 && (
               <button type="button" onClick={() => setPicking(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold active:scale-[0.97]">

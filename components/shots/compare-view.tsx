@@ -38,14 +38,11 @@ const CompareChart = memo(function CompareChart({ a, b, align }: { a: ShotCurveP
   };
   const A = zero(a), B = zero(b);
   const tMin = Math.min(0, A[0]?.t ?? 0, B[0]?.t ?? 0);
-  // Flow scale fitted to the extraction (90th percentile): the fill's spike may run off the top
-  const fl = [...A, ...B].filter((p) => (p.pressure ?? 0) > 1).map((p) => p.flow ?? 0).filter((v) => v > 0).sort((x, y) => x - y);
-  const flowTop = Math.min(8, Math.max(3, Math.ceil((fl.length ? fl[Math.floor(fl.length * 0.9)] : 2) * 1.4)));
   const maxW = Math.max(10, ...A.map((p) => p.weight ?? 0), ...B.map((p) => p.weight ?? 0));
   const weightTop = Math.ceil((maxW * 1.15) / 10) * 10;
   const tMax = Math.max(A.at(-1)?.t ?? 1, B.at(-1)?.t ?? 1);
   const line = (data: ShotCurvePoint[], key: "pressure" | "flow" | "weight", color: string, dashed: boolean) => (
-    <Line data={data} yAxisId={key === "weight" ? "w" : key === "flow" ? "f" : "l"} type="linear" dataKey={key} stroke={color}
+    <Line data={data} yAxisId={key === "weight" ? "w" : "l"} type="linear" dataKey={key} stroke={color}
       strokeWidth={dashed ? 2 : 2.5} strokeDasharray={dashed ? "6 4" : undefined} strokeOpacity={dashed ? 0.75 : 1}
       dot={false} isAnimationActive={false} connectNulls />
   );
@@ -56,8 +53,6 @@ const CompareChart = memo(function CompareChart({ a, b, align }: { a: ShotCurveP
         <XAxis dataKey="t" type="number" domain={[tMin, tMax]} allowDuplicatedCategory={false}
           tickFormatter={(v) => `${Math.round(v / 1000)}s`} tick={AXIS_TICK} tickLine={false} axisLine={false} />
         <YAxis yAxisId="l" domain={[0, 12]} ticks={[0, 2, 4, 6, 8, 10, 12]} width={28} tick={AXIS_TICK} tickLine={false} axisLine={false} />
-        <YAxis yAxisId="f" domain={[0, flowTop]} ticks={Array.from({ length: flowTop + 1 }, (_, i) => i)} allowDataOverflow width={22}
-          tick={{ ...AXIS_TICK, fontSize: 11, fill: COLORS.flow, fillOpacity: 0.55 }} tickLine={false} axisLine={false} />
         <YAxis yAxisId="w" orientation="right" domain={[0, weightTop]} width={36}
           tick={{ ...AXIS_TICK, fill: COLORS.weight }} tickLine={false} axisLine={false} unit="g" />
         {line(B, "weight", COLORS.weight, true)}
