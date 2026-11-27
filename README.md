@@ -44,7 +44,7 @@ Live at **[not9bar.com](https://not9bar.com)**. Free, no account, no cloud: the 
 The only way around it on iOS would be an app of its own, outside the browser.
 
 **What it changes on the machine:** only what you ask for, and nothing for good.
-- When you slide to heat, the recipe is loaded as an unsaved copy of the profile. The machine's profiles stay as they were. The copy says "Loaded by Not Nine Bar" in its description, so a shot in the history shows it came from here.
+- When you slide to heat, the recipe is loaded as an unsaved copy of the profile. The machine's profiles stay as they were. The copy says "via not9bar" in its description, so a shot in the history shows it came from here.
 - The piston's retraction is set for the recipe: yield + 1.25 × dose + 30 ml, within the machine's 80–150 ml. Once the shot is over, the machine gets its own value back.
 - Like and dislike are saved on the machine, where the official app shows them.
 - The buttons you tap (tare, purge, stop and the rest) are sent to the machine.

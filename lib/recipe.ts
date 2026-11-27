@@ -294,7 +294,7 @@ export function baseName(name: string): string {
 }
 
 /** Tag on every profile the Station loads (plain ASCII, like the rest of the description) */
-export const LOADED_BY = "Loaded by Not Nine Bar (unofficial app, not9bar.com)";
+export const LOADED_BY = "via not9bar";
 
 /** Copy of the base profile with this shot's temperature and yield. */
 export function buildShotProfile(base: Profile, r0: Recipe): Profile {

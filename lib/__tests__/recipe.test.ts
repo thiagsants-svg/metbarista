@@ -73,7 +73,7 @@ describe("shot name and notes (kept in the machine's history)", () => {
     expect(p.name).toBe("Damian's LRv2 - 20g 1:2.5 94C - Etiopia Guji 150um");
     expect(p.temperature).toBe(94);
     expect(p.final_weight).toBe(50);
-    expect(p.display?.shortDescription).toMatch(/Loaded by Not Nine Bar/);
+    expect(p.display?.shortDescription).toMatch(/via not9bar/);
     const m = SHOT_NAME_RE.exec(p.name)!;
     expect(m.slice(1, 6)).toEqual(["20", "2.5", "94", "Etiopia Guji", "150"]);
     expect(baseName(p.name)).toBe("Damian's LRv2");
