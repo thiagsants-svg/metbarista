@@ -15,8 +15,7 @@ import { usePourScale } from "@/lib/use-pour-scale";
 import {
   brewerLifted, deleteBrew, DEFAULT_RECIPES, fmtClock, guide, isStable, loadBrews, loadRecipes, newDetector, recipeRatio,
   recipeWater, saveBrew, saveRecipes, scaleRecipe, smoothed, step, thinCurve,
-  type Detector, type PourBrew, type PourRecipe, type Sample,
-} from "@/lib/pour-over";
+  type Detector, type PourBrew, type PourRecipe, type Sample, suggestions, COMMON_BREWERS, COMMON_FILTERS } from "@/lib/pour-over";
 import { extractionYield, recentBeans } from "@/lib/recipe";
 import { useDifluid } from "@/lib/station/use-difluid";
 import { TasteCompass } from "@/components/taste-compass";
@@ -32,8 +31,8 @@ type Stage = "setup" | "server" | "brewer" | "coffee" | "ready" | "brewing" | "l
 type Tab = "brew" | "history" | "recipes";
 
 const SETUP_KEY = "metbarista_pourover_setup";
-interface Setup { coffee: string; grinder: string; grind: string; temperature: number; recipeId: string; brewer: string; water: string; waterId: string }
-const DEFAULT_SETUP: Setup = { coffee: "", grinder: "", grind: "", temperature: 96, recipeId: "", brewer: "", water: "", waterId: "" };
+interface Setup { coffee: string; grinder: string; grind: string; temperature: number; recipeId: string; brewer: string; filter: string; water: string; waterId: string }
+const DEFAULT_SETUP: Setup = { coffee: "", grinder: "", grind: "", temperature: 96, recipeId: "", brewer: "", filter: "", water: "", waterId: "" };
 /** The weighed dose must be at least this (g), or the coffee was forgotten */
 const MIN_DOSE = 3;
 
@@ -78,10 +77,14 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
   const [setup, setSetup] = useState<Setup>(DEFAULT_SETUP);
   const [beans, setBeans] = useState<string[]>([]);
   const [waters, setWaters] = useState<WaterRecipe[]>([]);
+  /** Brewers, filters and grinders used before (then the common ones), for the fields' lists */
+  const [picks, setPicks] = useState<{ brewer: string[]; filter: string[]; grinder: string[] }>({ brewer: [], filter: [], grinder: [] });
   useEffect(() => {
     setWaters(loadWaters()); // eslint-disable-line react-hooks/set-state-in-effect
     try { setSetup({ ...DEFAULT_SETUP, ...JSON.parse(localStorage.getItem(SETUP_KEY) ?? "{}") }); } catch { /* defaults */ }
     setBeans(recentBeans());
+    const brews = loadBrews();
+    setPicks({ brewer: suggestions(brews, "brewer", COMMON_BREWERS), filter: suggestions(brews, "filter", COMMON_FILTERS), grinder: suggestions(brews, "grinder") });
   }, []);
   const editSetup = (p: Partial<Setup>) => setSetup((s) => {
     const n = { ...s, ...p };
@@ -213,11 +216,17 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
           <datalist id="po-beans">{beans.map((b) => <option key={b} value={b} />)}</datalist>
         </label>
         <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1 text-sm">Grinder<input className={input} value={setup.grinder} onChange={(e) => editSetup({ grinder: e.target.value })} placeholder="e.g. Comandante" /></label>
+          <label className="grid gap-1 text-sm">Grinder<input className={input} list="po-grinders" value={setup.grinder} onChange={(e) => editSetup({ grinder: e.target.value })} placeholder="e.g. Comandante" /></label>
+          <datalist id="po-grinders">{picks.grinder.map((v) => <option key={v} value={v} />)}</datalist>
           <label className="grid gap-1 text-sm">Grind setting<input className={input} value={setup.grind} onChange={(e) => editSetup({ grind: e.target.value })} placeholder="e.g. 24 clicks" /></label>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1 text-sm">Brewer and filter<input className={input} value={setup.brewer} onChange={(e) => editSetup({ brewer: e.target.value })} placeholder="e.g. V60 02, paper" /></label>
+          <label className="grid gap-1 text-sm">Brewer<input className={input} list="po-brewers" value={setup.brewer} onChange={(e) => editSetup({ brewer: e.target.value })} placeholder="e.g. Hario V60 02" /></label>
+          <label className="grid gap-1 text-sm">Filter<input className={input} list="po-filters" value={setup.filter} onChange={(e) => editSetup({ filter: e.target.value })} placeholder="e.g. Cafec Abaca" /></label>
+          <datalist id="po-brewers">{picks.brewer.map((v) => <option key={v} value={v} />)}</datalist>
+          <datalist id="po-filters">{picks.filter.map((v) => <option key={v} value={v} />)}</datalist>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           {waters.length ? (
             <label className="grid gap-1 text-sm">Water
               <select className={input} value={setup.waterId || currentWaterId() || ""} onChange={(e) => editSetup({ waterId: e.target.value })}>
@@ -226,14 +235,15 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
               </select>
             </label>
           ) : (
-            <label className="grid gap-1 text-sm">Water <a href="/water" className="text-[var(--accent)] underline">add your water recipes</a>
+            <label className="grid gap-1 text-sm">Water
               <input className={input} value={setup.water} onChange={(e) => editSetup({ water: e.target.value })} placeholder="e.g. GH 60 / KH 40" />
+              <a href="/water" className="text-xs text-[var(--accent)] underline">or add your water recipes</a>
             </label>
           )}
+          <label className="grid gap-1 text-sm">Water temperature, °C{kettleTemp != null ? ` · kettle now ${kettleTemp}°` : ""}
+            <input className={input} type="number" inputMode="numeric" value={setup.temperature} onChange={(e) => editSetup({ temperature: Number(e.target.value) })} />
+          </label>
         </div>
-        <label className="grid gap-1 text-sm">Water temperature, °C (your kettle){kettleTemp != null ? ` · kettle now ${kettleTemp}°` : ""}
-          <input className={input} type="number" inputMode="numeric" value={setup.temperature} onChange={(e) => editSetup({ temperature: Number(e.target.value) })} />
-        </label>
         <div className="grid gap-2">
           <p className="text-sm">How to brew</p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -362,6 +372,7 @@ function BrewTab({ recipes, onSaved }: { recipes: PourRecipe[]; onSaved: (list: 
         ...(drainedAt != null ? { drained: drainedAt } : {}),
         ...(kettleAtStart != null ? { kettleTemp: kettleAtStart } : {}),
         ...(setup.brewer.trim() ? { brewer: setup.brewer.trim() } : {}),
+        ...(setup.filter.trim() ? { filter: setup.filter.trim() } : {}),
         ...(() => {
           const w = waterById(setup.waterId || currentWaterId(), waters);
           return w ? { waterId: w.id, waterNote: waterText(w) } : setup.water.trim() ? { waterNote: setup.water.trim() } : {};
@@ -577,7 +588,7 @@ function HistoryTab({ brews, onDelete }: { brews: PourBrew[]; onDelete: (id: str
                     past={brews.filter((o) => o.id !== b.id && o.at < b.at && o.tds && o.ey != null && sameCoffeeName(o.coffee, b.coffee)).map((o) => ({ tds: o.tds!, ey: o.ey! }))} />
                 </div>
               )}
-              <p>{[b.recipe ?? "Free pour", b.brewer, b.grinder && `${b.grinder}${b.grind ? ` ${b.grind}` : ""}`,
+              <p>{[b.recipe ?? "Free pour", b.brewer, b.filter, b.grinder && `${b.grinder}${b.grind ? ` ${b.grind}` : ""}`,
                 b.temperature && `${b.temperature} °C set`, b.kettleTemp != null && `kettle ${b.kettleTemp}°`, b.waterNote && `water ${b.waterNote}`,
                 b.bypass && `bypass ${b.bypass} g`, `${b.pours.length} pours`].filter(Boolean).join(" · ")}</p>
               {(b.compass || b.dry) && <p>Taste: {[b.compass && compassText(compassTaste(b.compass), compassBody(b.compass)), b.dry && "dry finish"].filter(Boolean).join(" · ")}</p>}

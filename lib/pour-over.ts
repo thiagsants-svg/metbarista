@@ -240,6 +240,8 @@ export interface PourBrew {
   kettleTemp?: number;
   /** V60, flat-bottom, Chemex… */
   brewer?: string;
+  /** The filter: Hario paper, Cafec Abaca, Sibarist, metal… */
+  filter?: string;
   /** Water used: its recipe (lib/water.ts) and, as text, what it was then */
   waterId?: string;
   waterNote?: string;
@@ -262,6 +264,21 @@ export interface PourBrew {
   face?: "like" | "dislike";
   compass?: { x: number; y: number };
   notes?: string;
+}
+
+/** Common brewers and filters, offered after the ones already used */
+export const COMMON_BREWERS = ["Hario V60 02", "Hario V60 01", "Kalita Wave 185", "Origami", "April", "Orea", "Chemex", "UFO", "Hario Switch", "Clever"];
+export const COMMON_FILTERS = ["Hario paper", "Cafec Abaca", "Cafec T-90", "Sibarist Fast", "Kalita Wave paper", "Chemex paper", "Origami cone paper", "Metal"];
+
+/** What was typed before (newest first), then the common ones, no repeats */
+export function suggestions(brews: PourBrew[], key: "brewer" | "filter" | "grinder", common: string[] = []): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of [...[...brews].sort((a, b) => b.at - a.at).map((b) => b[key]), ...common]) {
+    const t = v?.trim();
+    if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); }
+  }
+  return out;
 }
 
 export function loadBrews(): PourBrew[] {
