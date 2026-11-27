@@ -7,6 +7,7 @@
  * badges. Reads the machine's history without the curves, so it's quick.
  */
 
+import { getTdsPref } from "@/lib/tds-pref";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Snowflake } from "lucide-react";
@@ -128,7 +129,8 @@ export default function StatsPage() {
               {/* Counts, not a percentage: few shots get rated, so "100 % liked" would say more than it knows */}
               {tile("Liked", stats.rated ? `${stats.liked} of ${stats.rated}` : "—",
                 stats.rated ? `rated shots · ${stats.shots - stats.rated} of ${stats.shots} not rated` : "no shots rated")}
-              {tile("Average EY", stats.ey ? `${stats.ey.avg.toFixed(1)}%` : "—",
+              {/* Only with readings, or with the refractometer switched on */}
+              {(stats.ey || getTdsPref() === "yes") && tile("Average EY", stats.ey ? `${stats.ey.avg.toFixed(1)}%` : "—",
                 stats.ey ? `${stats.ey.n} reading${stats.ey.n === 1 ? "" : "s"}` : "no TDS readings")}
             </div>
 

@@ -61,7 +61,8 @@ export function barDownState(samples: HeatSample[], target: number | null, margi
   const dt = last.t - from.t;
   if (dt < 15) return null;
   const rate = (last.barDown - from.barDown) / dt;
-  if (rate < 0.005 && dt < 110) return { kind: "flat", barDown: last.barDown };
+  // Not climbing in the first two minutes: it hasn't started yet. Later, a stop is "settled" (below)
+  if (rate < 0.005 && last.t - pts[0].t < 110) return { kind: "flat", barDown: last.barDown };
   const early = pts.find((p) => last.t - p.t <= 120) ?? pts[0];
   if (last.t - early.t >= 110 && ((last.barDown - early.barDown) / (last.t - early.t)) * 60 < 0.1) {
     return { kind: "settled", barDown: last.barDown };

@@ -103,7 +103,7 @@ export const TEMPLATES: Template[] = [
   {
     key: "lever",
     label: "Lever (decline)",
-    description: "Fill, soak at 3 bar, up to 9, then pressure falls like a spring lever: the light-roast workhorse.",
+    description: "Fill, soak at 3 bar, up to 9, then pressure falls like a spring lever: suits medium and dark roasts.",
     basics: { temperature: 94, targetWeight: 40, accentColor: "#a16207" },
     stages: [
       { name: "Fill",          type: "flow",     mode: "constant", value: 4,   fromValue: 0, toValue: 0, duration: 6,  limitEnabled: true,  limitValue: 3 },

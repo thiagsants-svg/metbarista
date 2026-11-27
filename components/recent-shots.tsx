@@ -6,6 +6,7 @@
  * shrinks to one line; the full chart comes back while heating.
  */
 
+import { timeHM } from "@/lib/format-date";
 import { dayTime } from "@/lib/format-date";
 import { sameCoffee } from "@/lib/recipe";
 import { shotGrindLabel } from "@/lib/coffee-history";
@@ -42,9 +43,21 @@ function hideMaintenance(): void {
   try { localStorage.setItem(MAINT_HIDDEN_KEY, String(Date.now() + MAINT_HIDE_MS)); } catch { /* shows again */ }
 }
 
+/** "Rate": opens the rating for a shot that ended without one */
+function rateButton(onRate: () => void) {
+  return (
+    <button type="button" onClick={onRate}
+      className="h-11 shrink-0 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.97]">
+      Rate
+    </button>
+  );
+}
+
 export function RecentShots({
-  coffee, shots, temp, target, plan, profileTip, maintenanceDue,
+  coffee, shots, temp, target, plan, profileTip, maintenanceDue, unrated,
 }: {
+  /** A shot that ended without a rating: a Rate button on its row (or above the list) */
+  unrated?: { startedAt: number; onRate: () => void } | null;
   /** Grease reminder from the measured piston effort */
   maintenanceDue?: PistonDue | null;
   /** The dial-in tip in the chosen profile's description, in its author's words */
@@ -66,6 +79,10 @@ export function RecentShots({
   const name = coffee?.trim();
   const planHere = plan && sameCoffee(plan.coffee, name) ? plan : null;
   const lastRecipe = shots?.[0]?.patch;
+  // The unrated shot's row: no face yet, started within a few minutes of it (tablet and machine clocks differ a little)
+  const unratedRow = unrated && shots
+    ? shots.find((s) => !s.face && Math.abs(s.when - unrated.startedAt) < 5 * 60_000) ?? null
+    : null;
 
   return (
     <div className="flex h-full w-full flex-col text-left text-[var(--ink)]">
@@ -107,6 +124,14 @@ export function RecentShots({
         </div>
       )}
 
+      {/* The unrated shot isn't in this list (another coffee, or still loading): its own line */}
+      {unrated && !unratedRow && (
+        <div className="mt-2 flex shrink-0 items-center gap-3 rounded-md bg-[var(--ink)]/[0.04] py-1 pl-3 pr-1 text-sm">
+          <span className="min-w-0 flex-1 text-[var(--ink)]/80">The {timeHM(unrated.startedAt)} shot has no rating</span>
+          {rateButton(unrated.onRate)}
+        </div>
+      )}
+
       <p className="mt-3 shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">
         {name ? `Last shots · ${name}` : shots?.length ? "Last shots · all coffees" : "Last shots"}
       </p>
@@ -116,7 +141,7 @@ export function RecentShots({
       {planHere && (
         <div className="mt-2 shrink-0 rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
-            Plan from last shot · {TASTE_LABEL[planHere.taste]}
+            Plan from last shot{planHere.taste ? ` · ${TASTE_LABEL[planHere.taste]}` : ""}
           </p>
           <p className="text-lg font-bold tabular-nums text-[var(--ink)]">
             {lastRecipe && planLines(lastRecipe, planHere).length
@@ -147,8 +172,9 @@ export function RecentShots({
             const isOpen = open === k && !!s.points?.length;
             return (
               <li key={k} className={`flex flex-col ${isOpen ? "min-h-0 flex-1" : "shrink-0"}`}>
+                <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setOpen(isOpen ? null : k)} aria-expanded={isOpen}
-                  className="flex w-full flex-wrap items-baseline gap-x-5 gap-y-0.5 py-2.5 text-left active:bg-[var(--ink)]/[0.04]">
+                  className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-5 gap-y-0.5 py-2.5 text-left active:bg-[var(--ink)]/[0.04]">
                   <span className="w-24 shrink-0 text-sm tabular-nums text-[var(--ink)]/75">
                     {dayTime(s.when)}
                   </span>
@@ -179,6 +205,8 @@ export function RecentShots({
                     <ChevronDown className={`ml-auto h-5 w-5 self-center text-[var(--ink)]/60 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   )}
                 </button>
+                {unrated && unratedRow === s && rateButton(unrated.onRate)}
+                </div>
                 {isOpen && (
                   <div className="relative min-h-[140px] flex-1 pb-2">
                     <ShotPlot data={s.points!} targetWeight={null} currentStage={null} />

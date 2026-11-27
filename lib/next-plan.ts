@@ -14,7 +14,8 @@ export type GrindDir = "finer" | "coarser";
 
 export interface NextPlan {
   coffee: string;
-  taste: Taste;
+  /** How the shot tasted (on the compass); absent when only the next recipe was set */
+  taste?: Taste;
   /** Absolute values for the next shot (absent = unchanged) */
   temperature?: number;
   ratio?: number;

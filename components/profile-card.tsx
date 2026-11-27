@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Thermometer, Weight, Layers } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { ProfileCurvePreview } from "./charts/profile-curve-preview";
 import { ProfileFingerprint } from "./charts/profile-fingerprint";
@@ -9,14 +8,9 @@ import { machineImageUrl, safeColor } from "@/lib/safe-url";
 interface ProfileCardProps {
   profile: Profile;
   href?: string;
-  onLoad?: (profile: Profile) => void;
+  /** "Use on Station": the profile becomes the recipe's base */
+  onUse?: (profile: Profile) => void;
 }
-
-const STAGE_COLORS: Record<string, { bg: string; text: string }> = {
-  pressure: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa" },
-  flow:     { bg: "rgba(34,211,238,0.12)", text: "#22d3ee" },
-  power:    { bg: "rgba(167,139,250,0.12)", text: "#a78bfa" },
-};
 
 function getImageUrl(imagePath?: string): string | null {
   if (!imagePath) return null;
@@ -25,9 +19,8 @@ function getImageUrl(imagePath?: string): string | null {
   return machineImageUrl(`http://${ip}`, imagePath);
 }
 
-export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
+export function ProfileCard({ profile, href, onUse }: ProfileCardProps) {
   const accent = safeColor(profile.display?.accentColor) ?? "#ffc400";
-  const stageTypes = [...new Set((profile.stages ?? []).map((s) => s.type))];
   const imageUrl = getImageUrl(profile.display?.image);
 
   const inner = (
@@ -74,31 +67,17 @@ export function ProfileCard({ profile, href, onLoad }: ProfileCardProps) {
           </p>
         )}
 
-        {/* Numbers and stage kinds on one row */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--ink)]/70">
-          <span className="flex items-center gap-1">
-            <Thermometer className="h-3 w-3" />{profile.temperature}°C
-          </span>
-          <span className="flex items-center gap-1">
-            <Weight className="h-3 w-3" />{profile.final_weight}g
-          </span>
-          <span className="flex items-center gap-1">
-            <Layers className="h-3 w-3" />{profile.stages?.length ?? 0} stages
-          </span>
-          {/* The kind's color as a dot, the word in ink (light blue words were hard to read on paper) */}
-          {stageTypes.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 text-xs font-semibold capitalize text-[var(--ink)]/80">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (STAGE_COLORS[t] ?? { text: "#888" }).text }} />{t}
-            </span>
-          ))}
-        </div>
+        {/* What it's designed for, one line */}
+        <p className="text-sm tabular-nums text-[var(--ink)]/70">
+          {profile.temperature} °C · {profile.final_weight} g · {profile.stages?.length ?? 0} stages
+        </p>
 
-        {onLoad && (
+        {onUse && (
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLoad(profile); }}
-            className="h-11 w-full rounded-lg border border-[var(--ink)]/15 bg-[var(--ink)]/[0.05] text-sm font-semibold text-[var(--ink)]/70 hover:bg-[var(--primary)]/10 hover:border-[var(--accent)]/40 hover:text-[var(--accent)] transition-all"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onUse(profile); }}
+            className="h-11 w-full rounded-lg bg-[var(--primary)] text-sm font-bold text-[var(--on-primary)] active:scale-[0.98]"
           >
-            Load to Machine ↑
+            Use on Station →
           </button>
         )}
       </div>

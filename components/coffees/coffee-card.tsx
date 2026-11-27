@@ -62,7 +62,7 @@ export function CoffeeRow({ coffee, cover, onOpen, onArchive, machine }: {
             {statusBadge(coffee)}
           </span>
           <span className="block truncate text-sm tabular-nums text-[var(--ink)]/70">
-            {[coffee.roaster, coffee.status === "open" && coffee.thawedAt ? `thawed ${daysAgo(coffee.thawedAt)}` : null, lastShotLine(coffee, machine)].filter(Boolean).join(" · ")}
+            {[coffee.roaster, coffee.roastDate ? `roasted ${new Date(`${coffee.roastDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : null, coffee.status === "open" && coffee.thawedAt ? `thawed ${daysAgo(coffee.thawedAt)}` : null, lastShotLine(coffee, machine)].filter(Boolean).join(" · ")}
           </span>
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-[var(--ink)]/40" />

@@ -16,33 +16,36 @@ import { getSavedIp } from "@/lib/connection-store";
 import { APP_NAME } from "@/lib/brand";
 import type { MachineInfo } from "@/lib/types";
 
+/** In the order of use: brewing and its records, then the other brew, setup, and the rest */
 export const PAGES = [
   { href: "/station", label: "Station", icon: Tablet },
   { href: "/shots", label: "Shots", icon: History },
   { href: "/coffees", label: "Coffees", icon: Coffee },
-  { href: "/pour-over", label: "Pour-over", icon: Droplet },
-  { href: "/water", label: "Water", icon: GlassWater },
   { href: "/profiles", label: "Profiles", icon: Layers },
   { href: "/stats", label: "Stats", icon: Target },
-  { href: "/community", label: "Community", icon: Users },
+  { href: "/pour-over", label: "Pour-over", icon: Droplet },
+  { href: "/water", label: "Water", icon: GlassWater },
   { href: "/bluetooth", label: "Devices", icon: Bluetooth },
+  { href: "/community", label: "Community", icon: Users },
   { href: "/?about", label: "About", icon: Info },
 ];
 
-export function StationMenuButton() {
+/** `dot`: news not seen yet (firmware, company update), read on Community */
+export function StationMenuButton({ dot = false }: { dot?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="Menu"
-        className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
+      <button onClick={() => setOpen(true)} aria-label={dot ? "Menu (news on Community)" : "Menu"}
+        className="relative flex h-10 w-10 items-center justify-center rounded-md border border-[var(--ink)]/20 text-[var(--ink)]/70 active:scale-95">
         <Menu className="h-5 w-5" />
+        {dot && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[var(--paper)] bg-[var(--stop)]" />}
       </button>
-      {open && <StationMenu onClose={() => setOpen(false)} />}
+      {open && <StationMenu onClose={() => setOpen(false)} news={dot} />}
     </>
   );
 }
 
-function StationMenu({ onClose }: { onClose: () => void }) {
+function StationMenu({ onClose, news }: { onClose: () => void; news: boolean }) {
   const router = useRouter();
   const path = usePathname();
   const [info, setInfo] = useState<MachineInfo | null>(null);
@@ -86,6 +89,7 @@ function StationMenu({ onClose }: { onClose: () => void }) {
                 className={`flex h-14 items-center gap-2.5 rounded-md border px-3 text-base font-semibold active:scale-[0.98] ${
                   here ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]" : "border-[var(--ink)]/20"}`}>
                 <Icon className={`h-5 w-5 ${here ? "" : "text-[var(--accent)]"}`} /> {label}
+                {news && href === "/community" && <span className="ml-auto h-2.5 w-2.5 rounded-full bg-[var(--stop)]" aria-label="news" />}
               </Link>
             );
           })}

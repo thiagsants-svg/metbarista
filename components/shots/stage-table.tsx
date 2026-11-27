@@ -5,16 +5,28 @@
  * and flow, and how it ended; the pre-infusion as a whole on top.
  */
 
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { endText, type StageSummary } from "@/lib/stage-summary";
 
 const s1 = (ms: number) => (ms / 1000).toFixed(1);
 
 export function StageTable({ summary }: { summary: StageSummary }) {
   const { stages, preinfusion } = summary;
+  /** Folded to one line (pre-infusion and how many stages); the table on a tap */
+  const [open, setOpen] = useState(false);
   if (!stages.length) return null;
   return (
-    <section aria-labelledby="stages-title">
-      <p id="stages-title" className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">Stage by stage</p>
+    <section aria-labelledby="stages-title" className="rounded-md border border-[var(--ink)]/15 px-3">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+        className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm">
+        <span id="stages-title" className="font-semibold uppercase tracking-wider text-[var(--ink)]/70">Stages</span>
+        <span className="truncate tabular-nums text-[var(--ink)]/70">
+          {preinfusion ? ` · Pre-infusion ${preinfusion.seconds.toFixed(1)} s · ${preinfusion.grams.toFixed(1)} g` : ""} · {stages.length} stage{stages.length === 1 ? "" : "s"}
+        </span>
+        <ChevronDown className={`ml-auto h-5 w-5 shrink-0 text-[var(--ink)]/60 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="pb-3">
       {preinfusion && (
         <p className="mt-1 text-base tabular-nums">
           Pre-infusion <b>{preinfusion.seconds.toFixed(1)} s</b>
@@ -43,6 +55,7 @@ export function StageTable({ summary }: { summary: StageSummary }) {
           </li>
         ))}
       </ol>
+      </div>}
     </section>
   );
 }

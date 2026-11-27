@@ -7,11 +7,13 @@
 
 import { useState } from "react";
 import { Bluetooth, ChevronDown, Loader2 } from "lucide-react";
+import { AutoBrewPicker } from "@/components/station/auto-brew-picker";
+import type { AutoBrew } from "@/lib/station/auto-brew";
 import { ProfilePicker } from "@/components/profile-picker";
 import { WheelPicker } from "@/components/wheel-picker";
 import {
   type GrinderFields, type Recipe, RATIO_PRESETS, beverageWeight, formatRatio, maxYieldFor, overCapacity,
-  GRINDER_DEFAULTS, isMotto80, recentGrinders,
+  GRINDER_DEFAULTS, isMotto80, profilePatch, recentGrinders,
 } from "@/lib/recipe";
 import type { LinkState } from "@/lib/motto80";
 import { activeBeans } from "@/lib/coffees";
@@ -38,7 +40,7 @@ export function RecipePanel({
   onPickCoffee: (name: string) => void;
   onToggleGrinder: () => void;
   grinderLink: LinkState;
-  autoBrew: boolean; onAutoBrew: (on: boolean) => void;
+  autoBrew: AutoBrew; onAutoBrew: (v: AutoBrew) => void;
 }) {
   // Recent beans come from localStorage: loaded when the field gets focus
   const [beans, setBeans] = useState<string[]>([]);
@@ -59,12 +61,7 @@ export function RecipePanel({
         onSelect={(id) => {
           // A profile is designed for its own temperature and yield: switching takes them (the wheels can change them after)
           const pr = profiles.find((x) => x.id === id);
-          const patch: Partial<Recipe> = { baseProfileId: id };
-          const t = Number(pr?.temperature);
-          if (Number.isFinite(t) && t >= TEMPS[0] && t <= TEMPS[TEMPS.length - 1]) patch.temperature = Math.round(t);
-          const fw = Number(pr?.final_weight);
-          if (Number.isFinite(fw) && fw > 0 && recipe.dose > 0) patch.ratio = nearest(RATIO_PRESETS, fw / recipe.dose);
-          onChange(patch);
+          onChange(pr ? profilePatch(pr, recipe) : { baseProfileId: id });
         }}
       />
       {/* Dose, ratio and temperature: each tile opens its own wheel; the value applies when the wheel stops */}
@@ -213,11 +210,7 @@ export function RecipePanel({
       </div>
       <div className="landscape:text-xs">
         {/* Not remembered: off on every page load, so a shot never starts by surprise */}
-        <label className="flex min-h-11 landscape:min-h-9 cursor-pointer items-center gap-3 px-1 text-sm text-[var(--ink)]/75">
-          <input type="checkbox" checked={autoBrew} onChange={(e) => onAutoBrew(e.target.checked)}
-            className="h-6 w-6 shrink-0 accent-[var(--ink)]" />
-          <span className="truncate">Auto brew at target temperature</span>
-        </label>
+        <AutoBrewPicker value={autoBrew} onChange={onAutoBrew} />
       </div>
     </div>
   );

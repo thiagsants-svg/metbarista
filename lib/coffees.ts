@@ -30,6 +30,8 @@ export interface Coffee {
   key: string;
   name: string;
   roaster?: string;
+  /** When it was roasted, YYYY-MM-DD (optional: some like to keep it) */
+  roastDate?: string;
   /** Origin, process, tasting notes on the bag… */
   notes?: string;
   status: CoffeeStatus;
@@ -95,6 +97,7 @@ export function saveCoffee(input: Pick<Coffee, "name"> & Partial<Omit<Coffee, "k
     // Keep the name as written when it was first brewed ("Etiópia", not "etiopia")
     name: cur?.name ?? recentBeans().find((b) => coffeeKey(b) === key) ?? name,
     roaster: input.roaster !== undefined ? input.roaster.trim() || undefined : cur?.roaster,
+    roastDate: input.roastDate !== undefined ? input.roastDate || undefined : cur?.roastDate,
     notes: input.notes !== undefined ? input.notes.trim() || undefined : cur?.notes,
     status: input.status ?? cur?.status ?? "open",
     freezeMode: input.freezeMode !== undefined ? input.freezeMode : cur?.freezeMode,

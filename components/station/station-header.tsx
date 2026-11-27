@@ -15,10 +15,12 @@ import { BrandMark } from "@/components/brand-mark";
 import type { StatusPill, ThemeName } from "@/lib/station/format";
 
 export const headerButton = "flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-2.5 text-[var(--ink)]/75 active:scale-95";
-/** The word beside a header icon: from tablet width (on phones the icon alone) */
-export const headerWord = "hidden text-sm font-semibold md:inline";
+/** The word beside a header icon: kept for screen readers only (the bar shows icons alone) */
+export const headerWord = "sr-only";
 
-export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleTheme, extra }: {
+export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleTheme, extra, menuDot }: {
+  /** News not seen yet: a dot on the menu */
+  menuDot?: boolean;
   title: string;
   /** Next to the title, lighter (the Station: the profile loaded on the machine) */
   subtitle?: string;
@@ -38,7 +40,7 @@ export function AppHeader({ title, subtitle, pill, pillHref, theme, onToggleThem
   const pillClass = `inline-flex min-w-0 max-w-[45vw] items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${pill.className}`;
   return (
     <header className="flex shrink-0 items-center gap-2.5">
-      <StationMenuButton />
+      <StationMenuButton dot={menuDot} />
       <BrandMark className="hidden h-7 w-7 sm:inline-block" />
       <p className="min-w-0 flex-1 truncate text-lg">
         <span className="font-semibold">{title}</span>

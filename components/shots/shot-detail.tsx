@@ -6,6 +6,7 @@
  * here too: a TDS measured later, a face forgotten after the shot.
  */
 
+import { getTdsPref } from "@/lib/tds-pref";
 import { AiReviewPanel } from "@/components/shots/ai-review-panel";
 import { sameCoffee } from "@/lib/recipe";
 import { estimateTds, type EyReference, type TdsEstimate } from "@/lib/tds-estimate";
@@ -17,7 +18,7 @@ import { BrewChart, type BrewPoint } from "@/components/brew-chart";
 import { likedBand, targetFor } from "@/lib/brew-control";
 import { fmtClock, grindText, type ShotRowData } from "@/components/shots/shot-row";
 import { shotPoints } from "@/lib/coffee-history";
-import { FACT_LABEL, shotFacts, firstDropsAt, profileStyle, STYLE_LABEL } from "@/lib/shot-facts";
+import { FACT_LABEL, shotFacts, firstDropsAt } from "@/lib/shot-facts";
 import { ShotFactsList } from "@/components/shots/shot-facts";
 import { StageTable } from "@/components/shots/stage-table";
 import { CompareView, ComparePicker, type ShotPick } from "@/components/shots/compare-view";
@@ -64,11 +65,12 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   const planText = plan ? planLines(p, plan) : [];
   const points = shotPoints(shot);
   const facts = shotFacts(shot.data ?? [], shot.profile?.stages ?? []);
-  const style = profileStyle(shot.data ?? []);
   const actualRatio = p.dose ? s.weight / p.dose : null;
   const stages = stageSummary(shot.data ?? [], shot.profile);
   const versus = compareId ? others.find((o) => o.row.id === compareId) ?? null : null;
   const [picking, setPicking] = useState(false);
+  /** The refractometer's fields: switched on (Devices) or this shot has a reading */
+  const wantsTds = getTdsPref() === "yes" || s.tds != null;
   const tdsEstimate = estimateTds({ coffee: s.coffee, dose: p.dose ?? 0, ratio: p.ratio ?? null, cupWeight: s.weight, grind: p.grindUm ?? p.grindSetting ?? null, seconds: s.seconds || null, barDown: s.barDown ?? null, waterId: s.waterId ?? null, profile: s.profileName || null, temperature: p.temperature ?? null }, eyRefs);
 
   const tile = (label: string, value: string, sub?: string | null) => (
@@ -108,8 +110,8 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
           [p.feed != null ? `feed ${p.feed}` : null, p.rpm != null ? `${p.rpm} rpm` : null, p.grinder ?? null].filter(Boolean).join(" · ") || null)}
         {tile("In the cup", `${s.weight.toFixed(1)} g`)}
         {tile("Time", fmtClock(s.seconds), firstDropsAt(shot.data ?? []) != null ? `first drops at ${firstDropsAt(shot.data ?? [])} s` : null)}
-        {tile("TDS", s.tds != null ? `${s.tds.toFixed(2)}%` : "—")}
-        {tile("EY", s.ey != null ? `${s.ey.toFixed(1)}%` : "—")}
+        {wantsTds && tile("TDS", s.tds != null ? `${s.tds.toFixed(2)}%` : "—")}
+        {wantsTds && tile("EY", s.ey != null ? `${s.ey.toFixed(1)}%` : "—")}
       </div>
       <WaterPicker shotTime={shot.time} initial={s.waterId ?? null} />
 
@@ -118,11 +120,11 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
       ) : points.length > 1 && (
         <div>
           <div className="relative h-64">
-            <ShotPlot data={points} targetWeight={null} currentStage={null} resistance
+            <ShotPlot data={points} targetWeight={null} currentStage={null}
               marks={facts.map((f) => ({ t: f.at, label: FACT_LABEL[f.kind] }))} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following. Thin line: puck resistance (pressure ÷ cup flow, after the first drops)</p>
+            <p className="min-w-0 flex-1 text-xs text-[var(--ink)]/60">Dotted: the target the machine was following.</p>
             {!picking && others.length > 0 && (
               <button type="button" onClick={() => setPicking(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--ink)]/25 px-4 text-sm font-semibold active:scale-[0.97]">
@@ -139,15 +141,12 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
         </div>
       )}
 
-      {points.length > 1 && style && (
-        <p className="text-sm text-[var(--ink)]/70">Profile style, from how the shot ran: <b className="text-[var(--ink)]">{STYLE_LABEL[style]}</b></p>
-      )}
       {points.length > 1 && <ShotFactsList facts={facts} />}
 
       {plan && (
         <div className="rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
-            Decided after this shot · {TASTE_LABEL[plan.taste]}
+            Decided after this shot{plan.taste ? ` · ${TASTE_LABEL[plan.taste]}` : ""}
           </p>
           <p className="text-lg font-bold tabular-nums">{planText.length ? planText.join(" · ") : "Same recipe"}</p>
         </div>
@@ -155,7 +154,7 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
 
       {/* Remount when another shot opens, so the fields start from its notes */}
       <NotesEditor key={shot.id} shot={shot} row={row} pastBrews={pastBrews} face={face ?? null} onFace={onFace} onSaved={onSaved}
-        tdsEstimate={tdsEstimate} likedEys={likedEys} />
+        tdsEstimate={tdsEstimate} likedEys={likedEys} wantsTds={wantsTds} />
 
       <StageTable summary={stages} />
 
@@ -179,7 +178,9 @@ export function ShotDetail({ shot, row, pastBrews, face, onFace, onSaved, onBack
   );
 }
 
-function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate, likedEys }: {
+function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate, likedEys, wantsTds }: {
+  /** Show the extraction card (refractometer on, or a reading on this shot) */
+  wantsTds: boolean;
   likedEys: number[];
   /** TDS estimated from this coffee's other measured shots, shown while no TDS is entered */
   tdsEstimate: TdsEstimate | null;
@@ -241,13 +242,14 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate,
 
       {/* The same two cards as the Station's rating: the taste on the compass, the extraction on the
           brew chart (drawn before there's a TDS; it follows the TDS as you type it, saved or not) */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className={`mt-3 grid gap-3 ${wantsTds ? "sm:grid-cols-2" : ""}`}>
         <section className="flex flex-col rounded-lg border border-[var(--ink)]/15 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Taste</p>
           <div className="flex flex-1 items-center justify-center">
             <TasteCompass value={point} onChange={setPoint} size={200} />
           </div>
         </section>
+        {wantsTds && (
         <section className="flex min-w-0 flex-col rounded-lg border border-[var(--ink)]/15 p-3">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
@@ -279,6 +281,7 @@ function NotesEditor({ shot, row, pastBrews, face, onFace, onSaved, tdsEstimate,
             <p className="text-xs text-[var(--ink)]/60">Open dots: earlier shots of this coffee, joined in order</p>
           )}
         </section>
+        )}
       </div>
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2}

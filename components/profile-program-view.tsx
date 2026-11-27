@@ -25,14 +25,10 @@ export function StageNow({
       <span className="mt-0.5 shrink-0 rounded-md bg-[var(--primary)] px-1.5 py-0.5 font-mono text-xs font-bold text-[var(--on-primary)]">
         {index + 1}/{total}
       </span>
-      <div className="min-w-0 flex-1 leading-snug">
-        <p className="text-sm">
-          <span className="font-bold text-[var(--accent)]">{current.name}</span>
-          <span className="text-[var(--ink)]/80"> · {current.control}</span>
-          {current.limits.length > 0 && <span className="text-[var(--ink)]/70"> · {current.limits.join(", ")}</span>}
-        </p>
-        <p className="text-xs text-[var(--ink)]/70">Ends {current.exits.join(" or ")}</p>
-      </div>
+      <p className="min-w-0 flex-1 truncate text-sm leading-snug">
+        <span className="font-bold text-[var(--accent)]">{current.name}</span>
+        {current.exits.length > 0 && <span className="text-[var(--ink)]/75"> · ends {current.exits.join(" or ")}</span>}
+      </p>
       {next && (
         <span className="hidden shrink-0 items-center gap-1 self-center text-xs text-[var(--ink)]/70 sm:inline-flex">
           <ArrowRight className="h-3.5 w-3.5" /> {next.name}

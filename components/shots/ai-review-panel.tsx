@@ -62,6 +62,8 @@ export function AiReviewPanel({ current, previous }: {
   const [error, setError] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(() => !!getAiKey(settings.provider));
   const [open, setOpen] = useState(() => !getAiKey(loadAiSettings().provider));
+  /** The panel itself: one line until tapped */
+  const [shown, setShown] = useState(false);
   const [keyInput, setKeyInput] = useState("");
   /** A question for this review ("why sour?"), optional */
   const [question, setQuestion] = useState("");
@@ -96,15 +98,21 @@ export function AiReviewPanel({ current, previous }: {
   return (
     <section className="rounded-md border border-[var(--ink)]/15 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="flex-1 text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/70">
-          <Bot className="mr-1.5 inline h-4 w-4 align-[-2px]" />AI review
-        </p>
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        {/* Folded to one line until asked for */}
+        <button type="button" onClick={() => setShown((v) => !v)} aria-expanded={shown}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 text-left text-sm">
+          <Bot className="h-4 w-4 shrink-0 text-[var(--ink)]/70" />
+          <span className="font-semibold uppercase tracking-wider text-[var(--ink)]/70">AI review</span>
+          <span className="truncate text-[var(--ink)]/65">· {saved ? `saved ${new Date(saved.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "ask about this shot"}</span>
+          <ChevronDown className={`ml-auto h-5 w-5 shrink-0 text-[var(--ink)]/60 transition-transform ${shown ? "rotate-180" : ""}`} />
+        </button>
+        {shown && <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
           className="flex h-10 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3 text-sm font-semibold text-[var(--ink)]/80">
           <Settings className="h-4 w-4" /> AI settings <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
+        </button>}
       </div>
 
+      {shown && <>
       {open && (
         <div className="mt-3 grid gap-3 rounded-md bg-[var(--ink)]/[0.04] p-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm">
@@ -218,6 +226,7 @@ export function AiReviewPanel({ current, previous }: {
           <p className="mt-2 text-xs text-[var(--ink)]/55">A reading of the numbers by an AI: try one change at a time, and trust your taste.</p>
         </div>
       )}
+      </>}
     </section>
   );
 }

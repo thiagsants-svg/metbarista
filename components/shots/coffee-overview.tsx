@@ -6,6 +6,7 @@
  * the brew chart (joined in order, the latest in the accent color).
  */
 
+import { getTdsPref } from "@/lib/tds-pref";
 import { BrewChart } from "@/components/brew-chart";
 import { likedBand, targetFor } from "@/lib/brew-control";
 import { loadPlan, planLines, TASTE_LABEL } from "@/lib/next-plan";
@@ -41,7 +42,7 @@ export function CoffeeOverview({ coffee, rows, faces }: {
       {plan && (
         <div className="mt-2 rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
-            Next shot · {TASTE_LABEL[plan.taste]}
+            Next shot{plan.taste ? ` · ${TASTE_LABEL[plan.taste]}` : ""}
           </p>
           <p className="text-lg font-bold tabular-nums">{lines.length ? lines.join(" · ") : "Same recipe"}</p>
         </div>
@@ -56,9 +57,9 @@ export function CoffeeOverview({ coffee, rows, faces }: {
             <p className="text-xs text-[var(--ink)]/60">Big dot: latest reading · open dots: earlier shots, joined in order</p>
           )}
         </div>
-      ) : (
+      ) : getTdsPref() === "yes" ? (
         <p className="mt-2 text-sm text-[var(--ink)]/60">No refractometer readings yet for this coffee.</p>
-      )}
+      ) : null}
     </section>
   );
 }

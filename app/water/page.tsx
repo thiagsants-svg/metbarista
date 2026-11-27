@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
-  currentWaterId, loadWaters, saveWaters, SCA_WATER, setCurrentWater, waterAdvice, waterText, type WaterRecipe,
+  currentWaterId, loadWaters, saveWaters, setCurrentWater, waterAdvice, waterText, type WaterRecipe,
 } from "@/lib/water";
 
 const input = "w-full min-h-11 rounded-md border border-[var(--ink)]/25 bg-transparent px-3 py-2 text-base";
@@ -91,16 +91,6 @@ export default function WaterPage() {
         <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />New water</span>
       </button>
 
-      <section className="rounded-lg bg-[var(--ink)]/[0.05] p-3 text-sm">
-        <p className="font-semibold">SCA water standard for brewing</p>
-        <p className="mt-1">Hardness (GH) about {SCA_WATER.hardness.target} ppm (fine from {SCA_WATER.hardness.range[0]} to {SCA_WATER.hardness.range[1]}) ·
-          alkalinity (KH) about {SCA_WATER.alkalinity.target} ppm ({SCA_WATER.alkalinity.range[0]}–{SCA_WATER.alkalinity.range[1]}) ·
-          TDS about {SCA_WATER.tds.target} ppm ({SCA_WATER.tds.range[0]}–{SCA_WATER.tds.range[1]}) · pH {SCA_WATER.ph.target} ({SCA_WATER.ph.range[0]}–{SCA_WATER.ph.range[1]}).</p>
-        <p className="mt-1">Alkalinity by style (Lance Hedrick, Meticulous onboarding): about 20 ppm for traditional espresso,
-          40–70 ppm for light roasts and fast, high-flow shots, about 60 ppm to tame acidity in short dark-roast shots
-          (potassium bicarbonate preferred). Sour without being under-extracted? Raise the KH rather than extracting more.</p>
-        <p className="mt-1 text-[var(--ink)]/70">Magnesium tends to bring out brighter, fruitier notes; calcium a rounder body.</p>
-      </section>
     </div>
   );
 }

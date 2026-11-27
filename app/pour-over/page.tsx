@@ -8,6 +8,7 @@
  * machine; brews and recipes stay in this browser. See lib/pour-over.ts.
  */
 
+import { getTdsPref } from "@/lib/tds-pref";
 import { useCallback, useEffect, useState } from "react";
 import { Bluetooth, Loader2, Plus, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { useRequireConnection } from "@/lib/connection-store";
@@ -518,6 +519,8 @@ function ResultForm({ base, plan, past = [], onSave, onCancel, onResume }: {
   // TDS read after the bypass was added: the extraction is on the whole cup
   const ey = tds && drink ? extractionYield(tds, drink + bypass, base.dose) : null;
   const time = base.drained ?? base.seconds;
+  /** The refractometer's fields: switched on (Devices), connected, or this coffee already has readings */
+  const wantsTds = getTdsPref() === "yes" || difluid === "on" || difluid === "connecting" || past.length > 0 || !!tdsText;
   const verdict = tds && ey != null ? [
     ey < FILTER_EY[0] ? "under-extracted" : ey > FILTER_EY[1] ? "over-extracted" : "extraction in range",
     tds < FILTER_TDS[0] ? "weak" : tds > FILTER_TDS[1] ? "strong" : "strength in range",
@@ -542,6 +545,7 @@ function ResultForm({ base, plan, past = [], onSave, onCancel, onResume }: {
           <input className={input} inputMode="decimal" value={bypassText} onChange={(e) => setBypassText(e.target.value)} placeholder="0" />
         </label>
       </div>
+      {wantsTds && <>
       <p className="rounded-md bg-[var(--ink)]/[0.05] p-3 text-sm">
         Before measuring: swirl the server well (the first drops are much stronger), take the sample from the middle and let it cool to room temperature. Same way every time.
       </p>
@@ -564,6 +568,7 @@ function ResultForm({ base, plan, past = [], onSave, onCancel, onResume }: {
             ratio={drink ? (drink + bypass) / base.dose : undefined} />
         </div>
       ) : null}
+      </>}
       {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
       <div className="flex gap-2" role="radiogroup" aria-label="Verdict">
         <button role="radio" aria-checked={face === "like"} aria-label="Liked" className={`${ghost} min-h-14 flex-1 ${face === "like" ? "border-[var(--good)] bg-[var(--good)]/15" : ""}`} onClick={() => setFace(face === "like" ? undefined : "like")}><ThumbsUp className="mx-auto h-7 w-7" /></button>

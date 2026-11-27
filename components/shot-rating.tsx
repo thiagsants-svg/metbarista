@@ -3,14 +3,17 @@
 /**
  * After the shot: the official app's faces (like / dislike), saved on the
  * machine so every app shows them; the taste on a compass (sour ↔ bitter,
- * weak ↔ strong) and what to change next time
- * (temperature and ratio on the same wheels as the recipe, grind as a
- * suggestion), kept for this coffee; and optional tasting notes.
+ * weak ↔ strong), always shown, and what to change next time once it's
+ * tapped. With nothing else touched, one tap on a face saves and closes.
+ * Notes wait behind "Add notes". The refractometer (TDS,
+ * extraction) shows for those who use one: asked once here, changed on the
+ * Devices page, and always shown while the DiFluid is connected.
  */
 
 import type { TdsEstimate } from "@/lib/tds-estimate";
 import { useState } from "react";
-import { Bluetooth, Frown, Loader2, Smile } from "lucide-react";
+import { Bluetooth, Frown, Loader2, Plus, Smile } from "lucide-react";
+import { getTdsPref, setTdsPref, type TdsPref } from "@/lib/tds-pref";
 import type { DifluidState } from "@/lib/difluid";
 import { targetFor } from "@/lib/brew-control";
 import { BrewChart, type BrewPoint } from "@/components/brew-chart";
@@ -89,14 +92,24 @@ export function ShotRating({
   const hasCoffee = !!coffee?.trim();
   const target = targetFor(shotRecipe.ratio);
 
-  const plan: PlanChoice | null = taste && {
-    taste,
+  // A plan: the compass tapped, or the next recipe changed (temperature, ratio, grind) without it
+  const changedNext = temp !== shotRecipe.temperature || ratio !== shotRecipe.ratio || !!grind;
+  const plan: PlanChoice | null = (taste || changedNext) ? {
+    ...(taste ? { taste } : {}),
     ...(point ? { point: { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 } } : {}),
     ...(temp !== shotRecipe.temperature ? { temperature: temp } : {}),
     ...(ratio !== shotRecipe.ratio ? { ratio } : {}),
     ...(grind ? { grind, ...(grindWas ? { grindWas } : {}) } : {}),
-  };
+  } : null;
   const lines = plan ? planLines(shotRecipe, plan) : [];
+  /** Refractometer in the popup: the owner's choice, or the DiFluid connected */
+  const [tdsPref, setPref] = useState<TdsPref>(() => getTdsPref());
+  const showTds = tdsPref === "yes" || difluid === "on" || difluid === "connecting" || !!deviceTds;
+  /** Notes: opened on demand */
+  const [details, setDetails] = useState(false);
+  /** Nothing else filled in: a face saves and closes at once */
+  const oneTap = !details && !showTds && !point && !changedNext;
+  const answer = (v: "yes" | "no") => { setTdsPref(v); setPref(v); };
   /** Something entered: a tap outside the card must not throw it away (wet hands slip) */
   const touched = !!face || !!note.trim() || !!point || !!tdsShown.trim() || !!grind;
 
@@ -104,7 +117,7 @@ export function ShotRating({
     const on = face === f;
     return (
       <button type="button" role="radio" aria-checked={on} aria-label={label}
-        onClick={() => setFace(on ? null : f)}
+        onClick={() => (oneTap ? onSave(f, "", null, null) : setFace(on ? null : f))}
         className={`flex h-16 flex-1 items-center justify-center gap-2 rounded-md border-2 md:h-14 active:scale-[0.97] ${
           on ? "border-[var(--accent)] bg-[var(--primary)] text-[var(--on-primary)]" : "border-[var(--ink)]/20 text-[var(--ink)]/70"}`}>
         <Icon className="h-8 w-8" strokeWidth={1.75} />
@@ -161,11 +174,33 @@ export function ShotRating({
           {faceBtn("like", "Liked it", Smile)}
           {faceBtn("dislike", "Didn’t like it", Frown)}
         </div>
+        {oneTap && <p className="mt-1 text-center text-sm text-[var(--ink)]/60">One tap saves and closes</p>}
+
+        {/* Asked once: those with a refractometer get the TDS here every time */}
+        {tdsPref == null && !showTds && (
+          <div className="mt-3 rounded-lg bg-[var(--ink)]/[0.06] p-3">
+            <p className="text-base font-semibold text-[var(--ink)]">Do you measure TDS with a refractometer often?</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" onClick={() => answer("yes")}
+                className="h-11 rounded-md bg-[var(--primary)] px-4 text-sm font-bold text-[var(--on-primary)] active:scale-[0.97]">Yes, show the TDS here</button>
+              <button type="button" onClick={() => answer("no")}
+                className="h-11 rounded-md border border-[var(--ink)]/25 px-4 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.97]">No</button>
+            </div>
+            <p className="mt-2 text-sm text-[var(--ink)]/65">You can switch it on or off later on the Devices page.</p>
+          </div>
+        )}
+
+        {!details && (
+          <button type="button" onClick={() => setDetails(true)}
+            className="mt-3 flex h-11 items-center gap-1.5 rounded-md border border-[var(--ink)]/25 px-4 text-sm font-semibold text-[var(--ink)]/80 active:scale-[0.97]">
+            <Plus className="h-4 w-4" /> Add notes
+          </button>
+        )}
 
         {/* The two charts side by side from tablet width, the same size: the taste on the compass and the
             extraction on the brew chart (drawn before there's a TDS, so nothing jumps when it comes) */}
         {/* Lying down (wide and short) a third column takes the next time and the notes, so it fits */}
-        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:landscape:grid-cols-3">
+        <div className={`mt-3 grid gap-3 ${showTds ? "md:grid-cols-2 lg:landscape:grid-cols-3" : "md:grid-cols-2"}`}>
           <section className="flex flex-col rounded-lg border border-[var(--ink)]/15 p-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Taste</p>
             <div className="flex flex-1 items-center justify-center">
@@ -174,6 +209,7 @@ export function ShotRating({
           </section>
 
           {/* Refractometer: TDS in, extraction yield out */}
+          {showTds && (
           <section className="flex min-w-0 flex-col rounded-lg border border-[var(--ink)]/15 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Extraction</p>
@@ -226,21 +262,18 @@ export function ShotRating({
               <p className="text-xs text-[var(--ink)]/60">Open dots: earlier shots of this coffee, joined in order</p>
             )}
           </section>
+          )}
 
-        <div className="min-w-0 md:col-span-2 lg:landscape:col-span-1">
+        {(
+
+        <div className={`min-w-0 ${showTds ? "md:col-span-2 lg:landscape:col-span-1" : ""}`}>
         {/* What to change next time (kept for this coffee): temperature and ratio on the recipe's wheels,
             grind as which way only, no amount (the grinder is set by hand) */}
-        {!taste && (
-          <p className="hidden text-sm text-[var(--ink)]/70 lg:landscape:block">
-            <span className="text-xs font-semibold uppercase tracking-wider">Next time</span><br />
-            Tap where the shot sits on the compass to plan the next one.
-          </p>
-        )}
-        {taste && (
-          <div className="mt-3 lg:landscape:mt-0">
+        {(
+          <div className="mt-3 md:mt-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">
               Next time
-              {compassHint(taste, body) && <span className="ml-2 text-sm font-normal normal-case tracking-normal">{compassHint(taste, body)}</span>}
+              {taste && compassHint(taste, body) && <span className="ml-2 text-sm font-normal normal-case tracking-normal">{compassHint(taste, body)}</span>}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3 lg:landscape:grid-cols-2">
               {tile("temp", "Temp (°C)", `${temp} °C`, temp !== shotRecipe.temperature, TEMPS, temp, String, setTemp)}
@@ -262,29 +295,30 @@ export function ShotRating({
               </div>
             </div>
             <p className="mt-2 text-sm font-semibold text-[var(--accent)]">
-              {lines.length ? `Next shot: ${lines.join(" · ")}` : "Next shot: same recipe"}
+              {lines.length ? `Next shot: ${lines.join(" · ")}` : taste ? "Next shot: same recipe" : "Tap the compass, or change what you'd try next"}
               {!hasCoffee && <span className="font-normal text-[var(--ink)]/70"> (pick a coffee to keep this plan)</span>}
             </p>
           </div>
         )}
 
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+        {details && <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
           placeholder="Tasting notes (optional): chocolate, a bit sour…"
-          className="mt-3 w-full resize-none rounded-md border border-[var(--ink)]/20 bg-transparent px-3 py-2 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 lg:landscape:h-28" />
+          className="mt-3 w-full resize-none rounded-md border border-[var(--ink)]/20 bg-transparent px-3 py-2 text-base text-[var(--ink)] placeholder:text-[var(--ink)]/50 lg:landscape:h-28" />}
         </div>
+        )}
         </div>
 
         {/* Skip and Save stay at the bottom of the card, even when the rest scrolls */}
-        <div className="sticky bottom-0 z-10 -mx-4 mt-3 grid grid-cols-2 gap-2 border-t border-[var(--ink)]/15 bg-[var(--paper)] px-4 py-3">
+        <div className={`sticky bottom-0 z-10 -mx-4 mt-3 grid gap-2 border-t border-[var(--ink)]/15 bg-[var(--paper)] px-4 py-3 ${oneTap ? "grid-cols-1" : "grid-cols-2"}`}>
           <button type="button" onClick={onSkip}
             className="h-12 rounded-md border border-[var(--ink)]/20 text-base font-semibold text-[var(--ink)]/80 active:scale-[0.98]">
             Skip
           </button>
-          <button type="button" disabled={!face && !note.trim() && !taste && tds == null}
+          {!oneTap && <button type="button" disabled={!face && !note.trim() && !taste && tds == null}
             onClick={() => onSave(face, note.trim(), plan, tds, body)}
             className="h-12 rounded-md bg-[var(--primary)] text-base font-bold text-[var(--on-primary)] active:scale-[0.98] disabled:opacity-40">
             Save
-          </button>
+          </button>}
         </div>
       </div>
     </div>

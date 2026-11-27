@@ -2,11 +2,12 @@
 
 import { machineImageUrl, safeColor } from "@/lib/safe-url";
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { setStationProfile } from "@/lib/recipe";
 import Link from "next/link";
 import { ProfileFingerprint } from "@/components/charts/profile-fingerprint";
-import { Loader2, ArrowLeft, Thermometer, Weight, User, GitFork, Code } from "lucide-react";
-import { listProfiles, getHistory, loadProfileById, computeShotStats } from "@/lib/machine-api";
+import { Loader2, ArrowLeft, Thermometer, Weight, User, GitFork, Code, ChevronDown } from "lucide-react";
+import { listProfiles, getHistory, computeShotStats } from "@/lib/machine-api";
 import { getSavedIp } from "@/lib/connection-store";
 import { ShotPlot } from "@/components/shot-charts";
 import { shotNotes, shotPoints } from "@/lib/coffee-history";
@@ -27,7 +28,8 @@ function ProfileDetailContent() {
   const [relatedShots, setRelatedShots] = useState<ShotEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRaw, setShowRaw] = useState(false);
-  const [loadMsg, setLoadMsg] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- no profile asked for: nothing to load
@@ -44,23 +46,12 @@ function ProfileDetailContent() {
     .finally(() => setLoading(false));
   }, [id]);
 
-  async function handleLoad() {
+  // "Use on Station": the profile becomes the recipe's base; the Station's slide loads it
+  // (with the recipe, the retraction margin and the Bar down), nothing is written to the machine here
+  function handleUse() {
     if (!profile) return;
-    // Loading starts the profile (the machine heats): never on a stray tap
-    if (!window.confirm(`Load "${profile.name}" on the machine?
-
-Loading a profile starts it: the machine heats and waits for you.`)) return;
-    try {
-      await loadProfileById(profile.id);
-      setLoadMsg({ type: "success", msg: "✓ Profile loaded to machine!" });
-      setTimeout(() => setLoadMsg(null), 3000);
-    } catch (error) {
-      setLoadMsg({
-        type: "error",
-        msg: error instanceof Error ? error.message : "Failed to load profile",
-      });
-      setTimeout(() => setLoadMsg(null), 3000);
-    }
+    setStationProfile(profile);
+    router.push("/station");
   }
 
   if (loading) return (
@@ -147,22 +138,11 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
             {/* Actions */}
             <div className="flex gap-3 flex-wrap mt-5 items-center">
               <button
-                onClick={handleLoad}
-                className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] hover:bg-[var(--primary)]/90 transition-colors"
+                onClick={handleUse}
+                className="h-11 rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] active:scale-[0.98]"
               >
-                ↳ Load to Machine
+                Use on Station →
               </button>
-              <Link
-                href={`/share?id=${profile.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--ink)]/15 bg-[var(--ink)]/[0.05] px-4 py-2 text-sm font-medium text-[var(--ink)]/85 hover:text-[var(--ink)] hover:border-[var(--ink)]/30 transition-colors"
-              >
-                <GitFork className="h-3.5 w-3.5" /> Share
-              </Link>
-              {loadMsg && (
-                <span className={`text-sm ${loadMsg.type === "success" ? "text-[var(--ink)]" : "text-red-400"}`}>
-                  {loadMsg.msg}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -217,6 +197,44 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
           </div>
         </div>
 
+        {relatedShots.length > 0 && (
+          <div>
+            <h2 className="text-xs font-semibold text-[var(--ink)]/70 uppercase tracking-wider mb-4">Shots with this profile</h2>
+            <div className="space-y-3">
+              {relatedShots.map((shot) => {
+                const stats = computeShotStats(shot.data);
+                const coffee = shotNotes(shot).coffee;
+                return (
+                  <div key={shot.id} className="rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] overflow-hidden">
+                    <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--ink)]/15">
+                      <span className="text-sm font-medium text-[var(--ink)]/85">
+                        {new Date(shot.time * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                        {coffee ? ` · ${coffee}` : ""}
+                      </span>
+                      <Link href={`/shots?shot=${shot.id}`} className="text-sm font-semibold tabular-nums underline underline-offset-2">
+                        {stats.durationSec}s · {stats.finalWeight.toFixed(1)} g
+                      </Link>
+                    </div>
+                    <div className="relative h-44 px-2 pb-2">
+                      <ShotPlot data={shotPoints(shot)} targetWeight={null} currentStage={null} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* The technical part, folded: variables, lineage, share, the raw JSON */}
+        <div className="rounded-2xl border border-[var(--ink)]/15">
+          <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails}
+            className="flex min-h-12 w-full items-center gap-2 px-4 text-left text-sm">
+            <span className="font-semibold uppercase tracking-wider text-[var(--ink)]/70">Details</span>
+            <span className="truncate text-[var(--ink)]/60">· variables · lineage · share · JSON</span>
+            <ChevronDown className={`ml-auto h-5 w-5 shrink-0 text-[var(--ink)]/60 transition-transform ${showDetails ? "rotate-180" : ""}`} />
+          </button>
+          {showDetails && (
+          <div className="space-y-4 px-4 pb-4">
         {/* Variables */}
         {(profile.variables ?? []).length > 0 && (
           <div className="rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] p-6">
@@ -254,34 +272,12 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
           </div>
         )}
 
-        {relatedShots.length > 0 && (
-          <div>
-            <h2 className="text-xs font-semibold text-[var(--ink)]/70 uppercase tracking-wider mb-4">Shots with this profile</h2>
-            <div className="space-y-3">
-              {relatedShots.map((shot) => {
-                const stats = computeShotStats(shot.data);
-                const coffee = shotNotes(shot).coffee;
-                return (
-                  <div key={shot.id} className="rounded-2xl border border-[var(--ink)]/15 bg-[var(--ink)]/[0.04] overflow-hidden">
-                    <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--ink)]/15">
-                      <span className="text-sm font-medium text-[var(--ink)]/85">
-                        {new Date(shot.time * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
-                        {coffee ? ` · ${coffee}` : ""}
-                      </span>
-                      <Link href={`/shots?shot=${shot.id}`} className="text-sm font-semibold tabular-nums underline underline-offset-2">
-                        {stats.durationSec}s · {stats.finalWeight.toFixed(1)} g
-                      </Link>
-                    </div>
-                    <div className="relative h-44 px-2 pb-2">
-                      <ShotPlot data={shotPoints(shot)} targetWeight={null} currentStage={null} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+            <Link
+              href={`/share?id=${profile.id}`}
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-[var(--ink)]/15 px-4 text-sm font-medium text-[var(--ink)]/85"
+            >
+              <GitFork className="h-3.5 w-3.5" /> Share
+            </Link>
         {/* Raw JSON */}
         <div>
           <button
@@ -295,6 +291,9 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
             <pre className="mt-3 text-xs bg-[var(--ink)]/[0.04] border border-[var(--ink)]/15 rounded-xl p-4 overflow-auto max-h-96 font-mono text-[var(--ink)]/70 leading-relaxed">
               {JSON.stringify(profile, null, 2)}
             </pre>
+          )}
+        </div>
+          </div>
           )}
         </div>
       </div>

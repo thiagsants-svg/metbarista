@@ -24,7 +24,7 @@ const STATION = "/station";
 const FEATURES = [
   { icon: Tablet, title: "A station by the machine", desc: "Full screen on a tablet: recipe wheels, slide to heat, live curve with the stage the shot is in and what it aims for." },
   { icon: Bluetooth, title: "Grinder on the record", desc: "The BOOKOO Motto 80 is read over Bluetooth: the grind at the moment you brew goes with the shot." },
-  { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow. Skipped a reading? The TDS is estimated from the coffee's measured shots." },
+  { icon: Droplets, title: "Refractometer", desc: "The DiFluid R2 fills the TDS by itself; extraction yield and the brew chart follow." },
   { icon: ClipboardList, title: "Next shot, decided at the cup", desc: "Taste, then set temperature and ratio for next time. The plan waits for you when you pick that coffee again." },
   { icon: Bot, title: "AI review, your key", desc: "Ask Claude, ChatGPT, Gemini or Grok about a shot: profile, curve and the coffee's last shots go along. The key stays on your tablet." },
   { icon: Thermometer, title: "The group's heat, not just the water", desc: "While heating, every group thermometer is on screen and it says when the one by the puck (Bar down) is ready. Each heating is logged, hot or cold water, to make the forecast better." },

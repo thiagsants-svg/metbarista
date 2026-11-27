@@ -29,6 +29,10 @@ const IN_BOTTOM = 44.5;
 /** Liquid height at the target weight, and the most the glass shows */
 const TARGET_H = 140;
 const MAX_H = 186;
+/** Top of the view when only the cup is shown (no portafilter): just above the rim */
+export const CUP_TOP = 118;
+/** Aspect of the cup-only view (width / height), for the box that holds it */
+export const CUP_ASPECT = `${VW}/${VH - CUP_TOP}`;
 /** Scale of the glass when the recipe's target is unknown (g) */
 const DEFAULT_TARGET = 40;
 
@@ -113,9 +117,10 @@ interface Scene {
   pixels: ImageData;
 }
 
-function draw(scene: Scene, s: GlassState, target: number | null, width: number, height: number, dpr: number) {
+function draw(scene: Scene, s: GlassState, target: number | null, width: number, height: number, dpr: number, top: number) {
   const { ctx } = scene;
-  const scale = Math.min(width / VW, height / VH);
+  // Cup only: the part above `top` (the portafilter) falls off the top edge
+  const scale = Math.min(width / VW, height / (VH - top));
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   // Same fit as the SVG on top: aspect kept, centered sideways, standing on the bottom edge
@@ -305,8 +310,10 @@ function draw(scene: Scene, s: GlassState, target: number | null, width: number,
 }
 
 export function EspressoGlass({
-  weight, scale, target, flow, brewing, className = "",
+  weight, scale, target, flow, brewing, cupOnly = false, className = "",
 }: {
+  /** Just the cup, without the portafilter: bigger in a small box (the stream comes in from the top) */
+  cupOnly?: boolean;
   /** The shot's weight (g) */
   weight: number | null | undefined;
   /** What the scale reads right now (g): the last drips after the flow is cut */
@@ -324,6 +331,8 @@ export function EspressoGlass({
   const inputRef = useRef<GlassInput>({ weight: weight ?? 0, target, flow: flow ?? null, brewing, scale });
   /** Starts the redraw loop if it is stopped (set by the effect that owns the canvas) */
   const wakeRef = useRef<() => void>(() => {});
+  const top = cupOnly ? CUP_TOP : 0;
+  const topRef = useRef(top);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -339,7 +348,7 @@ export function EspressoGlass({
     const still = window.matchMedia("(prefers-reduced-motion: reduce)");
     let width = 0, height = 0, dpr = 1, frameId = 0, last = 0;
 
-    const paint = () => draw(scene, state, inputRef.current.target, width, height, dpr);
+    const paint = () => draw(scene, state, inputRef.current.target, width, height, dpr, topRef.current);
     const frame = (now: number) => {
       frameId = 0;
       // Real elapsed time, so a slow tablet shows fewer frames, not a slower pour
@@ -375,6 +384,11 @@ export function EspressoGlass({
   }, []);
 
   useEffect(() => {
+    topRef.current = top;
+    wakeRef.current();
+  }, [top]);
+
+  useEffect(() => {
     inputRef.current = { ...inputRef.current, weight: weight ?? 0, target, flow: flow ?? null, brewing };
     wakeRef.current();
   }, [weight, target, flow, brewing]);
@@ -392,13 +406,15 @@ export function EspressoGlass({
     <div ref={boxRef} role="img" className={`relative h-full w-full ${className}`}
       aria-label={full ? `Cup: ${shown.toFixed(1)} of ${full} g` : `Cup: ${shown.toFixed(1)} g`}>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      <svg viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMax meet"
+      <svg viewBox={`0 ${top} ${VW} ${VH - top}`} preserveAspectRatio="xMidYMax meet"
         className="absolute inset-0 h-full w-full" aria-hidden="true">
         {/* Bottomless portafilter, seen from the front */}
+        {!cupOnly && <>
         <rect x="30" y="10" width="100" height="11" rx="2" fill="var(--ink)" fillOpacity="0.35" />
         <rect x="11" y="25" width="138" height="10" rx="2.5" fill="var(--ink)" />
         <rect x="21" y="20" width="118" height="27" rx="4" fill="var(--ink)" />
         <path d="M36 46 L124 46 L122 56 Q80 64 38 56 Z" fill="var(--ink)" fillOpacity="0.6" />
+        </>}
 
         {/* Glass: thick base, walls, rim */}
         <g transform={`translate(0 ${RIM_Y - 168})`}>

@@ -4,23 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Layers, Plus } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
-import { listProfiles, loadProfileById } from "@/lib/machine-api";
+import { useRouter } from "next/navigation";
+import { listProfiles } from "@/lib/machine-api";
+import { setStationProfile } from "@/lib/recipe";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import { ProfileCard } from "@/components/profile-card";
 import type { Profile } from "@/lib/types";
 
-const STYLE_FILTERS = ["All", "flow", "pressure", "power"];
-
-type Toast = { type: "success" | "error"; msg: string } | null;
 
 export default function ProfilesPage() {
   useRequireConnection();
   const { style } = useStationTheme();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("All");
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<Toast>(null);
+  const router = useRouter();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- no machine saved: nothing to load
@@ -30,40 +27,12 @@ export default function ProfilesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleLoad(profile: Profile) {
-    // Loading starts the profile (the machine heats): never on a stray tap
-    if (!window.confirm(`Load "${profile.name}" on the machine?
-
-Loading a profile starts it: the machine heats and waits for you.`)) return;
-    setLoadingId(profile.id);
-    try {
-      await loadProfileById(profile.id);
-      setToast({ type: "success", msg: `✓ "${profile.name}" loaded to machine` });
-      setTimeout(() => setToast(null), 3000);
-    } catch (error) {
-      setToast({
-        type: "error",
-        msg: error instanceof Error ? error.message : "Failed to load profile",
-      });
-      setTimeout(() => setToast(null), 3000);
-    } finally {
-      setLoadingId(null);
-    }
+  // "Use on Station": the profile becomes the recipe's base; the Station's slide loads it
+  // (with the recipe, the retraction margin and the Bar down), nothing is written to the machine here
+  function handleUse(profile: Profile) {
+    setStationProfile(profile);
+    router.push("/station");
   }
-
-  // Infer type from variables so this also works with lightweight profile lists.
-  function inferTypes(p: Profile): string[] {
-    const vtypes = new Set((p.variables ?? []).map((v) => v.type));
-    const out: string[] = [];
-    if (vtypes.has("pressure")) out.push("pressure");
-    if (vtypes.has("flow")) out.push("flow");
-    if (out.length === 0) out.push("power");
-    return out;
-  }
-
-  const filtered = filter === "All"
-    ? profiles
-    : profiles.filter((p) => inferTypes(p).includes(filter));
 
   if (loading) return (
     <div style={style} className="min-h-[60vh] bg-[var(--paper)] flex items-center justify-center">
@@ -77,19 +46,6 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
         {/* Filters, count and New profile */}
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            {STYLE_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`h-10 rounded-full border px-4 text-sm font-semibold capitalize active:scale-[0.97] ${
-                  filter === f
-                    ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]"
-                    : "border-[var(--ink)]/25 text-[var(--ink)]/80"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
             <span className="flex-1 text-right text-sm text-[var(--ink)]/70">
               {profiles.length} on your machine
             </span>
@@ -118,28 +74,18 @@ Loading a profile starts it: the machine heats and waits for you.`)) return;
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {filtered.map((profile) => (
+            {profiles.map((profile) => (
               <ProfileCard
                 key={profile.id}
                 profile={profile}
                 href={`/profile?id=${profile.id}`}
-                onLoad={loadingId === null ? handleLoad : undefined}
+                onUse={handleUse}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-xl transition-all z-50 ${
-          toast.type === "success"
-            ? "border-[var(--accent)]/40 bg-[var(--paper)] text-[var(--ink)]"
-            : "border-red-500/20 bg-[var(--paper)] text-red-400"
-        }`}>
-          {toast.msg}
-        </div>
-      )}
     </div>
   );
 }

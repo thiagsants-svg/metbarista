@@ -7,8 +7,9 @@
  * Station (or the maker's app) can take the device again.
  */
 
+import { getTdsPref, setTdsPref } from "@/lib/tds-pref";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Bluetooth, Thermometer, Trash2 } from "lucide-react";
+import { Bluetooth, ChevronDown, Thermometer, Trash2 } from "lucide-react";
 import { getKettleIp, readKettle, setKettleIp, type KettleReading } from "@/lib/kettle";
 import { DifluidLink, type DifluidState } from "@/lib/difluid";
 import { bluetoothSupported, Motto80Link, type LinkState, type Motto80Reading } from "@/lib/motto80";
@@ -22,15 +23,27 @@ function useLog() {
   return { lines, add, clear: () => setLines([]) };
 }
 
-function Log({ lines, onClear }: { lines: string[]; onClear: () => void }) {
+/** The debug log: kept all the time, shown on a tap (with its troubleshooting hint, if any) */
+function Log({ lines, onClear, hint }: { lines: string[]; onClear: () => void; hint?: React.ReactNode }) {
   const ref = useRef<HTMLPreElement>(null);
-  useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [lines]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [lines, open]);
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)} aria-expanded={false}
+      className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-md border border-[var(--ink)]/20 px-3 text-sm font-semibold text-[var(--ink)]/75">
+      Show log <ChevronDown className="h-4 w-4" />
+    </button>
+  );
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">Debug log</p>
+        <button type="button" onClick={() => setOpen(false)} aria-expanded
+          className="inline-flex min-h-11 items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--ink)]/65">
+          Debug log <ChevronDown className="h-4 w-4 rotate-180" />
+        </button>
         <button onClick={onClear} className="inline-flex min-h-11 items-center gap-1 px-2 text-sm text-[var(--ink)]/70"><Trash2 className="h-4 w-4" />Clear</button>
       </div>
+      {hint && <p className="mb-1 text-xs text-[var(--ink)]/65">{hint}</p>}
       <pre ref={ref} className="mt-1 h-56 overflow-auto rounded-md bg-[var(--ink)]/[0.06] p-2 text-[11px] leading-snug whitespace-pre-wrap break-all">
         {lines.length ? lines.join("\n") : "Nothing yet."}
       </pre>
@@ -85,6 +98,20 @@ function GrinderCard() {
   );
 }
 
+/** Whether the after-shot popup shows the TDS field (asked once in the first popup) */
+function TdsPrefSwitch() {
+  const [on, setOn] = useState(false);
+  useEffect(() => { setOn(getTdsPref() === "yes"); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+  return (
+    <label className="mt-3 flex min-h-11 items-center gap-3 text-base">
+      <input type="checkbox" className="h-6 w-6" checked={on}
+        onChange={(e) => { setOn(e.target.checked); setTdsPref(e.target.checked ? "yes" : "no"); }} />
+      Show the TDS after every shot
+      <span className="text-sm text-[var(--ink)]/60">(always shown while the DiFluid is connected)</span>
+    </label>
+  );
+}
+
 function DifluidCard() {
   const log = useLog();
   const [state, setState] = useState<DifluidState>("off");
@@ -110,10 +137,9 @@ function DifluidCard() {
         <button className={btn} onClick={() => run(async () => { link.current?.forget(); log.add("forgot the device: the next Connect shows Chrome's list"); })}>Forget and choose again</button>
       </div>
       <p className="mt-3 text-sm">{tds != null ? <>Last TDS <b>{tds.toFixed(2)} %</b></> : "No result yet. Measure here, or press the button on the R2."}</p>
-      <p className="mt-1 text-xs text-[var(--ink)]/65">
-        If it connects but no message ever arrives (no ← lines), the R2 may be locked to DiFluid&apos;s app: close the DiFluid app on your phone, turn the R2 off and on, and connect again.
-      </p>
-      <Log lines={log.lines} onClear={log.clear} />
+      <TdsPrefSwitch />
+      <Log lines={log.lines} onClear={log.clear}
+        hint={<>If it connects but no message ever arrives (no ← lines), the R2 may be locked to DiFluid&apos;s app: close the DiFluid app on your phone, turn the R2 off and on, and connect again.</>} />
     </Card>
   );
 }

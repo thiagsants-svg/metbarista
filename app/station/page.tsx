@@ -15,41 +15,43 @@
  * Preheat (toggle).
  */
 
+import type { AutoBrew } from "@/lib/station/auto-brew";
+import { ShotConsole } from "@/components/station/shot-console";
+import { stageLog } from "@/lib/stage-log";
+import { DEMO_PROFILE } from "@/lib/demo-shot";
 import { estimateTds, eyReferences, type EyReference } from "@/lib/tds-estimate";
 import { shotSummary } from "@/lib/coffee-history";
-import { timeHM } from "@/lib/format-date";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowUpToLine, Droplets, Flame, Heater, Loader2, Play, Scale, Smile, Square, Wind,
+  ArrowUpToLine, Droplets, Flame, Heater, Loader2, Play, Scale, Square, Wind,
 } from "lucide-react";
 import { ShotCharts, HeatingProgress, COLORS, type ShotPoint } from "@/components/shot-charts";
 import { PressureGauge, TemperatureGauge } from "@/components/pressure-gauge";
 import { ShotRating } from "@/components/shot-rating";
 import { SlideToStart } from "@/components/slide-to-start";
 import { MachineNotice } from "@/components/machine-notice";
-import { StageNow } from "@/components/profile-program-view";
 import { RecentShots } from "@/components/recent-shots";
 import { RecipePanel } from "@/components/station/recipe-panel";
 import { Readout, SmallButton } from "@/components/station/readout";
 import { StationHeader } from "@/components/station/station-header";
-import { EspressoGlass } from "@/components/station/espresso-glass";
+import { CUP_ASPECT, EspressoGlass } from "@/components/station/espresso-glass";
+import { RecipeSummary } from "@/components/station/recipe-summary";
 import { PurgePiston } from "@/components/station/purge-piston";
 import { InstallHint } from "@/components/station/install-hint";
-import { NewsLine } from "@/components/station/news-line";
+import { useNewsDot } from "@/components/station/news-line";
 import { mainButton } from "@/lib/station/main-button";
 import { usePurgeRelease } from "@/lib/station/use-purge-release";
 import { OfflineCard } from "@/components/station/offline-card";
 import { getSavedHostname, saveHostname } from "@/lib/machine-ip";
 import { readingsOf, type Readings } from "@/lib/station/readings";
 import { applyDemo, useStationDemoPlayback } from "@/lib/station/use-station-demo";
-import { profileTips } from "@/lib/profile-tip";
+import { profileShotCount, profileTips, TIP_SHOTS } from "@/lib/profile-tip";
 import { cachedReadings, daySec, listMaintenance } from "@/lib/piston-store";
 import { outlook } from "@/lib/piston";
 import type { PistonDue } from "@/components/recent-shots";
 import { refreshNow } from "@/lib/machine-socket";
 import { executeAction, getHistoryLight, getHistoryPicked, getMachineInfo, getSettings, listProfiles, loadProfileInline, updateSettings } from "@/lib/machine-api";
 import { pickRecentShots } from "@/lib/coffee-history";
-import { currentAndNext } from "@/lib/profile-program";
 import { getSavedIp, useRequireConnection } from "@/lib/connection-store";
 import { isClickToStart, isExtracting, isHeating, isIdle, isPurgeWait, isPurging, isWaitingForUser, isWaitingForWater } from "@/lib/brew-state";
 import {
@@ -89,9 +91,18 @@ export default function StationPage() {
   const [maintenanceDue, setMaintenanceDue] = useState<PistonDue | null>(null);
   /** /station/?demo=pour: the simulated shot still to be played, point by point */
   const [demoPour, setDemoPour] = useState<ShotPoint[] | null>(null);
+  /** When Skip stage was tapped in this shot (shot clock, ms), for the console's log */
+  /** The stage console under the chart; hidden, the chart takes its room (kept on this tablet) */
+  const [consoleOn, setConsoleOn] = useState(true);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the tablet's choice once, after the page loads
+    setConsoleOn(localStorage.getItem("metbarista_console") !== "off");
+  }, []);
+  const [skipMarks, setSkipMarks] = useState<{ first: ShotPoint | null; marks: number[] }>({ first: null, marks: [] });
   /** Auto brew: off by default and on every page load, on purpose. */
-  const [autoBrew, setAutoBrew] = useState(false);
-  const autoBrewRef = useRef(false);
+  /** Off on every page load, so a shot never starts by surprise */
+  const [autoBrew, setAutoBrew] = useState<AutoBrew>("off");
+  const autoBrewRef = useRef<AutoBrew>("off");
   const [busy, setBusy] = useState<ActionType | "load" | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [recipe, setRecipe] = useState<Recipe>(DEFAULT_RECIPE);
@@ -110,7 +121,7 @@ export default function StationPage() {
   const {
     connected, status, statusRef, preheatLeft, data, setData, grav, heatSamples, setHeatSamples,
     preShot, setTemp, setSetTemp, elapsed, setElapsed, autoFiredRef, pistonPos, setPistonPos,
-  } = useMachineLive({ onNotice: onSocketNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef, onAutoBrewUsed: () => setAutoBrew(false) });
+  } = useMachineLive({ onNotice: onSocketNotice, setError, setBusy, setTargetWeight, autoBrewRef, startedAtRef, onAutoBrewUsed: () => setAutoBrew("off") });
   const { grinderLink, linkRef, connectGrinder, toggleGrinder, live: grinderLive } =
     useGrinder({ grinder: recipe.grinder, setRecipe, setError, demo });
   const { difluid, deviceTds, measuring: difluidMeasuring, noReply: difluidNoReply, difluidTap } = useDifluid(setError);
@@ -322,6 +333,8 @@ export default function StationPage() {
     : readingsOf(status);
   const tempTarget = status?.setpoints?.temperature ?? null;
   const online = connected && !!status;
+  /** Firmware or company news not seen yet: a dot on the menu (the text is on Community) */
+  const newsDot = useNewsDot(online);
   // The machine hasn't answered for 8 s: say why and how to fix it, in the chart's place
   const [offlineLong, setOfflineLong] = useState(false);
   useEffect(() => {
@@ -379,7 +392,7 @@ export default function StationPage() {
   /** The cup filling with the scale's weight, up to the target line */
   const glass = (
     <EspressoGlass weight={data[data.length - 1]?.weight} scale={sensors.weight} target={targetWeight}
-      flow={data[data.length - 1]?.grav} brewing={brewing || demoPour !== null} />
+      flow={data[data.length - 1]?.grav} brewing={brewing || demoPour !== null} cupOnly />
   );
 
 
@@ -392,21 +405,10 @@ export default function StationPage() {
 
       <StationHeader title="Station" subtitle={status?.loaded_profile ? baseName(status.loaded_profile) : undefined}
         pill={statusPill(status, connected, preheatLeft)}
-        theme={theme} onToggleTheme={toggleTheme} />
+        theme={theme} onToggleTheme={toggleTheme} menuDot={newsDot} />
 
       {/* In Chrome's tab the Station loses the top of the screen: offer the app, only while idle */}
       {idle && !rateOpen && <InstallHint />}
-      {/* Newer firmware on the machine's channel, or a company update not seen yet */}
-      {idle && !rateOpen && online && <NewsLine />}
-      {/* A shot that ended without a rating (the page reloaded, the tablet slept): rate it now */}
-      {idle && !rateOpen && online && unrated && (
-        <button type="button" onClick={rateUnrated}
-          className="flex shrink-0 items-center gap-3 rounded-md border-2 border-[var(--accent)] bg-[var(--primary)]/15 px-3 py-2 text-left text-sm active:scale-[0.99]">
-          <Smile className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden />
-          <span className="min-w-0 flex-1"><b>Rate last shot</b> · the {timeHM(unrated.startedAt)} shot has no rating yet</span>
-          <span className="shrink-0 rounded-md bg-[var(--primary)] px-3 py-1.5 font-semibold text-[var(--on-primary)]">Rate</span>
-        </button>
-      )}
 
       {rateOpen && (() => {
         const last = data[data.length - 1];
@@ -438,11 +440,24 @@ export default function StationPage() {
       {/* ── Body: side by side in landscape, stacked in portrait ── */}
       <div className="grid min-h-0 flex-1 gap-2 sm:gap-2.5 grid-rows-[auto_minmax(0,1fr)_auto] landscape:grid-rows-[auto_minmax(0,1fr)] landscape:grid-cols-[minmax(0,1fr)_minmax(280px,31%)]">
         {/* Readouts */}
-        <div ref={readoutsRef} className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
+        <div ref={readoutsRef} className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.35fr)_minmax(0,0.8fr)_minmax(0,1.3fr)] gap-2 landscape:col-start-1">
           <Readout label="Time" value={brewing || data.length ? fmtClock(elapsed) : "—"} unit="" color="var(--ink)" />
-          <Readout label={sensors.weight != null && sensors.weight < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
-            value={sensors.weight != null && sensors.weight < -1 && !brewing ? "—" : fmt(sensors.weight)}
-            unit={targetWeight ? `/ ${targetWeight} g` : "g"} color={COLORS.weight} />
+          {/* Weight with the cup filling beside it (like the pressure dial), and the flow into the cup */}
+          <div className="flex h-full min-w-0 items-center justify-between gap-1 border-t-2 border-[var(--ink)] pt-1">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wider text-[var(--ink)]/65">
+                {sensors.weight != null && sensors.weight < -1 && !brewing ? "Weight · tap Tare" : "Weight"}
+              </p>
+              <p className="whitespace-nowrap text-[clamp(1.5rem,3.3vmax,2.6rem)] font-extrabold tracking-tight tabular-nums leading-tight" style={{ color: COLORS.weight }}>
+                {sensors.weight != null && sensors.weight < -1 && !brewing ? "—" : fmt(sensors.weight)}
+                <span className="ml-1 text-xs font-medium text-[var(--ink)]/65">{targetWeight ? `/ ${targetWeight} g` : "g"}</span>
+              </p>
+              {(brewing || demoPour !== null) && grav != null && (
+                <p className="text-xs tabular-nums text-[var(--ink)]/65">in cup {grav.toFixed(1)} g/s</p>
+              )}
+            </div>
+            <div className="relative h-[76px] shrink-0 self-end overflow-hidden" style={{ aspectRatio: CUP_ASPECT }}>{glass}</div>
+          </div>
           <Readout label="Flow" value={fmt(sensors.flow)} unit="ml/s" color={COLORS.flow} />
           {/* Gauge: temperature while heating, pressure otherwise */}
           {tempView ? (
@@ -466,17 +481,18 @@ export default function StationPage() {
             targetWeight={targetWeight}
             // No temperatures on the shot chart: the sensors read the emptying chamber, not the water at the puck
             showTemps={false}
-            glass={glass}
             footer={(() => {
-              // Program of the running stage: the loaded profile (same id as its base) or the chosen one
-              const stageName = demo ? "Pressure Decline" : brewing ? status?.name ?? null : null;
-              if (!stageName) {
-                if (brewing || tempView) return null;
-                if (data.length === 0) return null;
+              if (tempView || data.length === 0) return null;
+              // Stage log: the loaded profile (same id as its base) or the chosen one
+              const running = brewing || demoPour !== null;
+              const prof = demo ? DEMO_PROFILE : profiles.find((x) => x.id === status?.id) ?? baseProfile;
+              const log = stageLog(data, prof, running, skipMarks.first === data[0] ? skipMarks.marks : []);
+              let done = null;
+              if (!running) {
                 const last = data[data.length - 1];
                 const finalW = lastCup ?? last.weight ?? 0;
                 const peak = Math.max(0, ...data.map((d) => d.pressure ?? 0));
-                return (
+                done = (
                   <div className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-t-2 border-[var(--ink)] pt-2">
                     <span className="text-sm font-semibold uppercase tracking-wider text-[var(--ink)]/75">Shot done</span>
                     <span className="text-xl font-extrabold tabular-nums">{finalW.toFixed(1)}<span className="ml-1 text-sm font-medium text-[var(--ink)]/70">{targetWeight ? `/ ${targetWeight} g` : "g"}</span></span>
@@ -486,10 +502,29 @@ export default function StationPage() {
                   </div>
                 );
               }
-              const prof = profiles.find((x) => x.id === status?.id) ?? baseProfile;
-              const st = currentAndNext(prof, stageName);
-              return <StageNow current={st.current} next={st.next} index={st.index} total={st.total} />;
+              return (
+                <div className="flex shrink-0 flex-col gap-2">
+                  {consoleOn && <ShotConsole events={log.events} live={log.live}
+                    canSkip={(brewing && online) || demoPour !== null} skipBusy={busy === "continue"}
+                    onSkip={() => {
+                      // Same as the dial's "Skip this step": the machine's continue
+                      setSkipMarks((m) => ({ first: data[0], marks: [...(m.first === data[0] ? m.marks : []), data[data.length - 1].t] }));
+                      if (brewing) void run("continue");
+                    }} />}
+                  {done}
+                </div>
+              );
             })()}
+            headerRight={
+              <label className="flex min-h-9 cursor-pointer items-center gap-2 px-1 text-sm font-medium text-[var(--ink)]/70">
+                <input type="checkbox" className="h-5 w-5" checked={consoleOn}
+                  onChange={(e) => {
+                    setConsoleOn(e.target.checked);
+                    try { localStorage.setItem("metbarista_console", e.target.checked ? "on" : "off"); } catch { /* storage blocked */ }
+                  }} />
+                Console
+              </label>
+            }
             currentStage={demo ? "Pressure Decline" : brewing ? status?.name ?? null : null}
             live={{ pressure: sensors.pressure, flow: sensors.flow, grav, weight: sensors.weight, temp: sensors.temp }}
             placeholder={
@@ -499,7 +534,9 @@ export default function StationPage() {
                   titleColor={needsWater ? "var(--water)" : waiting ? "var(--accent)" : "var(--heat)"}
                   hint={needsWater ? "Pour the water, then tap Water added"
                     : waiting ? (isPurgeWait(status) ? "Tap Purge to continue"
-                      : autoBrew ? "Auto brew is on: brewing now" : "Tap Brew when you're ready")
+                      : autoBrew === "water" ? "Auto brew is on: brewing now"
+                        : autoBrew === "bardown" ? "Auto brew: brews when the Bar down is ready"
+                        : "Tap Brew when you're ready")
                     : "Prep the puck and cup"}
                   samples={heatSamples}
                   target={tempTarget ?? setTemp}
@@ -513,8 +550,11 @@ export default function StationPage() {
                 // Idle: the last shots of the coffee, and the temperature in one line
                 <RecentShots key={`${recipe.coffee ?? ""}|${recentShots?.[0]?.dbKey ?? recentShots?.length ?? "-"}`}
                   coffee={recipe.coffee} shots={recentShots} temp={sensors.temp} plan={nextPlan}
-                  profileTip={baseProfile ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null}
-                  maintenanceDue={maintenanceDue} />
+                  // The profile's tip for its first few shots here; after that it stays on the profile's page
+                  profileTip={baseProfile && profileShotCount(baseProfile.id) < TIP_SHOTS ? { name: baseProfile.name, tips: profileTips(baseProfile.display?.description) } : null}
+                  maintenanceDue={maintenanceDue}
+                  // A shot that ended without a rating (the page reloaded, the tablet slept): Rate on its row
+                  unrated={online && unrated ? { startedAt: unrated.startedAt, onRate: rateUnrated } : null} />
               )
             }
           />
@@ -523,6 +563,12 @@ export default function StationPage() {
 
         {/* Controls */}
         <div className={`grid min-h-0 gap-2 sm:gap-2.5 ${stopQuiet ? "grid-cols-[4fr_1fr]" : "grid-cols-[2fr_1fr]"} grid-rows-[auto_auto_auto] landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 landscape:grid-cols-1 landscape:grid-rows-[auto_minmax(0,1fr)_auto_auto]`}>
+          {/* While heating and during the shot the recipe can't change: one line, and the chart gets the room */}
+          {brewing || demo || (tempView && !preheating) ? (
+            <RecipeSummary profile={baseProfile?.name ?? null} recipe={recipe}
+              autoBrew={brewing || demo ? undefined : autoBrew}
+              onAutoBrew={(v) => { setAutoBrew(v); autoBrewRef.current = v; }} />
+          ) : (
           <RecipePanel
             profiles={profiles}
             base={baseProfile}
@@ -533,8 +579,9 @@ export default function StationPage() {
             onToggleGrinder={toggleGrinder}
             grinderLink={grinderLink}
             autoBrew={autoBrew}
-            onAutoBrew={(on) => { setAutoBrew(on); autoBrewRef.current = on; }}
+            onAutoBrew={(v) => { setAutoBrew(v); autoBrewRef.current = v; }}
           />
+          )}
 
           {/* Start heating: slide, so a stray tap can't start the machine. Brew stays a tap (wet hands slide badly). */}
           {mainAction === "load" && busy === null ? (

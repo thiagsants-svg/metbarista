@@ -17,7 +17,8 @@ import { composeShotNote } from "@/lib/shot-record";
 import { takeDose } from "@/lib/coffees";
 import { findNewShot, linkShot, pickRecentShots, recentShotsForCoffee, recordBrewGrind, rememberLatestShot, type CoffeeLastShot } from "@/lib/coffee-history";
 import { loadPlan, savePlan, type NextPlan } from "@/lib/next-plan";
-import { extractionYield, grindText, isMotto80, loadRecipe, type Recipe } from "@/lib/recipe";
+import { countProfileShot } from "@/lib/profile-tip";
+import { extractionYield, grindText, isMotto80, loadRecipe, pickBaseProfile, type Recipe } from "@/lib/recipe";
 import type { Motto80Link } from "@/lib/motto80";
 import type { Profile, ShotEntry } from "@/lib/types";
 import { shotFacts, type ShotFact } from "@/lib/shot-facts";
@@ -234,6 +235,8 @@ export function useShotRecord({ demo, profiles, recipe, brewing, purgeAsked, pur
       getHistoryLight(1).then((h) => { keyBeforeShotRef.current = h[0]?.db_key ?? null; }).catch(() => { /* time alone still works */ });
       // A frozen single dose of this coffee went into the shot
       takeDose(recipe.coffee);
+      // One more shot with this profile (its tip shows for the first few)
+      countProfileShot(pickBaseProfile(profiles, recipe.baseProfileId)?.id);
       const g = linkRef.current?.connected ? linkRef.current.latest : null;
       if (g && isMotto80(recipe.grinder)) {
         recordBrewGrind(grindText({ grinder: recipe.grinder ?? "Motto 80", grindUm: g.bladeGap, feed: g.feedingRpm, rpm: g.grindRpm }));

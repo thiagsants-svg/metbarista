@@ -14,8 +14,8 @@ import { cupWeight } from "./cup-weight";
 export const PREP_STAGE = /fill|bloom|soak|infus|wet|satur|landing|preinf/i;
 
 export type StageEnd =
-  | { kind: "goal"; trigger: string }
-  | { kind: "time"; seconds: number }
+  | { kind: "goal"; trigger: string; got?: number; unit?: string }
+  | { kind: "time"; seconds: number; got?: number }
   | { kind: "final"; grams: number }
   | { kind: "cut" }
   | { kind: "last" };
@@ -97,13 +97,17 @@ export function stageSummary(frames: ShotFrame[], profile?: Profile): StageSumma
         default: return null;
       }
     };
+    /** The value each met trigger read when it was met */
+    const gotAt = new Map<ExitTrigger, number>();
     const met = (st?.exit_triggers ?? []).filter((t) => {
       const want = triggerValue(t, profile);
       if (want == null) return false;
       const tol = TOL[t.type] ?? 0;
       return probes.some((at) => {
         const got = actualAt(t, at);
-        return got != null && (t.comparison === "<=" ? got <= want + tol : got >= want - tol);
+        const ok = got != null && (t.comparison === "<=" ? got <= want + tol : got >= want - tol);
+        if (ok) gotAt.set(t, got);
+        return ok;
       });
     });
     const goal = met.find((t) => t.type !== "time");
@@ -112,8 +116,9 @@ export function stageSummary(frames: ShotFrame[], profile?: Profile): StageSumma
     let ended: StageEnd;
     if (goal) {
       const v = triggerValue(goal, profile)!;
-      ended = { kind: "goal", trigger: `${goal.type === "piston_position" ? "piston" : goal.type} ${goal.comparison === "<=" ? "≤" : "≥"} ${v} ${UNIT[goal.type] ?? ""}`.trim() };
-    } else if (timeUp) ended = { kind: "time", seconds: triggerValue(timeUp, profile)! };
+      ended = { kind: "goal", trigger: `${goal.type === "piston_position" ? "piston" : goal.type} ${goal.comparison === "<=" ? "≤" : "≥"} ${v} ${UNIT[goal.type] ?? ""}`.trim(),
+        got: gotAt.get(goal), unit: UNIT[goal.type] ?? "" };
+    } else if (timeUp) ended = { kind: "time", seconds: triggerValue(timeUp, profile)!, got: gotAt.get(timeUp) };
     else if (isLast && finalWeight != null && cup >= finalWeight - 1.5) ended = { kind: "final", grams: finalWeight };
     else if (isLast) ended = { kind: "last" };
     else ended = { kind: "cut" };

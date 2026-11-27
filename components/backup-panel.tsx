@@ -38,7 +38,7 @@ export function BackupButton() {
         <span className={`${headerWord} ${stale ? "text-[var(--accent)]" : ""}`}>
           {stale ? (daysAgo == null ? "No backup" : `Backup · ${daysAgo} d`) : "Backup"}
         </span>
-        {stale && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--accent)] md:hidden" />}
+        {stale && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />}
       </button>
       {open && <BackupPanel lastAt={lastAt} onSaved={setSavedNow} onClose={() => setOpen(false)} />}
     </>

@@ -24,6 +24,7 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
 }) {
   const [name, setName] = useState(coffee?.name ?? "");
   const [roaster, setRoaster] = useState(coffee?.roaster ?? "");
+  const [roastDate, setRoastDate] = useState(coffee?.roastDate ?? "");
   const [notes, setNotes] = useState(coffee?.notes ?? "");
   const [status, setStatus] = useState<CoffeeStatus>(coffee?.status ?? "open");
   const [freezeMode, setFreezeMode] = useState<FreezeMode>(coffee?.freezeMode ?? "doses");
@@ -51,7 +52,7 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
     if (taken) { setError("There's already a coffee with this name"); return false; }
     const n = Number(doses);
     saveCoffee({
-      name, roaster, notes, status,
+      name, roaster, roastDate, notes, status,
       ...(status === "frozen" ? { freezeMode, doses: freezeMode === "doses" && doses.trim() && n >= 0 ? n : undefined } : {}),
     });
     if (!coffee) setCreated(true);
@@ -88,7 +89,7 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
   /** Archive it (the bag is empty) or bring it back, keeping what was typed */
   function setStatusNow(s: CoffeeStatus) {
     setStatus(s);
-    saveCoffee({ name: coffee!.name, roaster, notes, status: s });
+    saveCoffee({ name: coffee!.name, roaster, roastDate, notes, status: s });
     onChanged();
     onClose();
   }
@@ -132,10 +133,17 @@ export function CoffeeSheet({ coffee, onClose, onChanged }: {
         )}
         {taken && <p className="mt-1 text-sm text-[var(--accent)]">There&apos;s already a coffee with this name.</p>}
 
-        <input value={roaster} onChange={(e) => setRoaster(e.target.value)} placeholder="Roaster (optional)"
-          className={`${field} mt-3 h-11`} aria-label="Roaster" />
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <input value={roaster} onChange={(e) => setRoaster(e.target.value)} placeholder="Roaster (optional)"
+            className={`${field} h-11`} aria-label="Roaster" />
+          <label className="flex h-11 items-center gap-2 rounded-md border border-[var(--ink)]/25 px-3 text-sm text-[var(--ink)]/70">
+            Roasted
+            <input type="date" value={roastDate} onChange={(e) => setRoastDate(e.target.value)} aria-label="Roast date (optional)"
+              className="min-w-0 bg-transparent text-base text-[var(--ink)] outline-none" />
+          </label>
+        </div>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-          placeholder="Origin, process, roast date, notes on the bag… (optional)"
+          placeholder="Origin, process, notes on the bag… (optional)"
           className={`${field} mt-2 resize-none py-2`} aria-label="Notes" />
 
         <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--ink)]/70">Where it is</p>

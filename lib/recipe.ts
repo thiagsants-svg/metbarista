@@ -313,3 +313,25 @@ export function buildShotProfile(base: Profile, r0: Recipe): Profile {
   delete copy.last_changed;
   return copy;
 }
+
+/**
+ * Picking a profile as the recipe's base: it is designed for its own
+ * temperature and yield, so the recipe takes them (the wheels can change them after).
+ */
+export function profilePatch(profile: Profile, recipe: Pick<Recipe, "dose">): Partial<Recipe> {
+  const patch: Partial<Recipe> = { baseProfileId: profile.id };
+  const t = Number(profile.temperature);
+  if (Number.isFinite(t) && t >= 70 && t <= 100) patch.temperature = Math.round(t);
+  const fw = Number(profile.final_weight);
+  if (Number.isFinite(fw) && fw > 0 && recipe.dose > 0) {
+    const want = fw / recipe.dose;
+    patch.ratio = RATIO_PRESETS.reduce((best, x) => (Math.abs(x - want) < Math.abs(best - want) ? x : best), RATIO_PRESETS[0]);
+  }
+  return patch;
+}
+
+/** "Use on Station": the profile becomes the saved recipe's base (the Station loads it with the slide) */
+export function setStationProfile(profile: Profile): void {
+  const r = loadRecipe();
+  saveRecipe({ ...r, ...profilePatch(profile, r) });
+}

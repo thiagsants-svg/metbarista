@@ -13,7 +13,8 @@
  *  - profile stages shaded behind the curves, current stage highlighted
  */
 
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
+import { HeatBar } from "@/components/station/heat-bar";
 import { TEMP_LABEL } from "@/lib/station/readings";
 import { BAR_DOWN_MARGIN, barDownState, waterLeft } from "@/lib/heat-log";
 import { resistanceOf } from "@/lib/resistance";
@@ -83,8 +84,10 @@ function Gradient({ id, color, opacity = 0.14 }: { id: string; color: string; op
 }
 
 export function ShotCharts({
-  data, live, targetWeight, placeholder, currentStage, showTemps = false, footer, glass,
+  data, live, targetWeight, placeholder, currentStage, showTemps = false, footer, glass, headerRight,
 }: {
+  /** At the right end of the legend row (e.g. the console switch) */
+  headerRight?: React.ReactNode;
   /** Shown under the chart while there is shot data (e.g. the running stage) */
   footer?: React.ReactNode;
   /** Drawn inside the plot while there is shot data, behind the curves (the filling glass) */
@@ -112,17 +115,10 @@ export function ShotCharts({
           <span key={i.label} className="inline-flex items-baseline gap-1.5">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: i.color }} />
             <span className="text-sm font-medium text-[var(--ink)]/60">{i.label}</span>
-            <span className="font-mono text-lg font-bold tabular-nums" style={{ color: i.color }}>{i.value}</span>
-            <span className="text-xs text-[var(--ink)]/65">{i.unit}</span>
+
           </span>
         ))}
-        <span className="ml-auto flex items-center gap-2">
-          {currentStage && (
-            <span className="rounded-full bg-[var(--ink)]/[0.06] px-3 py-1 text-sm font-semibold text-[var(--accent)]">
-              {currentStage}
-            </span>
-          )}
-        </span>
+        {headerRight && <span className="ml-auto self-center">{headerRight}</span>}
       </div>
       {showTemps && data.length > 0 && (
         <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-0.5 px-1 pb-1">
@@ -365,12 +361,22 @@ export const HeatingProgress = memo(function HeatingProgress({
   /** x is epoch seconds: show a rolling window labelled with the time of day */
   clock?: boolean;
 }) {
-  const last = samples[samples.length - 1];
-  // The group's sensors stay on screen while heating: the Bar down (closest to the puck) is often the last to arrive
-  const shown = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
+  /** Every group sensor on the chart (the default), or just the water and the Bar down (kept on this tablet) */
+  const [allSensors, setAllSensors] = useState(true);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the tablet's choice once, after the page loads
+    setAllSensors(localStorage.getItem("metbarista_all_sensors") !== "off");
+  }, []);
+  const present = HEAT_SENSORS.filter((s) => samples.some((p) => typeof p[s.key] === "number"));
+  // The water and the Bar down (closest to the puck, often the last to arrive) decide; the rest on demand
+  const shown = allSensors ? present : present.filter((s) => s.key === "temp" || s.key === "barDown");
   const others = shown.filter((s) => s.key !== "temp");
-  const eta = heatEta(samples, target, current);
-  const barDownEta = barDownReady(samples, target);
+  const waterSecs = waterLeft(samples, target, current);
+  const waterReady = waterSecs === 0;
+  const bd = barDownState(samples, target);
+  const bdGoal = target != null ? target - BAR_DOWN_MARGIN : null;
+  const minutes = (sec: number) => (sec < 60 ? "under a minute" : `about ${Math.round(sec / 60)} min`);
+  const first = samples[0];
   const values = samples.flatMap((p) => shown.map((s) => p[s.key] as number | undefined))
     .filter((v): v is number => typeof v === "number");
   const lo = Math.floor(Math.min(...values, current ?? Infinity) - 2);
@@ -378,35 +384,37 @@ export const HeatingProgress = memo(function HeatingProgress({
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-1">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
-          <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
-            {current != null ? current.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[var(--ink)]/65">{target != null ? `→ ${target} °C` : "°C"}</span>
-          </p>
-          {/* How long is left, from how fast it's been climbing */}
-          {eta && <p className="mt-1 text-lg font-semibold text-[var(--ink)]/85">{eta}</p>}
-          {barDownEta && (
-            barDownEta.startsWith("Ready")
-              ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--good)] px-3 py-1 text-base font-bold text-[var(--paper)]">{barDownEta}</p>
-              : <p className="inline-flex items-center gap-1.5 text-base font-semibold text-[var(--ink)]/85">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--h4)" }} />{barDownEta}
-              </p>
+      <p className="text-sm font-medium uppercase tracking-wider" style={{ color: titleColor }}>{title}</p>
+      {/* Water and group on their way, how long is left from how fast each has been climbing */}
+      {target != null ? (
+        <div className="flex flex-col gap-2">
+          <HeatBar label="Water" value={current} start={typeof first?.temp === "number" ? first.temp : null} goal={target}
+            ready={waterReady} note={waterReady ? "ready" : waterSecs != null ? minutes(waterSecs) : null} />
+          {bd && bdGoal != null && (
+            <HeatBar label="Bar down" value={bd.barDown} start={typeof first?.barDown === "number" ? first.barDown : null} goal={bdGoal}
+              ready={bd.kind === "ready" || bd.kind === "settled"}
+              note={bd.kind === "ready" ? "ready" : bd.kind === "settled" ? "settled: ready" : bd.kind === "flat" ? "not climbing yet" : minutes(bd.left)} />
           )}
         </div>
-      </div>
-      {/* Legend with each sensor's current value */}
-      {others.length > 0 && <div className="flex flex-wrap gap-x-4 gap-y-1">
+      ) : (
+        <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">{current != null ? current.toFixed(1) : "—"}<span className="ml-2 text-2xl text-[var(--ink)]/65">°C</span></p>
+      )}
+      {/* Legend, and the switch for the other group sensors */}
+      {present.length > 1 && <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {shown.map((s) => (
           <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
             <span className="h-2 w-2 self-center rounded-full" style={{ backgroundColor: s.color }} />
             <span className="text-[var(--ink)]/60">{s.label}</span>
-            <span className="font-mono font-bold text-[var(--ink)]">
-              {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
-            </span>
           </span>
         ))}
+        <label className="ml-auto flex min-h-9 cursor-pointer items-center gap-2 text-sm font-medium text-[var(--ink)]/70">
+          <input type="checkbox" className="h-5 w-5" checked={allSensors}
+            onChange={(e) => {
+              setAllSensors(e.target.checked);
+              try { localStorage.setItem("metbarista_all_sensors", e.target.checked ? "on" : "off"); } catch { /* storage blocked */ }
+            }} />
+          All sensors
+        </label>
       </div>}
       <div className="relative min-h-0 flex-1">
         {samples.length > 1 && (
@@ -425,7 +433,7 @@ export const HeatingProgress = memo(function HeatingProgress({
                   label={{ value: `${target} °C`, position: "insideTopRight", fill: "var(--ink)", fontSize: 12 }} />
               )}
               {others.map((s) => (
-                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
+                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={s.key === "barDown" ? 2.5 : 1.5}
                   strokeOpacity={0.85} dot={false} isAnimationActive={false} connectNulls />
               ))}
               <Area type="monotone" dataKey="temp" stroke="var(--heat)" strokeWidth={3} fill="url(#g-heat)"
@@ -465,133 +473,3 @@ export function barDownReady(samples: HeatPoint[], target: number | null, margin
   return s.left < 60 ? `Group (Bar down): under a minute to ${goal} °C` : `Group (Bar down): about ${Math.round(s.left / 60)} min to ${goal} °C`;
 }
 
-/**
- * Moving average over the last `windowS` seconds for every sensor, then
- * thinned to about `maxPoints` points. Sensor noise is a few tenths of a
- * degree; averaging keeps the trend and drops the jitter.
- */
-function smoothSamples(samples: HeatPoint[], windowS: number, maxPoints: number): HeatPoint[] {
-  if (samples.length < 3) return samples;
-  const keys = HEAT_SENSORS.map((s) => s.key).filter((k) => k !== "t") as (keyof HeatPoint)[];
-  const out: HeatPoint[] = [];
-  const step = Math.max(1, Math.floor(samples.length / maxPoints));
-  let start = 0;
-  for (let i = 0; i < samples.length; i++) {
-    while (samples[i].t - samples[start].t > windowS) start++;
-    if (i % step !== 0 && i !== samples.length - 1) continue;
-    const point: HeatPoint = { t: samples[i].t, temp: 0 };
-    for (const k of keys) {
-      let sum = 0, n = 0;
-      for (let j = start; j <= i; j++) {
-        const v = samples[j][k];
-        if (typeof v === "number") { sum += v; n++; }
-      }
-      if (n) (point as unknown as Record<string, number>)[k] = sum / n;
-    }
-    out.push(point);
-  }
-  return out;
-}
-
-const WINDOWS = [
-  { label: "30 s", s: 30 },
-  { label: "1 min", s: 60 },
-  { label: "5 min", s: 300 },
-  { label: "10 min", s: 600 },
-  { label: "15 min", s: 900 },
-];
-
-/**
- * Idle view: rolling chart of every thermometer. Scale fits the data so small
- * changes show; the main temperature (tube, what the dial shows) is a thick
- * line, the other sensors thin; time window buttons (10 min by default).
- * `samples[].t` is epoch seconds.
- */
-export const GroupTemperatures = memo(function GroupTemperatures({ samples, target }: { samples: HeatPoint[]; target: number | null }) {
-  const [windowS, setWindowS] = useState(600);
-  const now = samples.length ? samples[samples.length - 1].t : 0;
-  const raw = samples.filter((p) => now - p.t <= windowS);
-  // Average over ~1/40 of the window (3 s at 30 s ... 15 s at 10 min), ~240 points max
-  const shown = smoothSamples(raw, Math.min(20, Math.max(3, windowS / 40)), 240);
-  const last = samples[samples.length - 1];
-  const sensors = HEAT_SENSORS.filter((s) => shown.some((p) => typeof p[s.key] === "number"));
-  const values = shown.flatMap((p) => sensors.map((s) => p[s.key] as number | undefined))
-    .filter((v): v is number => typeof v === "number");
-  // Fit the data, but never zoom in to less than 6 °C, so tenths don't look like spikes
-  let lo = values.length ? Math.min(...values, target ?? Infinity) : 0;
-  let hi = values.length ? Math.max(...values, target ?? -Infinity) : 100;
-  const pad = Math.max(1, (6 - (hi - lo)) / 2);
-  lo = Math.floor(lo - pad);
-  hi = Math.ceil(hi + pad);
-  // Seconds on the axis whenever the visible span is short (also right after opening the page)
-  const span = shown.length ? shown[shown.length - 1].t - shown[0].t : 0;
-  const withSeconds = span <= 300;
-
-  return (
-    <div className="flex h-full w-full flex-col gap-2 p-1">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wider text-[var(--ink)]/70">Temperatures</p>
-          <p className="text-6xl font-extrabold tracking-tighter text-[var(--ink)]">
-            {typeof last?.temp === "number" ? last.temp.toFixed(1) : "—"}
-            <span className="ml-2 text-2xl text-[var(--ink)]/65">°C</span>
-          </p>
-        </div>
-        <div className="flex rounded-lg bg-[var(--ink)]/[0.05] p-0.5">
-          {WINDOWS.map((w) => (
-            <button key={w.s} onClick={() => setWindowS(w.s)}
-              className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-                windowS === w.s ? "bg-[var(--primary)] text-[var(--on-primary)]" : "text-[var(--ink)]/60"
-              }`}>
-              {w.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {sensors.map((s) => (
-          <span key={s.key} className="inline-flex items-baseline gap-1.5 text-sm">
-            <span className={`${s.key === "temp" ? "h-1" : "h-0.5"} w-3.5 self-center rounded-full`} style={{ backgroundColor: s.color }} />
-            <span className="text-[var(--ink)]/60">{s.label}</span>
-            <span className="font-mono font-bold text-[var(--ink)]">
-              {typeof last?.[s.key] === "number" ? (last[s.key] as number).toFixed(1) : "—"}
-            </span>
-          </span>
-        ))}
-        {target != null && (
-          <span className="inline-flex items-baseline gap-1.5 text-sm">
-            <span className="w-3.5 self-center border-t-2 border-dotted border-[var(--ink)]" />
-            <span className="text-[var(--ink)]/60">Target</span>
-            <span className="font-mono font-bold text-[var(--accent)]">{target}</span>
-          </span>
-        )}
-      </div>
-      <div className="relative min-h-0 flex-1">
-        {shown.length > 1 && (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={shown} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid vertical={false} stroke="color-mix(in srgb, var(--ink) 12%, transparent)" strokeDasharray="2 4" />
-              <XAxis dataKey="t" type="number" domain={["dataMin", "dataMax"]}
-                tickFormatter={(v) => new Date(v * 1000).toLocaleTimeString([], withSeconds
-                  ? { hour: "2-digit", minute: "2-digit", second: "2-digit" }
-                  : { hour: "2-digit", minute: "2-digit" })}
-                tick={AXIS_TICK} tickLine={false} axisLine={false} minTickGap={50} />
-              <YAxis domain={[lo, hi]} allowDecimals={false} width={34} unit="°"
-                tick={AXIS_TICK} tickLine={false} axisLine={false} />
-              {target != null && (
-                <ReferenceLine y={target} stroke="var(--ink)" strokeOpacity={0.8} strokeDasharray="2 4" />
-              )}
-              {sensors.filter((s) => s.key !== "temp").map((s) => (
-                <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={1.5}
-                  strokeOpacity={0.85} dot={false} activeDot={false} isAnimationActive={false} connectNulls />
-              ))}
-              {/* Main temperature on top, thick */}
-              <Line type="monotone" dataKey="temp" stroke={HEAT_SENSORS[0].color} strokeWidth={4}
-                dot={false} activeDot={false} isAnimationActive={false} connectNulls />
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-    </div>
-  );
-});

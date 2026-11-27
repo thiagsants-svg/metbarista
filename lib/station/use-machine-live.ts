@@ -10,6 +10,7 @@ import { activeTargets } from "@/lib/shot-facts";
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { HeatPoint, ShotPoint } from "@/components/shot-charts";
 import { stepHeatRun, type HeatRun } from "@/lib/heat-log";
+import { barDownGo, type AutoBrew } from "@/lib/station/auto-brew";
 import { getMachineInfo } from "@/lib/machine-api";
 import { connectSocket, disconnectSocket, refreshNow } from "@/lib/machine-socket";
 import { executeAction, type MachineNotification } from "@/lib/machine-api";
@@ -30,7 +31,7 @@ export function useMachineLive({
   setBusy: Dispatch<SetStateAction<ActionType | "load" | null>>;
   setTargetWeight: Dispatch<SetStateAction<number | null>>;
   /** Auto brew: off by default and on every page load, on purpose */
-  autoBrewRef: MutableRefObject<boolean>;
+  autoBrewRef: MutableRefObject<AutoBrew>;
   /** When this page last sent Start heating (to tell its shots from ones started on the dial) */
   startedAtRef: MutableRefObject<number>;
 }) {
@@ -44,6 +45,8 @@ export function useMachineLive({
   const [grav, setGrav] = useState<number | null>(null);
   const [heatSamples, setHeatSamples] = useState<HeatPoint[]>([]);
   const heatStartRef = useRef<number | null>(null);
+  /** The same curve, for the Auto brew check inside the socket handler */
+  const heatRef = useRef<HeatPoint[]>([]);
   /** From the first "heating" until extraction starts (or the machine goes idle). */
   const preShotRef = useRef(false);
   const [preShot, setPreShot] = useState(false);
@@ -104,13 +107,14 @@ export function useMachineLive({
         }
         setPreShot(preShotRef.current);
 
-        // Auto brew: tap Brew once when the machine is ready, if the user asked for it
-        // Only for a shot this page started (not one started on the dial), and only once
-        if (autoBrewRef.current && preShotRef.current && !autoFiredRef.current
+        // Auto brew: tap Brew once when the machine is ready (and, in that mode, the Bar down too),
+        // if the user asked for it. Only for a shot this page started (not one started on the dial), and only once
+        if (autoBrewRef.current !== "off" && preShotRef.current && !autoFiredRef.current
             && now - startedAtRef.current < 15 * 60_000
-            && isClickToStart(s)) {
+            && isClickToStart(s)
+            && (autoBrewRef.current === "water" || barDownGo(heatRef.current, s.setpoints?.temperature))) {
           autoFiredRef.current = true;
-          autoBrewRef.current = false;
+          autoBrewRef.current = "off";
           onAutoBrewUsed?.();
           setBusy("continue");
           executeAction("continue")
@@ -125,10 +129,13 @@ export function useMachineLive({
           const reading = { temp, ...groupTempsFor(groupTempsRef.current) };
           // Curve for the whole pre-shot session (heating view)
           if (preShotRef.current) {
-            if (heatStartRef.current == null) { heatStartRef.current = now; setHeatSamples([]); }
+            if (heatStartRef.current == null) { heatStartRef.current = now; heatRef.current = []; setHeatSamples([]); }
             const t = (now - heatStartRef.current) / 1000;
-            setHeatSamples((prev) =>
-              prev.length && t - prev[prev.length - 1].t < 1 ? prev : [...prev.slice(-1200), { t, ...reading }]);
+            const prev = heatRef.current;
+            if (!(prev.length && t - prev[prev.length - 1].t < 1)) {
+              heatRef.current = [...prev.slice(-1200), { t, ...reading }];
+              setHeatSamples(heatRef.current);
+            }
           }
         }
 

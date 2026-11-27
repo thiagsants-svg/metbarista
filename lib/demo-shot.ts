@@ -4,6 +4,7 @@
  */
 
 import type { ShotPoint } from "@/components/shot-charts";
+import type { Profile } from "@/lib/types";
 
 const STAGES: { name: string; until: number }[] = [
   { name: "Fill start", until: 2 },
@@ -42,3 +43,22 @@ export function demoShot(): ShotPoint[] {
   for (const p of pts) if (p.weight != null) p.weight = (p.weight * 40) / final;
   return pts;
 }
+
+/** The profile behind the demo shot, so the stage log has exits to read */
+export const DEMO_PROFILE = {
+  id: "demo", name: "Demo LRv2", author: "", author_id: "", previous_authors: [], display: {},
+  temperature: 94, final_weight: 40, variables: [],
+  stages: [
+    { name: "Fill start", key: "a", type: "flow", dynamics: { points: [[0, 6]], over: "time" },
+      exit_triggers: [{ type: "time", value: 2, relative: true }] },
+    { name: "Fill", key: "b", type: "flow", dynamics: { points: [[0, 8]], over: "time" },
+      exit_triggers: [{ type: "pressure", value: 3.2, comparison: ">=" }, { type: "time", value: 15, relative: true }],
+      limits: [{ type: "pressure", value: 3.5 }] },
+    { name: "Infuse", key: "c", type: "pressure", dynamics: { points: [[0, 3]], over: "time" },
+      exit_triggers: [{ type: "weight", value: 4, comparison: ">=" }, { type: "time", value: 12, relative: true }] },
+    { name: "Pressure Up", key: "d", type: "pressure", dynamics: { points: [[0, 3], [8, 9]], over: "time" },
+      exit_triggers: [{ type: "time", value: 8, relative: true }] },
+    { name: "Pressure Decline", key: "e", type: "pressure", dynamics: { points: [[0, 9], [30, 6]], over: "time" },
+      exit_triggers: [] },
+  ],
+} as unknown as Profile;

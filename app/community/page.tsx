@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ExternalLink, MessageSquare, Coffee, GitBranch, Wrench, BookOpen, HelpCircle, Loader2, RefreshCw, Radio, Zap } from "lucide-react";
 import { useStationTheme } from "@/lib/station/use-theme";
 import { APP_NAME, REPO_URL, UPSTREAM } from "@/lib/brand";
+import { markFirmwareNewsSeen } from "@/components/station/news-line";
 import { CHANNELS, latestChangelog, latestPerChannel, markCompanyUpdateSeen, type BuildChangelog, type Channel } from "@/lib/firmware";
 
 const DISCORD_INVITE = "https://discord.gg/w48ha2h3";
@@ -137,6 +138,8 @@ function LatestFirmware() {
   const [latest, setLatest] = useState<Record<Channel, string | null> | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => { latestPerChannel().then(setLatest).catch(() => setFailed(true)); }, []);
+  // Seen here: the menu's news dot goes
+  useEffect(() => { markFirmwareNewsSeen(); }, []);
   const found = latest && CHANNELS.some((c) => latest[c]);
   return (
     <div className="space-y-3">
